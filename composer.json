@@ -1,0 +1,22 @@
+{
+  "name": "autorecon/project",
+  "description": "AutoRecon project dependencies",
+  "require": {
+    "phpoffice/phpspreadsheet": "^5.4",
+    "php": "^8.2"
+  },
+  "config": {
+    "audit": {
+      "block-insecure": false
+    },
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "8.2.12"
+    }
+  },
+  "autoload": {
+    "psr-4": {
+      "AutoRecon\\": "src/"
+    }
+  }
+}

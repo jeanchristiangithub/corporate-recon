@@ -1,0 +1,18 @@
+#webFetchModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1200; }
+#webFetchModal.is-open { display:block; }
+#webFetchModal .modal__panel { background:#fff; width:720px; margin:6vh auto; padding:16px; border-radius:6px; }
+#webFetchModal .modal__head { display:flex; justify-content:space-between; align-items:center; }
+#webFetchModal .modal__close { background:transparent; border:0; font-size:20px; }
+
+#webFetchModal .dropzone {
+	border: 2px dashed #d6d6d6;
+	padding: 12px;
+	border-radius: 6px;
+	text-align: center;
+	cursor: pointer;
+	background: #fafafa;
+}
+#webFetchModal .dropzone.is-dragover {
+	border-color: #7aa7ff;
+	background: #eef6ff;
+}

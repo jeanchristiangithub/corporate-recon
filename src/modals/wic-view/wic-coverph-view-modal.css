@@ -1,0 +1,167 @@
+/* wic-coverph-view-modal.css */
+.wic-coverph-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+  padding:20px;
+  box-sizing:border-box;
+}
+.wic-coverph-modal__box{
+  background:#fff;
+  width:100%;
+  max-width:1100px;
+  border-radius:6px;
+  padding:18px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.2);
+  box-sizing:border-box;
+  position:relative;
+  margin:auto;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+}
+.wic-coverph-modal__close{
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  background: #eee;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #333;
+}
+.wic-coverph-modal__export{
+  position: absolute;
+  right: 60px;
+  top: 10px;
+  min-width: 92px;
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: #e8434a;
+  color: #fff;
+  border: 0;
+  border-radius: 20px;
+  font-weight:700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.wic-coverph-modal__export:hover{ background:#d2363f; }
+.wic-coverph-modal__summary{
+  display:flex;
+  gap:12px;
+  margin:8px 0 14px 0;
+}
+.wic-coverph-modal__summary .summary-item{
+  background:#f7f7f7;
+  padding:8px 12px;
+  border-radius:4px;
+  font-weight:600;
+}
+.wic-coverph-modal__tables{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  max-height: calc(100vh - 220px);
+  overflow:auto;
+  padding-right:8px;
+}
+.wic-coverph-table{
+  flex:1 1 50%;
+  overflow:auto;
+}
+.wic-coverph-table table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+.wic-coverph-table thead th{
+  text-align:left;
+  padding:6px 8px;
+  background:#fafafa;
+  border-bottom:1px solid #ddd;
+}
+.wic-coverph-table tbody td{
+  padding:6px 8px;
+  border-bottom:1px solid #f0f0f0;
+}
+.col-date{width:48px}
+.col-vol{width:72px}
+.col-principal{width:120px}
+.col-commission{width:120px}
+.wic-coverph-large-table-wrap{
+  width:100%;
+  overflow:auto;
+}
+.wic-coverph-large{
+  width:100%;
+  min-width:1200px;
+  border-collapse:collapse;
+  font-size:13px;
+}
+.wic-coverph-large thead th{
+  text-align:left;
+  padding:10px 12px;
+  background:#f3f4f6;
+  border-bottom:2px solid #ddd;
+  white-space:nowrap;
+}
+.wic-coverph-large thead tr:first-child th{ font-weight:700; }
+.wic-coverph-large tbody td{
+  padding:8px 12px;
+  border-bottom:1px solid #f0f0f0;
+  white-space:nowrap;
+}
+.wic-coverph-large tbody tr:nth-child(even) td{ background:#fbfbfb; }
+.wic-coverph-large tfoot th, .wic-coverph-large tfoot td{
+  padding:10px 12px;
+  font-weight:700;
+  background:#f9fafb;
+  border-top:2px solid #ddd;
+}
+.wic-coverph-large .col-date{ width:48px; }
+.wic-coverph-large .wic-vol, .wic-coverph-large .webkpi-vol, .wic-coverph-large .dup-vol, .wic-coverph-large .netweb-vol, .wic-coverph-large .pvsw-vol{ width:80px; }
+.wic-coverph-large .wic-principal, .wic-coverph-large .webkpi-principal, .wic-coverph-large .dup-principal, .wic-coverph-large .netweb-principal, .wic-coverph-large .pvsw-principal{ width:140px; }
+.wic-coverph-large .wic-commission, .wic-coverph-large .webkpi-commission, .wic-coverph-large .dup-commission, .wic-coverph-large .netweb-commission, .wic-coverph-large .pvsw-commission{ width:120px; }
+.wic-coverph-large .deposit-debit, .wic-coverph-large .deposit-credit, .wic-coverph-large .deposit-variance{ width:110px; }
+.wic-coverph-large thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+.wic-coverph-total-strip{
+  display:flex;
+  gap:1px;
+  margin-top:8px;
+  width:fit-content;
+  border:1px solid #ffffff;
+  background:#ffffff;
+}
+.wic-coverph-total-strip .strip-cell{
+  min-width:32px;
+  height:24px;
+  padding:0 6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#ff0000;
+  color:#ffffff;
+  font-size:12px;
+  line-height:1;
+}
+.wic-coverph-modal__box{ display:flex; flex-direction:column; }
+.wic-coverph-modal__tables{ padding:0; }

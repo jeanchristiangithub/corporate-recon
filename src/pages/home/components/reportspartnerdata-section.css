@@ -1,0 +1,245 @@
+/* rwd-inner: inner padding container */
+.rwd-inner{
+	padding:1rem;
+}
+
+/* rwd-title: page title (h3) */
+.rwd-title{
+	margin:0 0 0.25rem;
+	color:#1f2937;
+	font-size:1.125rem;
+	font-weight:600;
+}
+
+/* rwd-subtitle: subtitle / descriptive paragraph */
+.rwd-subtitle{
+	margin:0 0 1rem;
+	color:#6b7280;
+	font-size:0.9rem;
+}
+
+/* rwd-form: filter form wrapper */
+.rwd-form{
+	background:#fff;
+	border:1px solid #e6eef6;
+	border-radius:8px;
+	padding:0.75rem;
+	display:flex;
+	gap:0.75rem;
+	align-items:center;
+}
+
+/* rwd-partner-group: label wrapper for the partner select (label styling) */
+.rwd-partner-group{
+	flex:1;
+	display:flex;
+	flex-direction:column;
+	gap:0.25rem;
+	font-size:0.75rem;
+	color:#6b7280;
+}
+
+/* rwd-partner-select: styles for the partner <select> control
+   Match sizing and appearance with the webdata-section input */
+.rwd-partner-select{
+	padding:8px;
+	border-radius:6px;
+	border:1px solid #e6eef6;
+	background:#fff;
+	min-width:60ch;
+	width:min(100%,72ch);
+	box-sizing:border-box;
+	font-size:0.95rem;
+}
+
+/* rwd-submit-wrap: container around the submit button */
+.rwd-submit-wrap{
+	display:flex;
+	align-items:center;
+}
+
+/* rwd-submit-btn: additional spacing / rounded corners for the view button */
+.rwd-submit-btn{
+	padding:0.55rem 1rem;
+	border-radius:6px;
+}
+
+/* rwd-duration: container for start/end date inputs placed after partner select */
+.rwd-duration{
+	display:flex;
+	align-items:center;
+	gap:0.5rem;
+}
+
+/* small label for the duration inputs */
+.rwd-duration-label{
+	font-size:0.75rem;
+	color:#6b7280;
+	margin-right:0.25rem;
+	white-space:nowrap;
+}
+
+.rwd-duration-input{
+	padding:8px;
+	border-radius:6px;
+	border:1px solid #e6eef6;
+	background:#fff;
+	min-width:12ch;
+	box-sizing:border-box;
+	font-size:0.95rem;
+}
+
+.rwd-duration-sep{
+	color:#6b7280;
+	font-weight:600;
+}
+
+@media (max-width:720px){
+	.rwd-form{flex-direction:column;align-items:flex-start}
+	.rwd-partner-select{min-width:unset;width:100%}
+	.rwd-duration{width:100%;gap:0.5rem}
+	.rwd-duration-input{width:100%}
+}
+
+/* rwd-results: results section container */
+.rwd-results {
+	margin-top: 1.5rem;
+	padding: 1rem;
+	background: #fff;
+	border: 1px solid #e6eef6;
+	border-radius: 8px;
+}
+
+/* rwd-results-header: title and action buttons for results */
+.rwd-results-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+	padding-bottom: 0.75rem;
+	border-bottom: 2px solid #e6eef6;
+}
+
+.rwd-results-header h4 {
+	margin: 0;
+	color: #1f2937;
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.rwd-results-header p {
+	margin: 0.25rem 0 0 0;
+	color: #6b7280;
+	font-size: 0.9rem;
+}
+
+/* rwd-results-table-wrap: scrollable container for table */
+.rwd-results-table-wrap {
+	overflow-x: auto;
+	border: 1px solid #e6eef6;
+	border-radius: 8px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* rwd-results-table: transaction results table */
+.rwd-results-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9rem;
+	background: #fff;
+}
+
+.rwd-results-table thead {
+	background: #f9fafb;
+	border-bottom: 1px solid #e6eef6;
+}
+
+.rwd-results-table thead th {
+	padding: 0.75rem;
+	text-align: left;
+	color: #6b7280;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.rwd-results-table tbody tr {
+	border-bottom: 1px solid #f0f0f0;
+	transition: background-color 0.12s ease;
+}
+
+.rwd-results-table tbody tr:hover {
+	background-color: #f9fafb;
+}
+
+.rwd-results-table tbody td {
+	padding: 0.75rem;
+	color: #1f2937;
+	vertical-align: middle;
+}
+
+/* Alternating row colors for better readability */
+.rwd-results-table tbody tr:nth-child(2n) {
+	background-color: #fafafa;
+}
+
+.rwd-results-table tbody tr:nth-child(2n):hover {
+	background-color: #f3f4f6;
+}
+
+/* Amount column: right-aligned, monospace */
+.rwd-results-table tbody td:nth-child(6) {
+	text-align: right;
+	font-family: 'Courier New', monospace;
+	font-weight: 500;
+	color: #059669;
+}
+
+/* Empty state message */
+.rwd-results-empty {
+	padding: 2rem;
+	text-align: center;
+	color: #9ca3af;
+	font-size: 0.95rem;
+}
+
+/* Export button styling */
+.rwd-export-btn {
+	padding: 0.55rem 1rem;
+	border-radius: 6px;
+	font-size: 0.9rem;
+	white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+	.rwd-results-table {
+		font-size: 0.85rem;
+	}
+
+	.rwd-results-table th,
+	.rwd-results-table td {
+		padding: 0.5rem;
+	}
+}
+
+@media (max-width: 720px) {
+	.rwd-results-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.rwd-results-table-wrap {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.rwd-results-table {
+		font-size: 0.8rem;
+	}
+
+	.rwd-results-table th,
+	.rwd-results-table td {
+		padding: 0.5rem 0.25rem;
+	}
+}
+

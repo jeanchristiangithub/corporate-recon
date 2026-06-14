@@ -1,0 +1,18 @@
+#partnerFetchModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1200; }
+#partnerFetchModal.is-open { display:block; }
+#partnerFetchModal .modal__panel { background:#fff; width:720px; margin:6vh auto; padding:16px; border-radius:6px; }
+#partnerFetchModal .modal__head { display:flex; justify-content:space-between; align-items:center; }
+#partnerFetchModal .modal__close { background:transparent; border:0; font-size:20px; }
+
+#partnerFetchModal .dropzone {
+	border: 2px dashed #d6d6d6;
+	padding: 12px;
+	border-radius: 6px;
+	text-align: center;
+	cursor: pointer;
+	background: #fafafa;
+}
+#partnerFetchModal .dropzone.is-dragover {
+	border-color: #7aa7ff;
+	background: #eef6ff;
+}

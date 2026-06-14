@@ -1,0 +1,658 @@
+/* WIC Recon View Modal — mirrored from MBTC styles */
+:root {
+    --color-main: #ffffff;
+    --color-highlight: #dc3545;
+    --color-text: #5f6368;
+    --color-title: #1f2937;
+    --surface: #f8fafc;
+    --surface-elevated: #ffffff;
+    --border-soft: #e5e7eb;
+    --shadow-1: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow-2: 0 16px 36px rgba(15, 23, 42, 0.12);
+    --matched-green: #e6f9e8;
+    --mismatch-red: #fff0f0;
+    --dup-yellow: #fff9e6;
+    --muted: #8b9196;
+}
+
+.moneygram-recon-modal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 10000;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.moneygram-recon-modal__panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    box-sizing: border-box;
+    background: var(--surface-elevated);
+    border-radius: 0;
+    padding: 6px;
+    overflow: hidden;
+    border: 0;
+    transform: none;
+    box-shadow: none;
+    transition: opacity .18s ease, box-shadow .18s ease;
+    opacity: 1;
+    will-change: opacity;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.moneygram-recon-modal.show .moneygram-recon-modal__panel,
+.moneygram-recon-modal__panel[data-open="true"] {
+    box-shadow: var(--shadow-2);
+}
+
+.moneygram-recon-modal__panel::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.98), rgba(220, 53, 69, 0.85));
+    box-shadow: 0 6px 18px rgba(220, 53, 69, 0.06);
+}
+
+.moneygram-recon-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 2px 0;
+    border-bottom: 1px solid var(--border-soft);
+    position: relative
+}
+
+.moneygram-recon-modal__head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--color-title);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px
+}
+
+.moneygram-recon-modal__head h3::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23dc3545' d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 16.5l-4.5-4.5 1.4-1.4L11 13.7l5.1-5.1 1.4 1.4L11 16.5z'/></svg>")
+}
+
+.moneygram-recon-modal__close {
+    font-size: 1rem;
+    background: transparent;
+    border: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-text);
+    transition: background .18s ease, transform .16s ease;
+}
+
+.moneygram-recon-modal__close:hover {
+    background: rgba(15, 23, 42, 0.04);
+    transform: scale(1.06);
+    color: var(--color-highlight);
+}
+
+
+.moneygram-recon-modal__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 6px 0;
+    flex-wrap: wrap
+}
+
+/* Summary layout */
+.moneygram-recon-modal__summary{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin:0;
+    color: var(--color-text);
+}
+.moneygram-recon-modal__summary .recon-summary__sep{ opacity: 0.6; margin: 0 8px; }
+.moneygram-recon-modal__summary .recon-summary__item{ white-space:nowrap; }
+
+.moneygram-recon-modal__metrics {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text)
+}
+
+.moneygram-recon-modal__metrics div {
+    line-height: 1.1
+}
+
+.moneygram-recon-modal__controls {
+    display: flex;
+    align-items: center;
+    gap: 12px
+}
+.moneygram-lock-btn {
+  padding: 6px 10px;
+  background: var(--color-highlight);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  height: 32px;
+}
+.moneygram-lock-btn[disabled] { opacity: 0.6; cursor: default; }
+
+/* Lock-all button used in header */
+.moneygram-lock-all-btn {
+        background: var(--color-highlight);
+        color: #fff;
+        border: 0;
+        border-radius: 8px;
+        font-weight: 700;
+        padding: 6px 14px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+}
+.moneygram-lock-all-btn[disabled]{ opacity: 0.6; cursor: default; }
+
+/* In-app action confirm modal */
+.moneygram-action-modal { position: fixed; top:0; left:0; width:100%; height:100%; display: none; align-items: center; justify-content: center; z-index: 11000; }
+.moneygram-action-modal__overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.moneygram-action-modal__dialog { position: relative; background: #fff; border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); padding: 18px; max-width: 420px; width: 92%; z-index: 2; }
+.moneygram-action-modal__dialog h4 { margin: 0 0 8px 0; font-size: 1.05rem; color: var(--color-title); }
+.moneygram-action-modal__body { margin-bottom: 14px; color: var(--color-text); line-height: 1.4; }
+.moneygram-action-modal__footer { display:flex; justify-content:flex-end; gap:10px; }
+.moneygram-action-modal__footer .moneygram-action-cancel { background: transparent; border: 1px solid var(--border-soft); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.moneygram-action-modal__footer .moneygram-action-confirm { background: var(--color-highlight); color: #fff; border: 0; padding: 6px 12px; border-radius: 8px; font-weight:700; cursor: pointer; }
+
+/* small top-right toast */
+.moneygram-action-toast { position: fixed; right: 18px; top: 18px; background: #111; color: #fff; padding: 10px 14px; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); z-index: 12000; opacity: 0; }
+
+.moneygram-recon-modal__controls input[type="search"] {
+    padding: 6px 8px;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    width: 180px
+}
+
+.moneygram-recon-modal__controls .custom-select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    background: var(--surface)
+}
+
+.moneygram-recon-modal__tables {
+    display: flex;
+    gap: 18px;
+    padding-top: 6px;
+    margin-top: 6px;
+    padding-right: 6px;
+    align-items: stretch;
+    flex: 1 1 auto; /* fill remaining modal height */
+    min-height: 0;
+    height: auto;
+}
+
+.moneygram-recon-modal__tables section {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header {
+    flex: 0 0 auto;
+    background: var(--surface-elevated);
+}
+
+.moneygram-table-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+.moneygram-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+/* fixed layout and column widths to keep left/right tables aligned */
+.moneygram-table { table-layout: fixed; width: 100%; }
+.moneygram-table th, .moneygram-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.moneygram-col-date { width: 140px; }
+.moneygram-col-ref, .moneygram-col-ccref { width: 180px; }
+.moneygram-col-amount { width: 140px; }
+.moneygram-col-currency { width: 120px; }
+
+.moneygram-table--head {
+    border-spacing: 0;
+}
+
+.moneygram-table--head thead th {
+    background: var(--surface-elevated);
+    text-align: left;
+    padding: 2px 6px;
+    font-weight: 700;
+    color: var(--color-title);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.moneygram-table-body-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    flex: 1 1 auto; /* expand to fill section */
+}
+
+.moneygram-table--body {
+    border-spacing: 0 8px;
+}
+
+.moneygram-table-body-scroll tbody td {
+    padding: 2px 6px;
+    line-height: 1.2;
+    color: var(--color-text);
+    vertical-align: middle;
+    border-bottom: none;
+}
+
+.moneygram-table-body-scroll tbody tr:nth-child(even) td {
+    background: rgba(240, 244, 247, 0.5);
+}
+
+.moneygram-table-body-scroll tbody tr.matched-row td {
+    background: var(--matched-green)
+}
+
+.moneygram-table-body-scroll tbody tr.mismatch-row td {
+    background: var(--mismatch-red)
+}
+
+.moneygram-table-body-scroll tbody tr.dup-row td {
+    background: var(--dup-yellow)
+}
+
+.dup-sep td {
+    background: var(--dup-yellow);
+    font-weight: 700;
+    padding: 8px;
+    color: #6a4f00
+}
+
+.moneygram-recon-modal__tables tbody tr.matched-row td:first-child {
+    border-left: 4px solid #34a853
+}
+
+.moneygram-recon-modal__tables tbody tr.mismatch-row td:first-child {
+    border-left: 4px solid var(--color-highlight)
+}
+
+.moneygram-recon-modal__tables tbody tr.dup-row td:first-child {
+    border-left: 4px solid #ffb300
+}
+
+/* Web Data row-only status classes: use background colors but no icons */
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-match td {
+    background: var(--matched-green);
+}
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-mismatch td {
+    background: var(--mismatch-red);
+}
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-duplicate td {
+    background: var(--dup-yellow);
+}
+
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-match td:first-child,
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-mismatch td:first-child,
+.moneygram-recon-modal__tables section:nth-of-type(2) .moneygram-table-body-scroll tbody tr.row-duplicate td:first-child {
+    border-left: 4px solid rgba(0,0,0,0.06);
+}
+
+.moneygram-table-body-scroll tbody tr:hover td {
+    box-shadow: inset 0 0 0 9999px rgba(15, 23, 42, 0.02);
+    transition: box-shadow .18s ease
+}
+
+.moneygram-table-body-scroll tbody td:first-child {
+    position: relative;
+    padding-left: 16px; /* tightened but keeps space for icon */
+}
+
+.moneygram-table-body-scroll tbody tr.matched-row td:first-child::before,
+.moneygram-table-body-scroll tbody tr.mismatch-row td:first-child::before,
+.moneygram-table-body-scroll tbody tr.dup-row td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background-size: contain;
+    background-repeat: no-repeat
+}
+
+.moneygram-table-body-scroll tbody tr.matched-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2334a853' d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/></svg>")
+}
+
+.moneygram-table-body-scroll tbody tr.mismatch-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23d93025' d='M18.3 5.7L12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3 10.6 10.6 16.9 4.3z'/></svg>")
+}
+
+.moneygram-table-body-scroll tbody tr.dup-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23ffb300' d='M1 21h22L12 2 1 21zM12 16a1.3 1.3 0 110-2.6A1.3 1.3 0 0112 16zm1-6h-2v4h2V10z'/></svg>")
+}
+
+.moneygram-recon-modal .status-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: var(--surface);
+    color: var(--muted)
+}
+
+.moneygram-recon-modal .status-dup {
+    background: var(--dup-yellow);
+    color: #8a6d00
+}
+
+.moneygram-recon-modal__tables section h4 {
+    background: var(--surface-elevated);
+    margin: 0;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--border-soft);
+    font-weight: 700;
+    color: var(--color-title)
+}
+
+.moneygram-recon-modal__tables section .moneygram-volume {
+    padding: 8px 12px 0px 12px;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin: 0;
+    position: relative;
+}
+
+.moneygram-recon-modal__tables section .moneygram-principal  { padding: 2px 6px; }
+.moneygram-recon-modal__tables section .moneygram-volume {
+    padding: 4px 8px 4px 8px;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin: 0;
+    display: inline-block;
+    line-height: 1.35;
+}
+
+.moneygram-recon-modal__tables section .moneygram-section-metrics {
+    display: flex;
+    gap: 20px;
+    align-items: baseline; /* align numeric baselines exactly */
+    padding: 0 12px 6px 12px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.35;
+    flex-wrap: wrap; /* remain responsive */
+}
+
+.moneygram-table--partners .moneygram-col-date {
+    width: 27%;
+}
+
+.moneygram-table--partners .moneygram-col-ref {
+    width: 26%;
+}
+
+.moneygram-table--partners .moneygram-col-amount {
+    width: 23%;
+}
+
+.moneygram-table--partners .moneygram-col-currency {
+    width: 24%;
+}
+
+.moneygram-table--web .moneygram-col-date {
+    width: 27%;
+}
+
+.moneygram-table--web .moneygram-col-ref {
+    width: 26%;
+}
+
+.moneygram-table--web .moneygram-col-amount {
+    width: 23%;
+}
+
+.moneygram-table--web .moneygram-col-currency {
+    width: 24%;
+}
+
+/* Ensure header/cell alignment matches between Partners and Web tables
+   Date (col 1) = left, Ref/CCREF (col 2) = left, Amount (col 3) = right, Currency (col 4) = center */
+.moneygram-table--partners.moneygram-table--head thead th:nth-child(3),
+.moneygram-table--partners.moneygram-table--head thead th:nth-child(4),
+.moneygram-table--web.moneygram-table--head thead th:nth-child(3),
+.moneygram-table--web.moneygram-table--head thead th:nth-child(4),
+.moneygram-table--partners.moneygram-table--body tbody td:nth-child(3),
+.moneygram-table--partners.moneygram-table--body tbody td:nth-child(4),
+.moneygram-table--web.moneygram-table--body tbody td:nth-child(3),
+.moneygram-table--web.moneygram-table--body tbody td:nth-child(4) {
+    text-align: center;
+}
+
+/* Amount column: ensure numeric cells are right-aligned and use tabular numbers for consistent width */
+.moneygram-table--partners.moneygram-table--body tbody td:nth-child(3),
+.moneygram-table--web.moneygram-table--body tbody td:nth-child(3) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.moneygram-recon-modal__tables section .moneygram-volume::after {
+    content: '';
+    display: none;
+    height: 3px;
+    width: 44px;
+    margin-top: 8px;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.95), rgba(220, 53, 69, 0.6));
+    border-radius: 2px
+}
+
+.comparison-count {
+    font-weight: normal;
+    font-size: 0.9em;
+    color: var(--muted);
+    margin-left: 8px
+}
+
+.moneygram-table-body-scroll::-webkit-scrollbar,
+.moneygram-recon-modal__panel::-webkit-scrollbar {
+    width: 10px;
+    height: 10px
+}
+
+.moneygram-table-body-scroll::-webkit-scrollbar-thumb,
+.moneygram-recon-modal__panel::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: content-box
+}
+
+.moneygram-table-body-scroll::-webkit-scrollbar-track {
+    background: transparent
+}
+
+@media (max-width:900px) {
+    .moneygram-recon-modal__panel {
+        width: 96vw !important;
+        height: 92vh !important;
+        padding: 4px;
+    }
+
+    .moneygram-recon-modal__controls input[type="search"] {
+        width: 140px; padding: 4px;
+    }
+
+    .moneygram-recon-modal__tables {
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .moneygram-recon-modal__tables section {
+        min-height: 360px;
+    }
+
+    .moneygram-table-body-scroll {
+        max-height: 40vh;
+    }
+}
+/* text-only compacting — moneygram modal */
+.moneygram-recon-modal__head h3 { font-size: 0.86rem; }
+.moneygram-recon-modal__metrics,
+.moneygram-recon-modal__controls,
+.moneygram-recon-modal__controls input[type="search"] { font-size: 0.78rem; }
+
+.moneygram-recon-modal__tables section h4 { font-size: 0.80rem; }
+.moneygram-recon-modal__tables .moneygram-volume,
+.moneygram-recon-modal__tables .moneygram-principal,
+.moneygram-recon-modal__tables .moneygram-section-metrics { font-size: 0.76rem; }
+
+.moneygram-table--head thead th { font-size: 0.78rem; }
+.moneygram-table-body-scroll tbody td { font-size: 0.78rem; }
+.moneygram-recon-modal .status-badge { font-size: 0.70rem; }
+.moneygram-recon-modal__panel { padding: 2px; }
+.moneygram-recon-modal__head { padding: 2px 0; border-bottom-width: 1px; }
+.moneygram-recon-modal__head h3 { font-size: 0.86rem; margin: 0 4px; }
+.moneygram-recon-modal__top { gap: 6px; margin: 4px 0; }
+.moneygram-recon-modal__metrics { gap: 8px; font-size: 0.82rem; }
+.moneygram-recon-modal__controls { gap: 6px; }
+.moneygram-recon-modal__controls input[type="search"] { padding: 4px 6px; width: 140px; }
+.moneygram-recon-modal__tables { gap: 8px; padding-top: 4px; margin-top: 4px; }
+.moneygram-table { border-spacing: 0 4px; }
+.moneygram-table--head thead th { padding: 1px 6px; font-size: 0.80rem; }
+.moneygram-table-body-scroll tbody td { padding: 1px 6px; font-size: 0.80rem; line-height: 1.05; }
+.moneygram-table-body-scroll tbody td:first-child { padding-left: 10px; }
+.moneygram-recon-modal__tables section h4 { padding: 1px 6px; font-size: 0.82rem; }
+.moneygram-recon-modal__tables .moneygram-volume,
+.moneygram-recon-modal__tables .moneygram-principal,
+.moneygram-recon-modal__tables .moneygram-section-metrics { padding: 2px 6px; font-size: 0.78rem; }
+.dup-sep td { padding: 4px; }
+.moneygram-recon-modal .status-badge { padding: 4px 6px; font-size: 0.72rem; border-radius: 6px; }
+/* prevent check icon overlapping text */
+.moneygram-table-body-scroll tbody td:first-child {
+  padding-left: 28px; /* space for icon + gap */
+}
+
+.moneygram-table-body-scroll tbody tr.matched-row td:first-child::before,
+.moneygram-table-body-scroll tbody tr.mismatch-row td:first-child::before,
+.moneygram-table-body-scroll tbody tr.dup-row td:first-child::before {
+  left: 8px;                /* distance from cell left edge */
+  width: 14px;
+  height: 14px;
+  background-size: 14px 14px;
+  z-index: 2;               /* keep icon above background but inside padding area */
+  top: 50%;
+  transform: translateY(-50%);
+}
+.moneygram-recon-modal__controls .custom-select,
+.moneygram-recon-modal__controls select,
+.moneygram-recon-modal__controls .custom-select select {
+padding: 4px 6px;
+font-size: 0.78rem;
+height: 28px;
+min-width: 70px;
+width: auto;
+border-radius: 6px;
+line-height: 1;
+}
+.moneygram-recon-modal__controls .custom-select::after { width:12px; height:12px; right:8px; }
+
+/* Lock-all matched button (header) */
+.moneygram-lock-all-btn{
+    background: linear-gradient(90deg,#dc3545,#c82333);
+    color:#fff;
+    border:0;
+    padding:6px 10px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:0.78rem;
+    cursor:pointer;
+    box-shadow: 0 6px 14px rgba(220,53,69,0.12);
+}
+.moneygram-lock-all-btn:hover{ transform: translateY(-1px); opacity:0.95 }
+.moneygram-lock-all-btn:disabled{ opacity:0.5; cursor:default; transform:none }
+
+/* Only show lock icon for partner-side rows that are matched and locked.
+   This prevents locks appearing in web rows (which do not render the check icon).
+   We show a lock pseudo-element (::after) and slide the check (::before) to the right. */
+.moneygram-table-body-scroll tbody tr.matched-row.locked-row td:first-child {
+    position: relative;
+    padding-left: 48px; /* room for lock + check */
+}
+.moneygram-table-body-scroll tbody tr.matched-row.locked-row td:first-child::after{
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    background-size: 14px 14px;
+    background-repeat: no-repeat;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23333' d='M12 17a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm6-7h-1V7a5 5 0 0 0-10 0v3H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zm-8-3a3 3 0 0 1 6 0v3H10V7z'/></svg>");
+    z-index: 4;
+}
+.moneygram-table-body-scroll tbody tr.matched-row.locked-row td:first-child::before{
+    left: 32px; /* move existing check icon to the right so lock appears before it */
+}
+/* Reduce left padding only for Web table first column (aligns Date with Partners) */
+.moneygram-table--web.moneygram-table--body tbody td:first-child {
+  padding-left: 10px; /* adjust (8–16px) to taste for perfect visual parity */
+}

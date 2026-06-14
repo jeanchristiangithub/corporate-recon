@@ -1,0 +1,118 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --color-main: #ffffff;
+    --color-highlight: #dc3545;
+    --color-text: #5f6368;
+    --color-title: #1f2937;
+    --surface-elevated: #ffffff;
+    --border-soft: #e5e7eb;
+    --shadow-1: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow-2: 0 16px 36px rgba(15, 23, 42, 0.12);
+}
+
+.day-card {
+    position: relative;
+}
+
+.day-lock-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.day-lock-btn:hover {
+    transform: scale(1.1);
+}
+
+.day-lock-btn[data-locked="true"] {
+    background: #ffebee;
+}
+
+.locked-day {
+    opacity: 0.85;
+    border: 2px solid #d32f2f !important;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #f8fafc;
+    min-height: 100vh;
+    color: var(--color-text);
+}
+
+.material-btn {
+    border: 0;
+    outline: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.65rem 1.1rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.material-btn:hover {
+    transform: translateY(-1px);
+}
+
+.material-btn--primary {
+    color: #fff;
+    background: var(--color-highlight);
+    box-shadow: var(--shadow-1);
+}
+
+.home-main {
+    padding: 1rem;
+    margin-left: 64px; /* reserve space for collapsed sidebar */
+    transition: margin-left .18s ease;
+}
+
+.construction-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 120;
+    padding: 1rem;
+}
+
+.construction-modal.is-open {
+    display: flex;
+}
+
+.construction-modal__card {
+    width: min(100%, 430px);
+    border-radius: 20px;
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-2);
+    padding: 1.3rem;
+    display: grid;
+    gap: 1rem;
+    color: var(--color-title);
+}
+
+@import url('./components/header.css');
+@import url('../../modals/password-modal/newlogin-reset-pass.css');

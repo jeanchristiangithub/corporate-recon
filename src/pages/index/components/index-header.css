@@ -1,0 +1,61 @@
+.index-header {
+    background: radial-gradient(700px 260px at 50% 0%, rgba(0,0,0,0.12), transparent 22%), linear-gradient(180deg, #ff6b6b 0%, #dc3545 55%, #a60f1a 100%);
+    min-height: 72px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.index-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.index-header__logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: transparent;
+}
+
+.index-header__name {
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+@media (min-width: 768px) {
+    .index-header {
+        padding: 0.75rem 2rem;
+    }
+}
+
+/* Login button styling */
+.index-header__login {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: #fff;
+    color: #dc3545;
+    box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+    border: 0;
+    font-weight: 600;
+}
+
+.index-header__login .icon {
+    display: inline-block;
+}
+
+.index-header__login:hover {
+    transform: translateY(-2px);
+}
+
+.index-header__login-text {
+    display: inline-block;
+}

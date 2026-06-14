@@ -1,0 +1,9 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^$ src/pages/index/index.php [L]
+
+# Allow direct page access fallbacks
+RewriteRule ^home$ src/pages/home/home.php [L,QSA]

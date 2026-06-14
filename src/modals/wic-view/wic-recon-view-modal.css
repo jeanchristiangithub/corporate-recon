@@ -1,0 +1,380 @@
+/* WIC Recon View Modal — mirrored from MBTC styles */
+:root {
+    --color-main: #ffffff;
+    --color-highlight: #dc3545;
+    --color-text: #5f6368;
+    --color-title: #1f2937;
+    --surface: #f8fafc;
+    --surface-elevated: #ffffff;
+    --border-soft: #e5e7eb;
+    --shadow-1: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --shadow-2: 0 16px 36px rgba(15, 23, 42, 0.12);
+    --matched-green: #e6f9e8;
+    --mismatch-red: #fff0f0;
+    --dup-yellow: #fff9e6;
+    --muted: #8b9196;
+}
+
+.wic-recon-modal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 10000;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.wic-recon-modal__panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    box-sizing: border-box;
+    background: var(--surface-elevated);
+    border-radius: 0;
+    padding: 22px;
+    overflow: auto;
+    border: 0;
+    transform: none;
+    box-shadow: none;
+    transition: opacity .18s ease, box-shadow .18s ease;
+    opacity: 1;
+    will-change: opacity;
+}
+
+.wic-recon-modal.show .wic-recon-modal__panel,
+.wic-recon-modal__panel[data-open="true"] {
+    box-shadow: var(--shadow-2);
+}
+
+.wic-recon-modal__panel::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 6px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.98), rgba(220, 53, 69, 0.85));
+    box-shadow: 0 6px 18px rgba(220, 53, 69, 0.06);
+}
+
+.wic-recon-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 6px 0;
+    border-bottom: 1px solid var(--border-soft);
+    position: relative
+}
+
+.wic-recon-modal__head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--color-title);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px
+}
+
+.wic-recon-modal__head h3::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23dc3545' d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM11 16.5l-4.5-4.5 1.4-1.4L11 13.7l5.1-5.1 1.4 1.4L11 16.5z'/></svg>")
+}
+
+.wic-recon-modal__close {
+    font-size: 1rem;
+    background: transparent;
+    border: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-text);
+    transition: background .18s ease, transform .16s ease;
+}
+
+.wic-recon-modal__close:hover {
+    background: rgba(15, 23, 42, 0.04);
+    transform: scale(1.06);
+    color: var(--color-highlight);
+}
+
+
+.wic-recon-modal__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 16px 0;
+    flex-wrap: wrap
+}
+
+.wic-recon-modal__metrics {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--color-text)
+}
+
+.wic-recon-modal__metrics div {
+    line-height: 1.1
+}
+
+.wic-recon-modal__controls {
+    display: flex;
+    align-items: center;
+    gap: 12px
+}
+
+.wic-recon-modal__controls input[type="search"] {
+    padding: 8px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    width: 240px
+}
+
+.wic-recon-modal__controls .custom-select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    background: var(--surface)
+}
+
+.wic-recon-modal__tables {
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;   /* ONE scroll bar governs both columns */
+    overflow-x: auto;
+    display: flex;
+    gap: 18px;
+    padding-top: 6px;
+    margin-top: 6px;
+    padding-right: 6px;
+    align-items: flex-start; /* let sections grow to natural height */
+}
+
+.wic-recon-modal__tables section {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    overflow: visible; /* must NOT be a scroll container — outer handles it */
+}
+
+.wic-section-metrics {
+    padding: 8px 12px 6px 12px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.35;
+}
+
+.wic-recon-modal__tables table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px
+}
+
+.wic-recon-modal__tables thead th {
+    position: sticky;
+    top: 41px; /* offset below h4 */
+    background: var(--surface-elevated);
+    z-index: 5;
+    text-align: left;
+    padding: 6px 8px;
+    font-weight: 700;
+    color: var(--color-title);
+    border-bottom: 1px solid var(--border-soft)
+}
+
+.wic-recon-modal__tables tbody td {
+    padding: 4px 8px;
+    line-height: 1.2;
+    color: var(--color-text);
+    vertical-align: middle;
+    border-bottom: none
+}
+
+.wic-recon-modal__tables tbody tr:nth-child(even) td {
+    background: rgba(240, 244, 247, 0.5);
+}
+
+.wic-recon-modal__tables tbody tr.matched-row td {
+    background: var(--matched-green)
+}
+
+.wic-recon-modal__tables tbody tr.mismatch-row td {
+    background: var(--mismatch-red)
+}
+
+.wic-recon-modal__tables tbody tr.dup-row td {
+    background: var(--dup-yellow)
+}
+
+.dup-sep td {
+    background: var(--dup-yellow);
+    font-weight: 700;
+    padding: 8px;
+    color: #6a4f00
+}
+
+.wic-recon-modal__tables tbody tr.matched-row td:first-child {
+    border-left: 4px solid #34a853
+}
+
+.wic-recon-modal__tables tbody tr.mismatch-row td:first-child {
+    border-left: 4px solid var(--color-highlight)
+}
+
+.wic-recon-modal__tables tbody tr.dup-row td:first-child {
+    border-left: 4px solid #ffb300
+}
+
+/* Web Data row-only status classes: use background colors but no icons */
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-match td {
+    background: var(--matched-green);
+}
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-mismatch td {
+    background: var(--mismatch-red);
+}
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-duplicate td {
+    background: var(--dup-yellow);
+}
+
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-match td:first-child,
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-mismatch td:first-child,
+.wic-recon-modal__tables section:nth-of-type(2) tbody tr.row-duplicate td:first-child {
+    border-left: 4px solid rgba(0,0,0,0.06);
+}
+
+.wic-recon-modal__tables tbody tr:hover td {
+    box-shadow: inset 0 0 0 9999px rgba(15, 23, 42, 0.02);
+    transition: box-shadow .18s ease
+}
+
+.wic-recon-modal__tables tbody td:first-child {
+    position: relative;
+    padding-left: 28px; /* tightened but keeps space for icon */
+}
+
+.wic-recon-modal__tables tbody tr.matched-row td:first-child::before,
+.wic-recon-modal__tables tbody tr.mismatch-row td:first-child::before,
+.wic-recon-modal__tables tbody tr.dup-row td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background-size: contain;
+    background-repeat: no-repeat
+}
+
+.wic-recon-modal__tables tbody tr.matched-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%2334a853' d='M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/></svg>")
+}
+
+.wic-recon-modal__tables tbody tr.mismatch-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23d93025' d='M18.3 5.7L12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3 10.6 10.6 16.9 4.3z'/></svg>")
+}
+
+.wic-recon-modal__tables tbody tr.dup-row td:first-child::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23ffb300' d='M1 21h22L12 2 1 21zM12 16a1.3 1.3 0 110-2.6A1.3 1.3 0 0112 16zm1-6h-2v4h2V10z'/></svg>")
+}
+
+.wic-recon-modal .status-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: var(--surface);
+    color: var(--muted)
+}
+
+.wic-recon-modal .status-dup {
+    background: var(--dup-yellow);
+    color: #8a6d00
+}
+
+.wic-recon-modal__tables section h4 {
+    position: sticky;
+    top: 0;
+    background: var(--surface-elevated);
+    z-index: 6;
+    margin: 0;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    font-weight: 700;
+    color: var(--color-title)
+}
+
+.wic-recon-modal__tables section h4::after {
+    content: '';
+    display: block;
+    height: 3px;
+    width: 44px;
+    margin-top: 8px;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.95), rgba(220, 53, 69, 0.6));
+    border-radius: 2px
+}
+
+.comparison-count {
+    font-weight: normal;
+    font-size: 0.9em;
+    color: var(--muted);
+    margin-left: 8px
+}
+
+.wic-recon-modal__tables::-webkit-scrollbar,
+.wic-recon-modal__panel::-webkit-scrollbar {
+    width: 10px;
+    height: 10px
+}
+
+.wic-recon-modal__tables::-webkit-scrollbar-thumb,
+.wic-recon-modal__panel::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: content-box
+}
+
+.wic-recon-modal__tables::-webkit-scrollbar-track {
+    background: transparent
+}
+
+@media (max-width:900px) {
+    .wic-recon-modal__panel {
+        width: 96vw !important;
+        height: 92vh !important
+    }
+
+    .wic-recon-modal__controls input[type="search"] {
+        width: 160px
+    }
+
+    .wic-recon-modal__tables {
+        flex-direction: column
+    }
+}

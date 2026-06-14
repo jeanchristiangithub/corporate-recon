@@ -1,0 +1,160 @@
+.login-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    padding: 1rem;
+}
+
+.login-modal.is-open {
+    display: flex;
+}
+
+.login-modal__card {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 1rem;
+    border-radius: 14px;
+    background: #fff;
+    padding: 0.5rem;
+    box-shadow: 0 18px 48px rgba(2,6,23,0.12);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-modal__close {
+    position: absolute;
+    right: 0.85rem;
+    top: 0.7rem;
+    border: none;
+    background: transparent;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.login-modal__close {
+    position: absolute;
+    right: 0.85rem;
+    top: 0.7rem;
+    border: none;
+    background: transparent;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #64748b;
+    transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.login-modal__close:hover {
+    background: rgba(220,53,69,0.12);
+    color: var(--color-highlight);
+    border-radius: 8px;
+    transform: translateY(-1px);
+}
+
+.login-modal__subtitle {
+    margin-top: 0.35rem;
+    margin-bottom: 1rem;
+    color: #6b7280;
+}
+
+.login-modal__error {
+    margin-bottom: 0.9rem;
+    border-radius: 10px;
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.login-modal__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    align-items: stretch;
+}
+
+.login-modal__brand {
+    background: linear-gradient(180deg, #fff 0%, #fff 100%);
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.login-modal__logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background: transparent;
+}
+
+.login-modal__form {
+    padding: 1rem 1rem 1.25rem;
+}
+
+.login-form {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.login-form label {
+    font-size: 0.9rem;
+    color: #334155;
+    margin-top: 0.3rem;
+}
+
+.input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--color-highlight);
+}
+
+.input-wrap input {
+    width: 100%;
+    padding: 0.6rem 0.9rem 0.6rem 40px;
+    border-radius: 8px;
+    border: 1px solid #e6eef6;
+    font: inherit;
+}
+
+.input-wrap input:focus {
+    border-color: var(--color-highlight);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(220,53,69,0.06);
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    height: 34px;
+    width: 38px;
+    border: none;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.login-form__submit {
+    width: 100%;
+    margin-top: 0.8rem;
+}
+
+@media (max-width: 720px) {
+    .login-modal__card { width: calc(100% - 2rem); max-width: 520px; }
+}

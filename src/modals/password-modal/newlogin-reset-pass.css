@@ -1,0 +1,90 @@
+/* Password reset modal: match login modal styles */
+.login-modal,
+.password-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17,24,39,0.6);
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.login-modal.is-open,
+.password-modal.is-open { display: flex; }
+
+.login-modal__card,
+.password-modal__card {
+    position: relative;
+    width: min(100%, 920px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.2);
+    padding: 0.8rem;
+    overflow: hidden;
+}
+
+.login-modal__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+}
+
+@media (min-width: 720px) {
+    .login-modal__grid { grid-template-columns: 260px 1fr; }
+}
+
+.login-modal__brand {
+    background: linear-gradient(180deg,#fff,#fbfbfb);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    border-right: 1px solid rgba(15,23,42,0.04);
+}
+
+.login-modal__logo {
+    width: 88px;
+    height: 88px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: transparent;
+    padding: 6px;
+}
+
+.login-modal__brand h2,
+.login-modal__brand .login-modal__subtitle { margin: 0; }
+.login-modal__brand h2 { font-size: 1.15rem; color: #111827; }
+.login-modal__subtitle { color: #6b7280; font-size: 0.95rem; }
+
+.login-modal__form { padding: 12px 14px; }
+.login-modal__error { margin-bottom: 8px; border-radius:8px; background:#fee2e2; color:#b91c1c; padding:8px; font-size:0.95rem; }
+
+.password-form,
+.login-form { display: grid; gap: 0.6rem; }
+.password-form label { color:#334155; font-size:0.9rem; }
+
+.input-wrap { position: relative; display:flex; align-items:center; }
+.input-wrap input { width:100%; border:1px solid #d1d5db; border-radius:10px; padding:10px 40px 10px 40px; font:inherit; }
+.input-icon { position: absolute; left:12px; color:#6b7280; }
+.password-toggle { position:absolute; right:8px; background:transparent;border:0;padding:6px;border-radius:6px;cursor:pointer;color:#6b7280 }
+.password-toggle .material-icons{ font-size:20px }
+
+.material-btn { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:#f3f4f6; color:#111827; cursor:pointer }
+.material-btn--primary, .material-btn.primary { background:var(--color-highlight); color:#fff; border-color:transparent }
+
+.login-modal__close { position:absolute; right:12px; top:12px; background:transparent;border:0;padding:4px;line-height:1;color:#374151; cursor:pointer; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+.login-modal__close:hover { background: rgba(0,0,0,0.06); }
+.login-modal__close .material-icons { font-size:22px; }
+
+/* small responsive adjustments */
+@media (max-width: 480px){
+    .login-modal__logo{width:68px;height:68px}
+    .login-modal__card{padding:12px}
+}
+
+/* legacy selectors kept for compatibility */
+.password-modal__card { box-shadow: none; background: transparent; }
+.password-form__error { color:#b91c1c }
