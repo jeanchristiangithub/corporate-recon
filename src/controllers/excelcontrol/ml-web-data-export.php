@@ -25,6 +25,7 @@ try {
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
+    $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
 
     // Treat 'ALL' as empty
     if (strcasecmp($mainzone, 'ALL') === 0) $mainzone = '';
@@ -85,17 +86,19 @@ try {
     if ($area !== '' && isset($availableColumns['area'])) { $whereSql .= ' AND TRIM(COALESCE(area, "")) = TRIM(?)'; $params[] = $area; }
     if ($branch_name !== '' && $branchNameColumn !== null) { $whereSql .= ' AND LOWER(COALESCE(`' . $branchNameColumn . '`, "")) LIKE ?'; $params[] = '%' . strtolower($branch_name) . '%'; }
     if ($branch_id !== '' && isset($availableColumns['branch_id'])) { $whereSql .= ' AND LOWER(COALESCE(branch_id, "")) LIKE ?'; $params[] = '%' . strtolower($branch_id) . '%'; }
+    if (in_array($currency, ['PHP', 'USD'], true) && isset($availableColumns['currency'])) { $whereSql .= ' AND UPPER(TRIM(currency)) = ?'; $params[] = $currency; }
 
     // Query: select all filtered rows, ordered by currency (PHP first, USD second), then date desc
     $selectCols = '';
     $selectColsArr = [];
     if (isset($availableColumns['date_send'])) $selectColsArr[] = 'date_send';
     if (isset($availableColumns['date_claimed'])) $selectColsArr[] = 'date_claimed';
-    $selectColsArr = array_merge($selectColsArr, ['no', 'control_series_no', 'ccref_no', 'currency', 'amount', 'sender_name', 'beneficiary_receiver']);
+    $selectColsArr = array_merge($selectColsArr, ['control_series_no', 'kptn', 'ccref_no', 'currency', 'amount', 'sender_name', 'beneficiary_receiver', 'operator']);
+    if (isset($availableColumns['branch_id'])) {
+        $selectColsArr[] = 'branch_id';
+    }
     if (strtolower($type) === 'sendout' && isset($availableColumns['charge'])) {
         $selectColsArr[] = 'charge';
-    } else {
-        $selectColsArr[] = 'operator';
     }
     $selectColsArr[] = isset($availableColumns['branch']) ? 'branch' : 'branch_name';
     $selectCols = implode(', ', $selectColsArr);
@@ -129,7 +132,7 @@ try {
 
     // Build filename (sanitize)
     function sanitize_filename($s) {
-        $s = preg_replace('/[\\\/\:\*\?"\<\>\|]+/', '_', $s);
+        $s = preg_replace('#[\\\\/:*?"<>|]+#', '_', $s);
         $s = preg_replace('/\s+/', ' ', trim($s));
         $s = str_replace(' ', ' ', $s);
         return $s;
@@ -139,9 +142,10 @@ try {
     $fileStart = $start_date;
     $fileEnd = $end_date;
     $fileType = $type === '' ? 'ALL' : strtoupper($type);
+    $fileCurrency = in_array($currency, ['PHP', 'USD'], true) ? $currency : 'ALL';
     $fileBranch = $branch_name !== '' ? strtoupper($branch_name) : '';
 
-    $filenameParts = [$filePartner, $fileStart . '_to_' . $fileEnd, $fileType];
+    $filenameParts = [$filePartner, $fileStart . '_to_' . $fileEnd, $fileType, $fileCurrency];
     if ($fileBranch !== '') $filenameParts[] = $fileBranch;
     $filename = implode('_', $filenameParts) . '.xlsx';
     $filename = sanitize_filename($filename);
@@ -151,62 +155,95 @@ try {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Transactions');
 
+    // Summary headers (rows 1-6)
+    $reportTitle = 'KPX Web Data Transactions';
+    $sheet->setCellValue('A1', $reportTitle);
+    $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+    $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+    $sheet->setCellValue('A2', 'Corporate Partner: ' . $partner);
+    $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
+
+    $transactionTypeDisplay = $type === '' ? 'ALL' : strtoupper($type);
+    $sheet->setCellValue('A3', 'Transaction Type: ' . $transactionTypeDisplay);
+    $sheet->getStyle('A3')->getFont()->setBold(true)->setSize(11);
+
+    $sheet->setCellValue('A4', 'Report Date: ' . date('F d, Y', strtotime($end_date)));
+    $sheet->getStyle('A4')->getFont()->setSize(10);
+
+    $sheet->setCellValue('A5', 'Volume: ' . number_format(count($rows)) . ' transactions');
+    $sheet->setCellValue('A6', 'Principal: PHP: ' . number_format(abs($php_total), 2, '.', ',') . ' USD: ' . number_format(abs($usd_total), 2, '.', ','));
+    if (strtolower($type) === 'sendout') {
+        $sheet->setCellValue('A7', 'Charge: PHP: ' . number_format(abs($charge_total), 2, '.', ','));
+    }
+    $sheet->getStyle('A5:A7')->getFont()->setBold(true);
+
     // Header row
-    $headers = ['No.', 'Control Series', ucwords(str_replace('_', ' ', $dateColumn)), 'CCREF NO', 'Currency', 'Amount', 'Sender', 'Beneficiary', strtolower($type) === 'sendout' ? 'Charge' : 'Operator', 'Branch'];
+    $isSendout = strtolower($type) === 'sendout';
+    $headerRowNum = $isSendout ? 9 : 8;
+    $headers = [$dateColumn === 'date_send' ? 'Date Send' : 'Date Claimed', 'Branch', 'Branch ID', 'Control Series', 'KPTN', 'CCREF NO', 'Amount'];
+    if ($isSendout) {
+        $headers[] = 'Charge';
+    }
+    $headers = array_merge($headers, ['Currency', 'Sender', 'Beneficiary', 'Operator']);
     $col = 'A';
     foreach ($headers as $h) {
-        $sheet->setCellValue($col . '1', $h);
+        $sheet->setCellValue($col . $headerRowNum, $h);
         $col++;
     }
 
+    $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+
     // Bold header and style
-    $sheet->getStyle('A1:J1')->getFont()->setBold(true);
-    $sheet->getStyle('A1:J1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    $sheet->freezePane('A2');
+    $sheet->getStyle('A' . $headerRowNum . ':' . $lastCol . $headerRowNum)->getFont()->setBold(true);
+    $sheet->getStyle('A' . $headerRowNum . ':' . $lastCol . $headerRowNum)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    $sheet->freezePane('A' . ($headerRowNum + 1));
 
     // Fill rows
-    $rowIndex = 2;
+    $rowIndex = $headerRowNum + 1;
     foreach ($rows as $r) {
-        $sheet->setCellValue('A' . $rowIndex, $r['no'] ?? '');
-        $sheet->setCellValue('B' . $rowIndex, $r['control_series_no'] ?? '');
         $dateVal = $r[$dateColumn] ?? ($r['date_claimed'] ?? '');
-        $sheet->setCellValue('C' . $rowIndex, $dateVal);
-        $sheet->setCellValue('D' . $rowIndex, $r['ccref_no'] ?? '');
-        $sheet->setCellValue('E' . $rowIndex, $r['currency'] ?? '');
-        $sheet->setCellValue('F' . $rowIndex, is_null($r['amount']) ? 0 : (float)$r['amount']);
-        $sheet->setCellValue('G' . $rowIndex, $r['sender_name'] ?? '');
-        $sheet->setCellValue('H' . $rowIndex, $r['beneficiary_receiver'] ?? '');
-        $sheet->setCellValue('I' . $rowIndex, strtolower($type) === 'sendout' ? ($r['charge'] ?? '') : ($r['operator'] ?? ''));
-        $sheet->setCellValue('J' . $rowIndex, $r['branch'] ?? ($r['branch_name'] ?? ''));
+        $values = [
+            $dateVal,
+            $r['branch'] ?? ($r['branch_name'] ?? ''),
+            $r['branch_id'] ?? '',
+            $r['control_series_no'] ?? '',
+            $r['kptn'] ?? '',
+            $r['ccref_no'] ?? '',
+            is_null($r['amount'] ?? null) ? 0 : (float)$r['amount'],
+        ];
+        if ($isSendout) {
+            $values[] = is_null($r['charge'] ?? null) || $r['charge'] === '' ? 0 : (float)$r['charge'];
+        }
+        $values = array_merge($values, [
+            $r['currency'] ?? '',
+            $r['sender_name'] ?? '',
+            $r['beneficiary_receiver'] ?? '',
+            $r['operator'] ?? '',
+        ]);
+        foreach ($values as $idx => $value) {
+            $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($idx + 1);
+            $sheet->setCellValue($columnLetter . $rowIndex, $value);
+        }
         $rowIndex++;
     }
 
     $lastDataRow = $rowIndex - 1;
 
-    // Format Amount column with commas and 2 decimals
-    $sheet->getStyle("F2:F{$lastDataRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+    // Format amount/charge columns with commas and 2 decimals
+    $dataStartRow = $headerRowNum + 1;
+    $sheet->getStyle("G{$dataStartRow}:G{$lastDataRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+    if ($isSendout) {
+        $sheet->getStyle("H{$dataStartRow}:H{$lastDataRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+    }
 
     // Apply borders to table
-    $sheet->getStyle("A1:J{$lastDataRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+    $sheet->getStyle("A{$headerRowNum}:{$lastCol}{$lastDataRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
     // Autosize columns
-    foreach (range('A', 'J') as $columnID) {
+    foreach (range('A', $lastCol) as $columnID) {
         $sheet->getColumnDimension($columnID)->setAutoSize(true);
     }
-
-    // Totals area (leave one empty row)
-    $totRowStart = $lastDataRow + 2;
-    $sheet->setCellValue('E' . $totRowStart, 'PHP Total:');
-    $sheet->setCellValue('F' . $totRowStart, $php_total);
-    $sheet->setCellValue('E' . ($totRowStart + 1), 'USD Total:');
-    $sheet->setCellValue('F' . ($totRowStart + 1), $usd_total);
-    if (strtolower($type) === 'sendout') {
-        $sheet->setCellValue('E' . ($totRowStart + 2), 'Charge Total:');
-        $sheet->setCellValue('F' . ($totRowStart + 2), $charge_total);
-    }
-    $totEndRow = strtolower($type) === 'sendout' ? ($totRowStart + 2) : ($totRowStart + 1);
-    $sheet->getStyle('F' . $totRowStart . ':F' . $totEndRow)->getNumberFormat()->setFormatCode('#,##0.00');
-    $sheet->getStyle('E' . $totRowStart . ':F' . $totEndRow)->getFont()->setBold(true);
 
     // Output spreadsheet to browser
     // Clear any previous output

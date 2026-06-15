@@ -29,8 +29,9 @@ $landingBaseHref = ($baseUrl !== '' ? $baseUrl : '') . '/src/pages/index/';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="../../assets/logo4.png">
-    <link rel="shortcut icon" type="image/png" href="../../assets/logo4.png">
+    <link rel="icon" type="image/png" href="../../assets/12.png">
+    <link rel="shortcut icon" type="image/png" href="../../assets/12.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="./index.css">
 </head>
 <body>
@@ -59,6 +60,7 @@ $landingBaseHref = ($baseUrl !== '' ? $baseUrl : '') . '/src/pages/index/';
 <script>
     window.autoreconLoginError = <?= json_encode($loginError, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="./index.js"></script>
 </body>
 </html>

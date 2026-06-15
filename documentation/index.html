@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoRecon Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="docs-topbar">
+        <button class="menu-toggle" type="button" aria-label="Open documentation menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="brand">
+            <span class="brand-mark">AR</span>
+            <div>
+                <p class="eyebrow">Developer and User Reference</p>
+                <h1>AutoRecon Documentation</h1>
+            </div>
+        </div>
+        <a class="dashboard-link" href="../src/pages/home/home.php">Back to Dashboard</a>
+    </header>
+
+    <div class="docs-shell">
+        <aside class="docs-sidebar" id="docsSidebar">
+            <div class="sidebar-panel">
+                <label class="search-label" for="docsSearch">Search documentation</label>
+                <input id="docsSearch" class="docs-search" type="search" placeholder="Search sections, tables, workflow...">
+                <nav class="toc" aria-label="Documentation sections">
+                    <a href="#overview">System Overview</a>
+                    <a href="#modules">Main Modules</a>
+                    <a href="#upload-workflow">Upload Workflow</a>
+                    <a href="#reconciliation-workflow">Reconciliation Workflow</a>
+                    <a href="#locked-date-logic">Locked Date Logic</a>
+                    <a href="#moneygram-rules">MONEYGRAM Rules</a>
+                    <a href="#reports">Reports</a>
+                    <a href="#ui-ux">UI / UX Notes</a>
+                    <a href="#database-reference">Database Reference</a>
+                    <a href="#developer-notes">Developer Notes</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="docs-content" id="docsContent">
+            <section class="hero section-card" data-section id="overview">
+                <p class="eyebrow">AutoRecon / Corporate Partners Reconciliation System</p>
+                <h2>System Overview</h2>
+                <p>
+                    AutoRecon compares uploaded KPX Web Data and Corporate Partner Data transactions.
+                    It helps operations teams identify matched, mismatched, duplicate, and locked
+                    transactions before reports or reconciliation outputs are used.
+                </p>
+                <div class="summary-grid">
+                    <div>
+                        <span class="summary-label">Primary purpose</span>
+                        <strong>Compare KPX Web Data against Partner Data</strong>
+                    </div>
+                    <div>
+                        <span class="summary-label">Key outcomes</span>
+                        <strong>Matched, not matched, duplicate, and locked results</strong>
+                    </div>
+                    <div>
+                        <span class="summary-label">Runtime</span>
+                        <strong>PHP + MySQL on XAMPP localhost</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-card" data-section id="modules">
+                <h2>Main Modules</h2>
+                <div class="module-grid">
+                    <article>
+                        <h3>KPX Web Data Uploader</h3>
+                        <p>Accepts KPX-side Excel files, previews rows, validates pending data, and stores accepted transactions.</p>
+                    </article>
+                    <article>
+                        <h3>Partner Data Uploader</h3>
+                        <p>Accepts partner-side Excel files and applies partner-specific checks before database insertion.</p>
+                    </article>
+                    <article>
+                        <h3>Web Data Report</h3>
+                        <p>Lists KPX Web Data transactions with date and corporate partner filters, detail modals, and Excel export.</p>
+                    </article>
+                    <article>
+                        <h3>Partner Data Report</h3>
+                        <p>Lists partner transactions with filters, detail viewing, export actions, and scrollable result tables.</p>
+                    </article>
+                    <article>
+                        <h3>Process Recon</h3>
+                        <p>Runs reconciliation by partner and date range, then displays matched, not matched, and duplicate results.</p>
+                    </article>
+                    <article>
+                        <h3>Locked Reconciliation Dates</h3>
+                        <p>Blocks uploads and repeat reconciliation for dates that were already locked after matching.</p>
+                    </article>
+                    <article>
+                        <h3>Legacy ID Maintenance</h3>
+                        <p>Maintains branch Legacy ID values used by MONEYGRAM upload validation and branch mapping.</p>
+                    </article>
+                    <article>
+                        <h3>Users / Admin</h3>
+                        <p>Manages application users, profile controls, account status, and admin-only operational actions.</p>
+                    </article>
+                    <article>
+                        <h3>Dashboard / Home</h3>
+                        <p>Landing workspace for upload, reporting, reconciliation, maintenance, and administration sections.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section-card" data-section id="upload-workflow">
+                <h2>Upload Workflow</h2>
+                <ol class="step-list">
+                    <li>Select a Corporate Partner from the upload section.</li>
+                    <li>AutoRecon auto-fills the Partner ID where the partner profile supports it.</li>
+                    <li>Drag and drop an Excel file or browse for the file manually.</li>
+                    <li>Preview the uploaded file before committing it to storage.</li>
+                    <li>Delete the pending file if the preview is wrong or the wrong partner was selected.</li>
+                    <li>Upload the file after confirming the preview.</li>
+                    <li>Validate locked reconciliation dates before insert.</li>
+                    <li>Validate duplicates so the same transaction set is not inserted twice.</li>
+                    <li>For MONEYGRAM, validate Legacy ID data against branch master data.</li>
+                    <li>Show success, error, and warning modals through the application notice layer.</li>
+                </ol>
+                <pre><code>Upload guard sequence:
+1. Confirm selected corporate partner
+2. Parse Excel file with PhpSpreadsheet
+3. Preview normalized rows
+4. Reject rows inside locked dates
+5. Reject duplicate transactions
+6. Apply partner-specific validation
+7. Insert accepted rows with prepared statements</code></pre>
+            </section>
+
+            <section class="section-card" data-section id="reconciliation-workflow">
+                <h2>Reconciliation Workflow</h2>
+                <ol class="step-list">
+                    <li>Select a Corporate Partner.</li>
+                    <li>Select Start Date and End Date.</li>
+                    <li>Click Start Reconcile.</li>
+                    <li>Check locked dates before processing the range.</li>
+                    <li>For MONEYGRAM, show the MONEYGRAM Reconciliation Details modal when reviewing transactions.</li>
+                    <li>Display matched, not matched, and duplicate results.</li>
+                    <li>Lock matched transactions after confirmed reconciliation.</li>
+                    <li>Allow admin users to unlock locked dates when correction or reprocessing is required.</li>
+                </ol>
+                <pre><code>Matching result categories:
+- Matched: partner and KPX web records share the expected key
+- Not matched: one side has no corresponding transaction
+- Duplicate: repeated candidate records are detected
+- Locked: transaction date is protected from upload or reconciliation</code></pre>
+            </section>
+
+            <section class="section-card" data-section id="locked-date-logic">
+                <h2>Locked Date Logic</h2>
+                <p>
+                    Locked dates protect reconciled transaction days from accidental re-upload or repeat
+                    reconciliation. A locked date should be treated as read-only until an authorized admin unlocks it.
+                </p>
+                <ul class="check-list">
+                    <li>Locked dates cannot be uploaded again.</li>
+                    <li>Locked dates cannot be reconciled again.</li>
+                    <li>The View Locked Dates modal shows locked partner/date records.</li>
+                    <li>The Unlock button is available for authorized admin correction flows.</li>
+                    <li>Locked-date notices should appear before work begins, not after partial processing.</li>
+                </ul>
+                <pre><code>Expected lock lookup:
+SELECT corporate_partner, transaction_date
+FROM filerecondb.locked_reconciliation_dates
+WHERE corporate_partner = ?
+  AND transaction_date BETWEEN ? AND ?;</code></pre>
+            </section>
+
+            <section class="section-card" data-section id="moneygram-rules">
+                <h2>MONEYGRAM Rules</h2>
+                <p>
+                    MONEYGRAM reconciliation uses partner data from <code>moneygram_partner_data</code>
+                    and KPX web data from <code>ml_web_data</code>. The core matching key is the
+                    partner reference ID against the KPX CCREf number.
+                </p>
+                <div class="rule-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Area</th>
+                                <th>Rule</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Partner Data table</td>
+                                <td><code>filerecondb.moneygram_partner_data</code></td>
+                            </tr>
+                            <tr>
+                                <td>KPX Web Data table</td>
+                                <td><code>filerecondb.ml_web_data</code></td>
+                            </tr>
+                            <tr>
+                                <td>Matching key</td>
+                                <td><code>moneygram_partner_data.reference_id = ml_web_data.ccref_no</code></td>
+                            </tr>
+                            <tr>
+                                <td>Legacy ID validation</td>
+                                <td>Check <code>masterdata.branch_profile.legacyid_moneygram</code>.</td>
+                            </tr>
+                            <tr>
+                                <td>Branch mapping</td>
+                                <td>Use maintained Legacy ID values to map MONEYGRAM rows back to branch records.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code>SELECT p.reference_id, w.ccref_no
+FROM filerecondb.moneygram_partner_data p
+JOIN filerecondb.ml_web_data w
+  ON p.reference_id = w.ccref_no
+WHERE w.transaction_date BETWEEN ? AND ?;</code></pre>
+            </section>
+
+            <section class="section-card" data-section id="reports">
+                <h2>Reports</h2>
+                <p>
+                    Reports provide transaction review outside the upload and reconciliation actions.
+                    They should remain filterable and exportable without changing source values.
+                </p>
+                <ul class="check-list">
+                    <li>KPX Web Data transactions report.</li>
+                    <li>Partner Data transactions report.</li>
+                    <li>Date filters for transaction date ranges.</li>
+                    <li>Corporate Partner filters.</li>
+                    <li>Export Excel action for reviewed data.</li>
+                    <li>View transaction details modal for row-level inspection.</li>
+                </ul>
+            </section>
+
+            <section class="section-card" data-section id="ui-ux">
+                <h2>UI / UX Notes</h2>
+                <ul class="check-list">
+                    <li>Sidebar navigation is the primary module switcher.</li>
+                    <li>Light and dark themes should keep text readable and controls discoverable.</li>
+                    <li>Seasonal theme behavior should not hide operational notices or actions.</li>
+                    <li>Processing modals should appear while uploads, exports, or reconciliation jobs are running.</li>
+                    <li>SweetAlert notices communicate success, error, warning, and confirmation states.</li>
+                    <li>Pending upload warnings should prevent accidental partner or file changes.</li>
+                    <li>Large tables need stable scrolling, usable spacing, and visible column context.</li>
+                </ul>
+            </section>
+
+            <section class="section-card" data-section id="database-reference">
+                <h2>Database Reference</h2>
+                <p>Common tables referenced by AutoRecon workflows:</p>
+                <div class="rule-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Table</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>filerecondb.ml_web_data</code></td>
+                                <td>KPX Web Data transaction storage used by reports and reconciliation.</td>
+                            </tr>
+                            <tr>
+                                <td><code>filerecondb.moneygram_partner_data</code></td>
+                                <td>MONEYGRAM partner upload storage and reconciliation source.</td>
+                            </tr>
+                            <tr>
+                                <td><code>filerecondb.moneygram_sendout_data</code></td>
+                                <td>MONEYGRAM sendout-related transaction data when used by the partner flow.</td>
+                            </tr>
+                            <tr>
+                                <td><code>masterdata.branch_profile</code></td>
+                                <td>Branch master data, including <code>legacyid_moneygram</code> for validation and mapping.</td>
+                            </tr>
+                            <tr>
+                                <td><code>filerecondb.locked_reconciliation_dates</code></td>
+                                <td>Locked corporate partner/date records that block uploads and repeat reconciliation.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <pre><code>CREATE TABLE filerecondb.locked_reconciliation_dates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    corporate_partner VARCHAR(100) NOT NULL,
+    transaction_date DATE NOT NULL,
+    locked_by VARCHAR(100) NULL,
+    locked_at DATETIME NULL,
+    UNIQUE KEY uniq_partner_txn_date (corporate_partner, transaction_date)
+);</code></pre>
+            </section>
+
+            <section class="section-card" data-section id="developer-notes">
+                <h2>Developer Notes</h2>
+                <ul class="check-list">
+                    <li>AutoRecon is a PHP + MySQL application intended for XAMPP localhost deployment.</li>
+                    <li>Excel parsing and export behavior uses PhpSpreadsheet.</li>
+                    <li>Database writes should use prepared statements.</li>
+                    <li>AJAX-style operations should return clear JSON endpoint responses.</li>
+                    <li>Do not alter stored database values just to make display-only formatting easier.</li>
+                    <li>Use pagination, chunking, or virtual scroll for large reconciliation data sets.</li>
+                    <li>This documentation folder is static and separate from the main app flow.</li>
+                    <li>Do not make PHP controllers, routes, or authentication depend on these documentation files.</li>
+                </ul>
+                <pre><code>Local access:
+http://localhost/autorecon/documentation/index.html
+
+Dashboard link:
+../src/pages/home/home.php</code></pre>
+            </section>
+
+            <p class="no-results" id="noResults" hidden>No matching documentation sections found.</p>
+        </main>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>

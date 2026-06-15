@@ -8,6 +8,20 @@ try {
 } catch (Throwable $e) {
     $users = [];
 }
+
+function formatUserCreatedDate($value): string
+{
+    $raw = trim((string)$value);
+    if ($raw === '') {
+        return '';
+    }
+
+    try {
+        return (new DateTimeImmutable($raw))->format('m-d-Y H:i:s');
+    } catch (Throwable $e) {
+        return $raw;
+    }
+}
 ?>
 <section class="all-users-root">
     <h2>All Users</h2>
@@ -21,22 +35,22 @@ try {
         unset($_SESSION['user_delete_error'], $_SESSION['user_delete_success'], $_SESSION['user_reset_error'], $_SESSION['user_reset_success'], $_SESSION['user_status_error'], $_SESSION['user_status_success']);
     ?>
     <?php if ($userDelError !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userDelError, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--error"><?= htmlspecialchars($userDelError, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
     <?php if ($userDelSuccess !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userDelSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--success"><?= htmlspecialchars($userDelSuccess, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
     <?php if ($userResetError !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userResetError, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--error"><?= htmlspecialchars($userResetError, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
     <?php if ($userResetSuccess !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userResetSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--success"><?= htmlspecialchars($userResetSuccess, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
     <?php if ($userStatusError !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userStatusError, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--error"><?= htmlspecialchars($userStatusError, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
     <?php if ($userStatusSuccess !== ''): ?>
-        <div style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userStatusSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="all-users-alert all-users-alert--success"><?= htmlspecialchars($userStatusSuccess, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
     <div class="all-users-table">
@@ -54,33 +68,33 @@ try {
             </thead>
             <tbody>
                 <?php if (empty($users)): ?>
-                    <tr><td colspan="6">No users found.</td></tr>
+                    <tr><td colspan="7" class="all-users-empty">No users found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($users as $u): ?>
                         <tr>
-                            <td><?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)($u['firstname'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)($u['lastname'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)($u['role'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><?= htmlspecialchars((string)($u['dateCreated'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td>
+                            <td data-label="ID Number"><?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Username"><?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="First name"><?= htmlspecialchars((string)($u['firstname'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Last name"><?= htmlspecialchars((string)($u['lastname'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Role"><span class="all-users-role all-users-role--<?= strtolower(htmlspecialchars((string)($u['role'] ?? 'public'), ENT_QUOTES, 'UTF-8')) ?>"><?= htmlspecialchars((string)($u['role'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span></td>
+                            <td data-label="Created"><?= htmlspecialchars(formatUserCreatedDate($u['dateCreated'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Action" class="all-users-actions">
                                 <?php if (isset($_SESSION['user']['role']) && strcasecmp((string)$_SESSION['user']['role'], 'Admin') === 0): ?>
-                                    <form method="post" action="../../config/reset-password-handler.php" class="confirmable" data-action="reset" data-username="<?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="display:inline;margin-right:8px;">
+                                    <form method="post" action="../../config/reset-password-handler.php" class="confirmable all-users-action-form" data-action="reset" data-username="<?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         <?= function_exists('csrfField') ? csrfField() : '' ?>
                                         <input type="hidden" name="id_number" value="<?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                        <button type="submit" class="material-btn" style="background:#fff;border:1px solid #d1fae5;color:#065f46;padding:6px 8px;border-radius:6px;">Reset Password</button>
+                                        <button type="submit" class="material-btn all-users-btn all-users-btn--success">Reset Password</button>
                                     </form>
                                     <!-- Inline edit form (button removed) -->
-                                    <form method="post" action="../../config/change-role-handler.php" class="edit-role-form" data-id="<?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="display:none; margin-right:8px;">
+                                    <form method="post" action="../../config/change-role-handler.php" class="edit-role-form all-users-action-form" data-id="<?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         <?= function_exists('csrfField') ? csrfField() : '' ?>
                                         <input type="hidden" name="id_number" value="<?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                                        <select name="role" style="padding:6px;border-radius:6px;margin-right:6px;">
+                                        <select name="role" class="all-users-role-select">
                                             <option value="Public" <?= (strcasecmp((string)$u['role'], 'Public') === 0) ? 'selected' : '' ?>>Public</option>
                                             <option value="Admin" <?= (strcasecmp((string)$u['role'], 'Admin') === 0) ? 'selected' : '' ?>>Admin</option>
                                         </select>
-                                        <button type="submit" class="material-btn material-btn--primary" style="padding:6px 8px;border-radius:6px;margin-right:6px;">Save</button>
-                                        <button type="button" class="material-btn edit-role-cancel" style="padding:6px 8px;border-radius:6px;">Cancel</button>
+                                        <button type="submit" class="material-btn all-users-btn all-users-btn--primary">Save</button>
+                                        <button type="button" class="material-btn edit-role-cancel all-users-btn all-users-btn--neutral">Cancel</button>
                                     </form>
 
                                     <?php
@@ -97,17 +111,17 @@ try {
                                         $isActive = (strcasecmp((string)$currentStatus, 'active') === 0);
                                         $actionLabel = $isActive ? 'Deactivate' : 'Activate';
                                         $actionStatus = $isActive ? 'inactive' : 'active';
-                                        $btnStyle = $isActive ? 'background:#fff;border:1px solid #f5c3c6;color:#b91c1c;padding:6px 8px;border-radius:6px;' : 'background:#fff;border:1px solid #d1fae5;color:#065f46;padding:6px 8px;border-radius:6px;';
+                                        $statusBtnClass = $isActive ? 'all-users-btn--danger' : 'all-users-btn--success';
                                     ?>
 
-                                    <form method="post" action="../../config/change-status-handler.php" class="confirmable" data-action="status" data-username="<?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" style="display:inline">
+                                    <form method="post" action="../../config/change-status-handler.php" class="confirmable all-users-action-form" data-action="status" data-username="<?= htmlspecialchars((string)($u['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         <?= function_exists('csrfField') ? csrfField() : '' ?>
                                         <input type="hidden" name="id_number" value="<?= htmlspecialchars((string)($u['id_number'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                         <input type="hidden" name="status" value="<?= $actionStatus ?>">
-                                        <button type="submit" class="material-btn" style="<?= $btnStyle ?>"><?= $actionLabel ?></button>
+                                        <button type="submit" class="material-btn all-users-btn <?= $statusBtnClass ?>"><?= $actionLabel ?></button>
                                     </form>
                                 <?php else: ?>
-                                    &ndash;
+                                    <span class="all-users-no-action">&ndash;</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -119,12 +133,241 @@ try {
 </section>
 
 <style>
-.all-users-root { padding: 8px 0; }
-.all-users-root h2 { margin: 0 0 8px; color: #0f1720; }
-.all-users-table table { width:100%; border-collapse:collapse; background:#fff; }
-.all-users-table th, .all-users-table td { text-align:left; padding:8px 10px; border-bottom:1px solid #eee; font-size:0.95rem; }
-.all-users-table th { color:#6b7280; font-weight:600; }
-.all-users-table tbody tr:hover { background:#fbfbfb; }
+.all-users-root {
+    padding: 0.35rem 0 1.25rem;
+    color: #334155;
+}
+
+.all-users-root h2 {
+    margin: 0 0 1rem;
+    color: #0f172a;
+    font-size: clamp(1.35rem, 1.8vw, 1.65rem);
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.all-users-alert {
+    margin: 0 0 0.85rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.all-users-alert--error {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #9f1239;
+}
+
+.all-users-alert--success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
+.all-users-table {
+    overflow: hidden;
+    overflow-x: auto;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.all-users-table table {
+    width: 100%;
+    min-width: 920px;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #ffffff;
+}
+
+.all-users-table th,
+.all-users-table td {
+    text-align: left;
+    padding: 0.9rem 0.7rem;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 0.92rem;
+    vertical-align: middle;
+}
+
+.all-users-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.all-users-table tbody tr {
+    transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.all-users-table tbody tr:hover {
+    background: #fff7f7;
+}
+
+.all-users-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.all-users-role {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.7rem;
+    padding: 0.18rem 0.6rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.all-users-role--admin {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.all-users-actions {
+    min-width: 230px;
+    white-space: nowrap;
+}
+
+.all-users-action-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-right: 0.45rem;
+}
+
+.edit-role-form {
+    display: none;
+}
+
+.all-users-btn {
+    min-height: 2.1rem;
+    padding: 0.48rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: #ffffff;
+    box-shadow: none;
+    font-size: 0.82rem;
+    line-height: 1;
+}
+
+.all-users-btn:hover {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.all-users-btn--success {
+    border-color: #bbf7d0;
+    color: #047857;
+}
+
+.all-users-btn--danger {
+    border-color: #fecaca;
+    color: #dc2626;
+}
+
+.all-users-btn--primary {
+    background: #dc3545;
+    color: #ffffff;
+}
+
+.all-users-btn--neutral {
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+.all-users-role-select {
+    min-height: 2.1rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #334155;
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.all-users-empty,
+.all-users-no-action {
+    color: #94a3b8;
+}
+
+.all-users-empty {
+    padding: 1.5rem 0.7rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+@media (max-width: 760px) {
+    .all-users-table {
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .all-users-table table,
+    .all-users-table thead,
+    .all-users-table tbody,
+    .all-users-table tr,
+    .all-users-table th,
+    .all-users-table td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .all-users-table thead {
+        display: none;
+    }
+
+    .all-users-table tbody tr {
+        margin-bottom: 0.8rem;
+        padding: 0.85rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .all-users-table td {
+        display: grid;
+        grid-template-columns: minmax(7.5rem, 38%) 1fr;
+        gap: 0.75rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .all-users-table td::before {
+        content: attr(data-label);
+        color: #64748b;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .all-users-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .all-users-actions {
+        min-width: 0;
+        white-space: normal;
+    }
+
+    .all-users-action-form {
+        margin: 0 0.4rem 0.45rem 0;
+    }
+}
 </style>
 
 <!-- Confirm modal for reset/delete actions -->
