@@ -1,0 +1,47 @@
+@import url("/autorecon/src/modals/moneygram-view/moneygram-recon-view-modal.css");
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners .moneygram-col-date {
+    width: 24%;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners .moneygram-col-ref {
+    width: 38%;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners .moneygram-col-amount {
+    width: 24%;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners .moneygram-col-currency {
+    width: 14%;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--head thead th:nth-child(3),
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody td:nth-child(3) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+    padding-right: 18px;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--head thead th:nth-child(4),
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody td:nth-child(4) {
+    text-align: center;
+    padding-right: 38px;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.matched-row td:last-child::before,
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.mismatch-row td:last-child::before,
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.dup-row td:last-child::before {
+    right: 22px;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.matched-row.locked-row td:last-child::after,
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.matched-row.is-locked-row td:last-child::after {
+    right: 4px;
+}
+
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.matched-row.locked-row td:last-child::before,
+.skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners.moneygram-table--body tbody tr.matched-row.is-locked-row td:last-child::before {
+    right: 22px;
+}

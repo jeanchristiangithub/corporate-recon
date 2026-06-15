@@ -1,24 +1,50 @@
 <section class="hero-section" aria-label="Hero">
     <style>
-    /* Scoped hero badge and headline overrides to make the eyebrow badge visually dominant */
+    /* Scoped hero badge and headline overrides to make the system name visually dominant */
     .hero-section .hero__eyebrow{
         display: inline-flex;
         align-items: center;
-        gap: 10px;
-        color: #dc3545;
-        background: rgba(220,53,69,0.06);
-        border: 1px solid rgba(220,53,69,0.15);
-        border-radius: 999px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        line-height: 1.2;
+        gap: 14px;
+        color: #fff;
+        background: linear-gradient(135deg, #be123c 0%, #dc3545 48%, #f43f5e 100%);
+        border: 1px solid rgba(255,255,255,0.55);
+        border-radius: 24px;
+        font-weight: 800;
+        letter-spacing: 0;
+        line-height: 1.08;
+        text-transform: uppercase;
+        text-wrap: balance;
+        box-shadow:
+            0 18px 38px rgba(220,53,69,0.28),
+            0 2px 0 rgba(255,255,255,0.35) inset;
         /* mobile-first baseline */
         font-size: 18px;
-        padding: 10px 18px;
+        padding: 14px 18px;
         box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
     }
 
-    .hero-section .hero__eyebrow svg{ flex: 0 0 auto; width: 16px; height: 16px; }
+    .hero-section .hero__eyebrow::after{
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(120deg, rgba(255,255,255,0.28), transparent 34%, transparent 66%, rgba(255,255,255,0.16));
+        pointer-events: none;
+    }
+
+    .hero-section .hero__eyebrow svg{
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-section .hero__eyebrow svg circle:first-child{ fill: #fff; }
+    .hero-section .hero__eyebrow svg circle:last-child{ stroke: #fff; opacity: 0.55; }
+    .hero-section .hero__eyebrow span{ position: relative; z-index: 1; }
 
     .hero-section .hero__title{
         margin-top: 0.6rem;
@@ -31,19 +57,19 @@
 
     /* Larger screens: make badge significantly larger than headline */
     @media (min-width: 768px){
-        .hero-section .hero__eyebrow{ font-size: 34px; padding: 16px 28px; }
-        .hero-section .hero__eyebrow svg{ width: 20px; height: 20px; }
+        .hero-section .hero__eyebrow{ font-size: 34px; padding: 20px 30px; border-radius: 30px; }
+        .hero-section .hero__eyebrow svg{ width: 22px; height: 22px; }
         .hero-section .hero__title{ font-size: 30px; }
     }
 
     @media (min-width: 1100px){
-        .hero-section .hero__eyebrow{ font-size: 36px; padding: 16px 32px; }
+        .hero-section .hero__eyebrow{ font-size: 38px; padding: 22px 34px; }
         .hero-section .hero__title{ font-size: 32px; }
     }
 
     /* Small screens: scale down headline while keeping badge prominent */
     @media (max-width: 480px){
-        .hero-section .hero__eyebrow{ font-size: 16px; padding: 8px 12px; }
+        .hero-section .hero__eyebrow{ font-size: 16px; padding: 12px 14px; border-radius: 18px; }
         .hero-section .hero__title{ font-size: 20px; }
     }
     </style>
@@ -57,7 +83,7 @@
                         <circle cx="12" cy="12" r="4" fill="#dc3545"/>
                         <circle cx="12" cy="12" r="9" stroke="#dc3545" stroke-width="2" opacity="0.3"/>
                     </svg>
-                   Corporate Partners Reconciliation System
+                   <span>Corporate Partners Reconciliation System</span>
                 </p>
 
                 <h1 class="hero__title">

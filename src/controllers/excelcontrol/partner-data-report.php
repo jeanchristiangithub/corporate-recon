@@ -39,8 +39,91 @@ function first_existing_column(array $candidates, array $existing): ?string
         if (isset($existing[$candidate])) {
             return $candidate;
         }
+        foreach ($existing as $column => $_) {
+            if (strcasecmp((string)$column, (string)$candidate) === 0) {
+                return (string)$column;
+            }
+        }
     }
     return null;
+}
+
+function quote_identifier(string $identifier): string
+{
+    return '`' . str_replace('`', '``', $identifier) . '`';
+}
+
+function numeric_sql_expr(string $column): string
+{
+    $quoted = quote_identifier($column);
+    return 'ABS(CAST(REPLACE(REPLACE(REPLACE(COALESCE(' . $quoted . ', 0), ",", ""), "₱", ""), "$", "") AS DECIMAL(18, 2)))';
+}
+
+function build_partner_totals(PDO $pdo, string $table, string $whereSql, array $params, array $existing): array
+{
+    $zeroTotals = [
+        'php_total' => 0.0,
+        'usd_total' => 0.0,
+        'php_commission_total' => 0.0,
+        'usd_commission_total' => 0.0,
+    ];
+
+    if ($table === 'moneygram_partner_data') {
+        $baseExpr = numeric_sql_expr('base_amt');
+        if (isset($existing['comm_amt']) && isset($existing['comm_tran_amt'])) {
+            $commissionExpr = 'ABS(COALESCE(' . numeric_sql_expr('comm_amt') . ', ' . numeric_sql_expr('comm_tran_amt') . ', 0))';
+        } elseif (isset($existing['comm_amt'])) {
+            $commissionExpr = numeric_sql_expr('comm_amt');
+        } elseif (isset($existing['comm_tran_amt'])) {
+            $commissionExpr = numeric_sql_expr('comm_tran_amt');
+        } else {
+            $commissionExpr = '0';
+        }
+        $currencyCol = isset($existing['settlement_currency']) ? quote_identifier('settlement_currency') : '"PHP"';
+        $sql = 'SELECT '
+            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(' . $currencyCol . ')) = "PHP" THEN ' . $baseExpr . ' ELSE 0 END), 0) AS php_total, '
+            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(' . $currencyCol . ')) = "USD" THEN ' . $baseExpr . ' ELSE 0 END), 0) AS usd_total, '
+            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(' . $currencyCol . ')) = "PHP" THEN ' . $commissionExpr . ' ELSE 0 END), 0) AS php_commission_total, '
+            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(' . $currencyCol . ')) = "USD" THEN ' . $commissionExpr . ' ELSE 0 END), 0) AS usd_commission_total '
+            . 'FROM ' . $table . $whereSql;
+    } elseif (isset($existing['php']) || isset($existing['usd'])) {
+        $phpExpr = isset($existing['php']) ? numeric_sql_expr('php') : '0';
+        $usdExpr = isset($existing['usd']) ? numeric_sql_expr('usd') : '0';
+        $commissionPhpExpr = isset($existing['in_php']) ? numeric_sql_expr('in_php') : '0';
+        $sql = 'SELECT '
+            . 'COALESCE(SUM(' . $phpExpr . '), 0) AS php_total, '
+            . 'COALESCE(SUM(' . $usdExpr . '), 0) AS usd_total, '
+            . 'COALESCE(SUM(' . $commissionPhpExpr . '), 0) AS php_commission_total, '
+            . '0 AS usd_commission_total '
+            . 'FROM ' . $table . $whereSql;
+    } else {
+        $amountCol = first_existing_column(['amount', 'total_payable', 'bene_amt', 'in_php'], $existing);
+        if ($amountCol === null) {
+            return $zeroTotals;
+        }
+        $amountExpr = numeric_sql_expr($amountCol);
+        $currencyCol = first_existing_column(['currency', 'coin', 'crc_code', 'settlement_currency'], $existing);
+        $currencyExpr = $currencyCol !== null ? 'UPPER(TRIM(' . quote_identifier($currencyCol) . '))' : '"PHP"';
+        $commissionCol = first_existing_column(['commission', 'comm_amt', 'comm_tran_amt', 'agent_commission', 'agent_commission_in_php'], $existing);
+        $commissionExpr = $commissionCol !== null ? numeric_sql_expr($commissionCol) : '0';
+        $sql = 'SELECT '
+            . 'COALESCE(SUM(CASE WHEN ' . $currencyExpr . ' = "PHP" THEN ' . $amountExpr . ' ELSE 0 END), 0) AS php_total, '
+            . 'COALESCE(SUM(CASE WHEN ' . $currencyExpr . ' = "USD" THEN ' . $amountExpr . ' ELSE 0 END), 0) AS usd_total, '
+            . 'COALESCE(SUM(CASE WHEN ' . $currencyExpr . ' = "PHP" THEN ' . $commissionExpr . ' ELSE 0 END), 0) AS php_commission_total, '
+            . 'COALESCE(SUM(CASE WHEN ' . $currencyExpr . ' = "USD" THEN ' . $commissionExpr . ' ELSE 0 END), 0) AS usd_commission_total '
+            . 'FROM ' . $table . $whereSql;
+    }
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    return [
+        'php_total' => isset($row['php_total']) ? (float)$row['php_total'] : 0.0,
+        'usd_total' => isset($row['usd_total']) ? (float)$row['usd_total'] : 0.0,
+        'php_commission_total' => isset($row['php_commission_total']) ? (float)$row['php_commission_total'] : 0.0,
+        'usd_commission_total' => isset($row['usd_commission_total']) ? (float)$row['usd_commission_total'] : 0.0,
+    ];
 }
 
 function normalize_row_for_report(array $row): array
@@ -187,6 +270,13 @@ try {
         }
     }
 
+    $currencyFilter = strtoupper(trim((string)($_GET['settlement_currency'] ?? '')));
+    $currencyCol = first_existing_column(['settlement_currency', 'currency', 'coin', 'crc_code'], $existing);
+    if (in_array($currencyFilter, ['PHP', 'USD'], true) && $currencyCol !== null) {
+        $whereParts[] = 'UPPER(TRIM(' . quote_identifier($currencyCol) . ')) = ?';
+        $params[] = $currencyFilter;
+    }
+
     $whereSql = '';
     if (!empty($whereParts)) {
         $whereSql = ' WHERE ' . implode(' AND ', $whereParts);
@@ -221,30 +311,42 @@ try {
         $rows[] = $normalized;
     }
 
-    $moneygramPhpTotal = 0.0;
-    $moneygramUsdTotal = 0.0;
-    if ($table === 'moneygram_partner_data') {
-        $totalsSql = 'SELECT '
-            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(settlement_currency)) = "PHP" THEN COALESCE(total_tran_amt, 0) ELSE 0 END), 0) AS php_total, '
-            . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(settlement_currency)) = "USD" THEN COALESCE(total_tran_amt, 0) ELSE 0 END), 0) AS usd_total '
-            . 'FROM ' . $table . $whereSql;
-        $totalsStmt = $pdo->prepare($totalsSql);
-        $totalsStmt->execute($params);
-        $totalsRow = $totalsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $moneygramPhpTotal = isset($totalsRow['php_total']) ? (float)$totalsRow['php_total'] : 0.0;
-        $moneygramUsdTotal = isset($totalsRow['usd_total']) ? (float)$totalsRow['usd_total'] : 0.0;
-    }
+    $partnerTotals = build_partner_totals($pdo, $table, $whereSql, $params, $existing);
+    $moneygramPhpTotal = $partnerTotals['php_total'];
+    $moneygramUsdTotal = $partnerTotals['usd_total'];
+    $moneygramCommissionPhpTotal = $partnerTotals['php_commission_total'];
+    $moneygramCommissionUsdTotal = $partnerTotals['usd_commission_total'];
 
-    // For MONEYGRAM, extract only the 8 required display columns in defined order
+    // For MONEYGRAM, extract the report display columns in defined order.
     $moneygramRows = [];
     if ($table === 'moneygram_partner_data') {
-        $mgCols = ['transaction_id', 'reference_id', 'tran_date', 'tran_type', 'base_tran_amt', 'total_tran_amt', 'settlement_currency', 'agent_name', 'legacy_id'];
-        foreach ($rawRows as $row) {
-            $mgRow = [];
-            foreach ($mgCols as $col) {
-                $mgRow[$col] = array_key_exists($col, $row) ? $row[$col] : '';
+        $pickMoneygram = static function (array $row, array $keys) {
+            foreach ($keys as $key) {
+                if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+                    return $row[$key];
+                }
             }
-            $moneygramRows[] = $mgRow;
+            return '';
+        };
+
+        foreach ($rawRows as $row) {
+            $moneygramRows[] = [
+                'id' => $pickMoneygram($row, ['id']),
+                'tran_date' => $pickMoneygram($row, ['tran_date']),
+                'agent_name' => $pickMoneygram($row, ['agent_name']),
+                'legacy_id' => $pickMoneygram($row, ['legacy_id']),
+                'account_number' => $pickMoneygram($row, ['account_number']),
+                'reference_id' => $pickMoneygram($row, ['reference_id']),
+                'product' => $pickMoneygram($row, ['product']),
+                'tran_type' => $pickMoneygram($row, ['tran_type']),
+                'tran_fx_rate' => $pickMoneygram($row, ['tran_fx_rate', 'fx_rate_trn']),
+                'fx_rev_share_amt' => $pickMoneygram($row, ['fx_rev_share_amt', 'fx_rev_share_tran_amt']),
+                'base_amt' => $pickMoneygram($row, ['base_amt']),
+                'comm_amt' => $pickMoneygram($row, ['comm_amt', 'comm_tran_amt']),
+                'settlement_currency' => $pickMoneygram($row, ['settlement_currency']),
+                'orig_cntry' => $pickMoneygram($row, ['orig_cntry']),
+                'rcv_cntry' => $pickMoneygram($row, ['rcv_cntry']),
+            ];
         }
     }
 
@@ -263,8 +365,14 @@ try {
         'raw_rows' => $rawRows,
         'rows' => $rows,
         'moneygram_rows' => $moneygramRows,
+        'php_total' => $partnerTotals['php_total'],
+        'usd_total' => $partnerTotals['usd_total'],
+        'php_commission_total' => $partnerTotals['php_commission_total'],
+        'usd_commission_total' => $partnerTotals['usd_commission_total'],
         'moneygram_php_total' => $moneygramPhpTotal,
         'moneygram_usd_total' => $moneygramUsdTotal,
+        'moneygram_commission_php_total' => $moneygramCommissionPhpTotal,
+        'moneygram_commission_usd_total' => $moneygramCommissionUsdTotal,
     ]);
     exit;
 } catch (Throwable $e) {

@@ -12,6 +12,23 @@ requireAdminRoleOrShowConstruction();
 
 $constructionMessage = $_SESSION['construction_modal'] ?? '';
 unset($_SESSION['construction_modal']);
+
+$profilePhotoMessage = $_SESSION['profile_photo_success'] ?? '';
+$profilePhotoError = $_SESSION['profile_photo_error'] ?? '';
+unset($_SESSION['profile_photo_success'], $_SESSION['profile_photo_error']);
+
+$currentUserId = preg_replace('/[^A-Za-z0-9_-]/', '_', (string)($_SESSION['user']['id_number'] ?? ''));
+$profilePhotoUrl = '';
+if ($currentUserId !== '') {
+    $profilePhotoDir = dirname(__DIR__, 3) . '/uploads/profile-photos';
+    foreach (['jpg', 'jpeg', 'png', 'webp', 'gif'] as $photoExtension) {
+        $profilePhotoPath = $profilePhotoDir . '/' . $currentUserId . '.' . $photoExtension;
+        if (is_file($profilePhotoPath)) {
+            $profilePhotoUrl = '../../../uploads/profile-photos/' . rawurlencode($currentUserId . '.' . $photoExtension) . '?v=' . filemtime($profilePhotoPath);
+            break;
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -23,6 +40,7 @@ unset($_SESSION['construction_modal']);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="./home.css">
     <link rel="stylesheet" href="./components/header.css">
     <link rel="stylesheet" href="./components/recon-section.css">
@@ -33,8 +51,10 @@ unset($_SESSION['construction_modal']);
     <link rel="stylesheet" href="./components/maintenance-section.css">
     <link rel="stylesheet" href="../../modals/comparisonresult/view-result-modal.css">
     <link rel="stylesheet" href="../../modals/debug/error-debug-modal.css">
-        <link rel="icon" type="image/png" href="../../assets/logo4.png">
-    <link rel="shortcut icon" type="image/png" href="../../assets/logo4.png">
+        <link rel="icon" type="image/png" href="../../assets/12.png">
+    <link rel="shortcut icon" type="image/png" href="../../assets/12.png">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>.swal2-container{z-index:200500!important}</style>
 
 </head>
 <body>
@@ -47,12 +67,27 @@ unset($_SESSION['construction_modal']);
         </svg>
     </button>
     <div class="sidebar-user" role="region" aria-label="User">
-        <div class="avatar" aria-hidden="true">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zM4 20c0-3.314 2.686-6 6-6h4c3.314 0 6 2.686 6 6v1H4v-1z"/></svg>
-        </div>
+        <form class="sidebar-avatar-form" action="../../config/profile-photo-handler.php" method="post" enctype="multipart/form-data" data-profile-photo-url="<?= htmlspecialchars($profilePhotoUrl, ENT_QUOTES, 'UTF-8') ?>">
+            <?= csrfField() ?>
+            <button type="button" class="avatar" title="Profile photo options" aria-label="Profile photo options" aria-expanded="false">
+                <?php if ($profilePhotoUrl !== ''): ?>
+                    <img src="<?= htmlspecialchars($profilePhotoUrl, ENT_QUOTES, 'UTF-8') ?>" alt="Profile photo">
+                <?php else: ?>
+                    <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zM4 20c0-3.314 2.686-6 6-6h4c3.314 0 6 2.686 6 6v1H4v-1z"/></svg>
+                <?php endif; ?>
+            </button>
+            <div class="avatar-menu" role="menu" aria-label="Profile photo menu">
+                <button type="button" data-avatar-action="show" role="menuitem">Show</button>
+                <button type="button" data-avatar-action="change" role="menuitem">Change</button>
+                <button type="button" data-avatar-action="default" role="menuitem">Default</button>
+            </div>
+            <input type="hidden" name="profile_photo_action" value="upload">
+            <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Change profile photo">
+        </form>
         <div class="meta">
+             <div class="meta-label">Username:</div>
              <div class="name"><?= htmlspecialchars(strtoupper((string) ($_SESSION['user']['username'] ?? ($_SESSION['user']['firstname'] ?? 'User'))), ENT_QUOTES, 'UTF-8') ?></div>
-            <div class="role"><?= htmlspecialchars((string) ($_SESSION['user']['role'] ?? 'Public'), ENT_QUOTES, 'UTF-8') ?></div>
+            <div class="role-row"><span class="role-label">Role:</span> <span class="role"><?= htmlspecialchars((string) ($_SESSION['user']['role'] ?? 'Public'), ENT_QUOTES, 'UTF-8') ?></span></div>
         </div>
     </div>
     <nav class="sidebar-nav" role="navigation" aria-label="Main">
@@ -114,17 +149,23 @@ unset($_SESSION['construction_modal']);
                     </ul>
                 </li>
             <?php if (isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0): ?>
-                     <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
-                <span class="icon material-icons" aria-hidden="true">build</span>
-                <span class="label">Maintenance</span>
-            </a></li>
-            <?php endif; ?>
-
-          <?php if (isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0): ?>
-            <li><a href="#" id="navUsers" data-show="usersSection">
-                <span class="icon material-icons" aria-hidden="true">manage_accounts</span>
-                <span class="label">Users</span>
-            </a></li>
+                <li class="nav-group">
+                    <button class="nav-group-toggle" aria-expanded="false" aria-controls="maintenanceMenu">
+                        <span class="icon material-icons" aria-hidden="true">build</span>
+                        <span class="label">Maintenance</span>
+                        <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                    </button>
+                    <ul id="maintenanceMenu" class="nav-group-menu" style="display:none;">
+                        <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
+                            <span class="icon material-icons" aria-hidden="true">handshake</span>
+                            <span class="label">Partner Legacy ID</span>
+                        </a></li>
+                        <li><a href="#" id="navUsers" data-show="usersSection">
+                            <span class="icon material-icons" aria-hidden="true">manage_accounts</span>
+                            <span class="label">Users</span>
+                        </a></li>
+                    </ul>
+                </li>
             <?php endif; ?>
             <li class="logout"><a href="../../config/logout-handler.php" class="home-logout">
                 <span class="icon material-icons" aria-hidden="true">logout</span>
@@ -266,6 +307,26 @@ unset($_SESSION['construction_modal']);
         }catch(e){ }
     }
 
+    function collapseSidebarSubmenus(){
+        try{
+            document.querySelectorAll('.sidebar-nav .nav-group').forEach(function(group){
+                group.classList.remove('is-open');
+                const toggle = group.querySelector('.nav-group-toggle');
+                const menu = group.querySelector('.nav-group-menu');
+                if(toggle) toggle.setAttribute('aria-expanded', 'false');
+                if(menu) menu.style.display = 'none';
+            });
+        }catch(e){ }
+    }
+
+    function dismissUserCreateAlert(){
+        try{
+            document.querySelectorAll('[data-role="user-create-alert"]').forEach(function(alert){
+                alert.remove();
+            });
+        }catch(e){ }
+    }
+
     function resolveInitialSection(){
         try {
             const params = new URLSearchParams(window.location.search || '');
@@ -303,6 +364,10 @@ unset($_SESSION['construction_modal']);
             try {
                 e.preventDefault();
                 if (!sb.classList.contains('is-open')) openSidebar();
+                if (id === 'navHome') {
+                    collapseSidebarSubmenus();
+                    dismissUserCreateAlert();
+                }
                 const targetId = navEl.dataset.show;
                 const target = targetId ? document.getElementById(targetId) : null;
                 if (target) {
@@ -310,12 +375,13 @@ unset($_SESSION['construction_modal']);
                     target.style.display = 'block';
                     target.classList.add('is-visible');
                     setActiveNavFor(targetId);
-                    const first = target.querySelector('input,button,a,select,textarea');
+                    const shouldAutoFocus = targetId !== 'reportsWebDataSection';
+                    const first = shouldAutoFocus ? target.querySelector('input,button,a,select,textarea') : null;
                     if (first) {
                         try { first.focus({preventScroll:true}); } catch (e) { first.focus(); }
                     }
                     setTimeout(() => {
-                        try { target.scrollIntoView({behavior:'smooth', block:'start'}); } catch (e) {}
+                        try { target.scrollIntoView({behavior:'auto', block:'start'}); } catch (e) {}
                     }, 40);
                 }
             } catch (err) {
@@ -326,6 +392,7 @@ unset($_SESSION['construction_modal']);
 
     // delegate clicks inside sidebar to support clicking on nested SVGs/spans
     sb.addEventListener('click', function(ev){
+        if (ev.defaultPrevented) return;
         const a = ev.target.closest && ev.target.closest('a[data-show]');
         if (a && a.dataset && a.dataset.show) {
             a.click();
@@ -347,6 +414,107 @@ unset($_SESSION['construction_modal']);
             });
         });
     } catch (e) { /* ignore */ }
+})();
+</script>
+<?php if ($profilePhotoMessage !== '' || $profilePhotoError !== ''): ?>
+<script>
+window.addEventListener('DOMContentLoaded', function(){
+    if (!window.Swal) return;
+    Swal.fire({
+        title: <?= json_encode($profilePhotoError !== '' ? 'Upload Failed' : 'Profile Photo Updated', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
+        <?php if ($profilePhotoError !== ''): ?>
+        text: <?= json_encode($profilePhotoError, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
+        <?php endif; ?>
+        icon: <?= json_encode($profilePhotoError !== '' ? 'error' : 'success') ?>,
+        confirmButtonColor: '#dc3545',
+        heightAuto: false
+    });
+});
+</script>
+<?php endif; ?>
+<script>
+(function(){
+    var form = document.querySelector('.sidebar-avatar-form');
+    if (!form) return;
+
+    var avatarButton = form.querySelector('.avatar');
+    var menu = form.querySelector('.avatar-menu');
+    var input = form.querySelector('input[type="file"]');
+    var actionInput = form.querySelector('input[name="profile_photo_action"]');
+    var profilePhotoUrl = form.getAttribute('data-profile-photo-url') || '';
+    if (!avatarButton || !menu || !input) return;
+
+    function closeMenu() {
+        form.classList.remove('is-menu-open');
+        avatarButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleMenu() {
+        var isOpen = form.classList.toggle('is-menu-open');
+        avatarButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    avatarButton.addEventListener('click', function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        toggleMenu();
+    });
+
+    menu.addEventListener('click', function(event){
+        var actionButton = event.target.closest('[data-avatar-action]');
+        if (!actionButton) return;
+
+        var action = actionButton.getAttribute('data-avatar-action');
+        closeMenu();
+
+        if (action === 'change') {
+            if (actionInput) actionInput.value = 'upload';
+            input.click();
+            return;
+        }
+
+        if (action === 'default') {
+            if (actionInput) actionInput.value = 'default';
+            form.submit();
+            return;
+        }
+
+        if (action === 'show') {
+            if (profilePhotoUrl && window.Swal) {
+                Swal.fire({
+                    title: 'Profile Photo',
+                    imageUrl: profilePhotoUrl,
+                    imageAlt: 'Profile photo',
+                    confirmButtonColor: '#dc3545',
+                    heightAuto: false
+                });
+                return;
+            }
+
+            if (window.Swal) {
+                Swal.fire({
+                    title: 'Profile Photo',
+                    text: 'No profile photo uploaded.',
+                    icon: 'info',
+                    confirmButtonColor: '#dc3545',
+                    heightAuto: false
+                });
+            }
+        }
+    });
+
+    document.addEventListener('click', function(event){
+        if (!form.contains(event.target)) {
+            closeMenu();
+        }
+    });
+
+    input.addEventListener('change', function(){
+        if (input.files && input.files.length > 0) {
+            if (actionInput) actionInput.value = 'upload';
+            form.submit();
+        }
+    });
 })();
 </script>
 

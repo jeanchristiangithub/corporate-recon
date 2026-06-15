@@ -438,6 +438,15 @@ try {
             return null;
         };
 
+        $hasRemoteBranchValue = static function(...$values): bool {
+            foreach ($values as $value) {
+                if (trim((string)$value) !== '') {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         $extractLockDates = static function(array $payload) use ($buildNormalizedRowMap, $pickValue, $toMysqlDateTime): array {
             $dates = [];
             $dateStr = isset($payload['dateStr']) ? (string) $payload['dateStr'] : '';
@@ -490,6 +499,11 @@ try {
         $inserted = 0;
         $insertedRegular = 0;
         $insertedSendout = 0;
+        $moneygramPartnerBranchBackfilled = 0;
+        $moneygramBackfilledBranchIds = [];
+        $moneygramUploadedBranchIds = [];
+        $moneygramComparableBranchIds = [];
+        $moneygramMissingLegacyBranches = [];
         $insertedIdsForBranchSync = [];
         $now = date('Y-m-d H:i:s');
         
@@ -514,7 +528,7 @@ try {
             'partner_id', 'partnername', 'no', 'control_series_no', 'branch_id', 'date_claimed', 'date_send', 'kptn',
             'ccref_no', 'currency', 'amount', 'charge', 'ctc', 'ctp', 'sender_name', 'sender_country',
             'beneficiary_receiver', 'receiver_country', 'receiver_name', 'receiver_kyc', 'receiver_phone',
-            'operator', 'branch', 'remote_operator', 'remote_branch', 'created_at', 'updated_at'
+            'operator', 'branch', 'remote_operator', 'remote_branch_id', 'remote_branch', 'created_at', 'updated_at'
         ];
         $mlInsertColumnKeys = [];
         foreach ($mlInsertTargets as $targetKey) {
@@ -567,6 +581,7 @@ try {
             'operator_name' => ['operator name', 'operator_name', 'operator'],
             'branch_name' => ['branch name', 'branch_name', 'branch'],
             'remote_operator' => ['remote operator', 'remote_operator'],
+            'remote_branch_id' => ['remote branch id', 'remote_branch_id', 'remote branch no', 'remote_branch_no'],
             'remote_branch' => ['remote branch', 'remote_branch'],
         ];
         
@@ -581,7 +596,12 @@ try {
 
                     $normalizedRow = $buildNormalizedRowMap($r);
                     $controlSeries = trim((string)$pickValue($normalizedRow, $sendoutAliases['control_series_no'], ''));
-                    $branchId = $extractBranchIdFromControlSeries($controlSeries);
+                    $remoteOperator = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_operator'], ''));
+                    $remoteBranchId = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_branch_id'], ''));
+                    $remoteBranch = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_branch'], ''));
+                    $branchId = $hasRemoteBranchValue($remoteOperator, $remoteBranchId, $remoteBranch)
+                        ? null
+                        : $extractBranchIdFromControlSeries($controlSeries);
                     $dateSend = $toMysqlDateTime($pickValue($normalizedRow, $sendoutAliases['date_send'], $dateStr));
                     $mapped = [
                         'partner_id' => $partnerId,
@@ -604,8 +624,9 @@ try {
                         'receiver_phone' => trim((string)$pickValue($normalizedRow, $sendoutAliases['receiver_phone'], '')),
                         'operator' => trim((string)$pickValue($normalizedRow, $sendoutAliases['operator_name'], '')),
                         'branch' => trim((string)$pickValue($normalizedRow, $sendoutAliases['branch_name'], '')),
-                        'remote_operator' => trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_operator'], '')),
-                        'remote_branch' => trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_branch'], '')),
+                        'remote_operator' => $remoteOperator,
+                        'remote_branch_id' => $remoteBranchId,
+                        'remote_branch' => $remoteBranch,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -620,6 +641,9 @@ try {
                     $inserted += $rowCount;
                     $insertedSendout += $rowCount;
                     if ($rowCount > 0 && $hasBranchIdColumn && $branchId !== null && $branchId !== '') {
+                        if ($partnerUpper === 'MONEYGRAM') {
+                            $moneygramUploadedBranchIds[trim((string)$branchId)] = true;
+                        }
                         $insertedId = (int)$pdo->lastInsertId();
                         if ($insertedId > 0) {
                             $insertedIdsForBranchSync[] = $insertedId;
@@ -632,7 +656,6 @@ try {
             foreach ($rows as $r) {
                 $no = $r['NO'] ?? '';
                 $control = $r['CONTROL SERIES NO'] ?? '';
-                $branchId = $extractBranchIdFromControlSeries($control);
                 $rawDate = isset($r['DATE CLAIMED']) ? $r['DATE CLAIMED'] : $dateStr;
                 $date_claimed = '';
                 
@@ -652,7 +675,11 @@ try {
                 $operator = $r['OPERATOR'] ?? '';
                 $branch = $r['BRANCH'] ?? '';
                 $remote_operator = $r['REMOTE OPERATOR'] ?? '';
+                $remote_branch_id = $r['REMOTE BRANCH ID'] ?? ($r['REMOTE_BRANCH_ID'] ?? ($r['REMOTE BRANCH NO'] ?? ''));
                 $remote_branch = $r['REMOTE BRANCH'] ?? '';
+                $branchId = $hasRemoteBranchValue($remote_operator, $remote_branch_id, $remote_branch)
+                    ? null
+                    : $extractBranchIdFromControlSeries($control);
 
                 $mapped = [
                     'partner_id' => $partnerId,
@@ -675,6 +702,7 @@ try {
                     'operator' => $operator,
                     'branch' => $branch,
                     'remote_operator' => $remote_operator,
+                    'remote_branch_id' => $remote_branch_id,
                     'remote_branch' => $remote_branch,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -688,6 +716,9 @@ try {
                 $inserted += $rowCount;
                 $insertedRegular += $rowCount;
                 if ($rowCount > 0 && $hasBranchIdColumn && $branchId !== null && $branchId !== '') {
+                    if ($partnerUpper === 'MONEYGRAM') {
+                        $moneygramUploadedBranchIds[trim((string)$branchId)] = true;
+                    }
                     $insertedId = (int)$pdo->lastInsertId();
                     if ($insertedId > 0) {
                         $insertedIdsForBranchSync[] = $insertedId;
@@ -754,13 +785,132 @@ try {
                 }
             }
         }
+
+        // If MoneyGram Partner Data was uploaded before KPX Web Data, fill its blank branch_id
+        // after the matching web rows are inserted.
+        if ($hasBranchIdColumn && $partnerUpper === 'MONEYGRAM' && !empty($insertedIdsForBranchSync)) {
+            try {
+                $partnerColumns = [];
+                $partnerCols = $pdo->query('SHOW COLUMNS FROM moneygram_partner_data')->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($partnerCols as $colInfo) {
+                    $field = strtolower((string)($colInfo['Field'] ?? ''));
+                    if ($field !== '') {
+                        $partnerColumns[$field] = true;
+                    }
+                }
+
+                if (isset($partnerColumns['reference_id']) && isset($partnerColumns['branch_id']) && isset($mlColumns['ccref_no'])) {
+                    $fileReconDbName = env('FILERECONDB_NAME', 'filerecondb');
+                    $quotedFileReconDbName = '`' . str_replace('`', '``', (string)$fileReconDbName) . '`';
+
+                    foreach (array_chunk(array_values(array_unique($insertedIdsForBranchSync)), 1000) as $idChunk) {
+                        $placeholders = implode(',', array_fill(0, count($idChunk), '?'));
+                        $selectComparableBranchesSql = 'SELECT DISTINCT m.`branch_id` '
+                            . 'FROM ' . $quotedFileReconDbName . '.`moneygram_partner_data` p '
+                            . 'JOIN ' . $quotedFileReconDbName . '.`ml_web_data` m '
+                            . 'ON CONVERT(TRIM(p.`reference_id`) USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(TRIM(m.`ccref_no`) USING utf8mb4) COLLATE utf8mb4_unicode_ci '
+                            . 'WHERE m.`id` IN (' . $placeholders . ') '
+                            . 'AND m.`branch_id` IS NOT NULL '
+                            . 'AND TRIM(m.`branch_id`) <> \'\' '
+                            . 'AND p.`reference_id` IS NOT NULL '
+                            . 'AND TRIM(p.`reference_id`) <> \'\'';
+                        $comparableBranchStmt = $pdo->prepare($selectComparableBranchesSql);
+                        $comparableBranchStmt->execute($idChunk);
+                        foreach ($comparableBranchStmt->fetchAll(PDO::FETCH_COLUMN) as $branchId) {
+                            $branchId = trim((string)$branchId);
+                            if ($branchId !== '') {
+                                $moneygramComparableBranchIds[$branchId] = true;
+                            }
+                        }
+
+                        $selectBackfillBranchesSql = 'SELECT DISTINCT m.`branch_id` '
+                            . 'FROM ' . $quotedFileReconDbName . '.`moneygram_partner_data` p '
+                            . 'JOIN ' . $quotedFileReconDbName . '.`ml_web_data` m '
+                            . 'ON CONVERT(TRIM(p.`reference_id`) USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(TRIM(m.`ccref_no`) USING utf8mb4) COLLATE utf8mb4_unicode_ci '
+                            . 'WHERE m.`id` IN (' . $placeholders . ') '
+                            . 'AND m.`branch_id` IS NOT NULL '
+                            . 'AND TRIM(m.`branch_id`) <> \'\' '
+                            . 'AND p.`reference_id` IS NOT NULL '
+                            . 'AND TRIM(p.`reference_id`) <> \'\' '
+                            . 'AND (p.`branch_id` IS NULL OR TRIM(p.`branch_id`) = \'\')';
+                        $branchStmt = $pdo->prepare($selectBackfillBranchesSql);
+                        $branchStmt->execute($idChunk);
+                        foreach ($branchStmt->fetchAll(PDO::FETCH_COLUMN) as $branchId) {
+                            $branchId = trim((string)$branchId);
+                            if ($branchId !== '') {
+                                $moneygramBackfilledBranchIds[$branchId] = true;
+                                $moneygramUploadedBranchIds[$branchId] = true;
+                            }
+                        }
+
+                        $updateSql = 'UPDATE ' . $quotedFileReconDbName . '.`moneygram_partner_data` p '
+                            . 'JOIN ' . $quotedFileReconDbName . '.`ml_web_data` m '
+                            . 'ON CONVERT(TRIM(p.`reference_id`) USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(TRIM(m.`ccref_no`) USING utf8mb4) COLLATE utf8mb4_unicode_ci '
+                            . 'SET p.`branch_id` = m.`branch_id` '
+                            . 'WHERE m.`id` IN (' . $placeholders . ') '
+                            . 'AND m.`branch_id` IS NOT NULL '
+                            . 'AND TRIM(m.`branch_id`) <> \'\' '
+                            . 'AND p.`reference_id` IS NOT NULL '
+                            . 'AND TRIM(p.`reference_id`) <> \'\' '
+                            . 'AND (p.`branch_id` IS NULL OR TRIM(p.`branch_id`) = \'\')';
+                        $updateStmt = $pdo->prepare($updateSql);
+                        $updateStmt->execute($idChunk);
+                        $moneygramPartnerBranchBackfilled += (int)$updateStmt->rowCount();
+                    }
+                }
+            } catch (Throwable $moneygramPartnerBranchSyncError) {
+                // Keep upload success behavior unchanged if the partner backfill cannot run.
+            }
+        }
+
+        // Show the MoneyGram legacy notice only when the uploaded KPX rows have a partner-data comparison.
+        $moneygramLegacyCheckBranchIds = !empty($moneygramComparableBranchIds)
+            ? $moneygramComparableBranchIds
+            : [];
+
+        if (!empty($moneygramLegacyCheckBranchIds)) {
+            try {
+                $masterPdo = masterDataConnection();
+                $branchIdList = array_values(array_keys($moneygramLegacyCheckBranchIds));
+                $profileByBranchId = [];
+                foreach (array_chunk($branchIdList, 500) as $branchChunk) {
+                    $placeholders = implode(',', array_fill(0, count($branchChunk), '?'));
+                    $profileStmt = $masterPdo->prepare("SELECT branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE branch_id IN ({$placeholders})");
+                    $profileStmt->execute($branchChunk);
+                    foreach ($profileStmt->fetchAll(PDO::FETCH_ASSOC) as $profileRow) {
+                        $branchId = trim((string)($profileRow['branch_id'] ?? ''));
+                        if ($branchId === '') {
+                            continue;
+                        }
+                        $profileByBranchId[$branchId] = [
+                            'branch_name' => trim((string)($profileRow['branch_name'] ?? '')),
+                            'legacyid_moneygram' => trim((string)($profileRow['legacyid_moneygram'] ?? '')),
+                        ];
+                    }
+                }
+
+                foreach ($branchIdList as $branchId) {
+                    if (!array_key_exists($branchId, $profileByBranchId) || $profileByBranchId[$branchId]['legacyid_moneygram'] === '') {
+                        $moneygramMissingLegacyBranches[] = [
+                            'branch_id' => $branchId,
+                            'branch_name' => $profileByBranchId[$branchId]['branch_name'] ?? '',
+                        ];
+                    }
+                }
+            } catch (Throwable $moneygramLegacyCheckError) {
+                $moneygramMissingLegacyBranches = [];
+            }
+        }
         
         $pdo->commit();
         echo json_encode([
             'success' => true,
             'inserted' => $inserted,
             'inserted_regular' => $insertedRegular,
-            'inserted_sendout' => $insertedSendout
+            'inserted_sendout' => $insertedSendout,
+            'moneygram_partner_branch_backfilled' => $moneygramPartnerBranchBackfilled,
+            'moneygram_has_missing_legacy' => !empty($moneygramMissingLegacyBranches),
+            'moneygram_missing_legacy_branches' => $moneygramMissingLegacyBranches
         ]); 
         exit;
     }

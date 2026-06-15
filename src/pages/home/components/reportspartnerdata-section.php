@@ -86,6 +86,44 @@ try {
 			background: #f9fafb;
 		}
 
+		.rpd-results .rwd-results-table.rpd-table--wic {
+			width: 760px !important;
+			table-layout: fixed;
+			border-collapse: collapse;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic th,
+		.rpd-results .rwd-results-table.rpd-table--wic td {
+			padding: 8px 10px !important;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThControlSeries,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(1) {
+			width: 220px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThDateClaimed,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(2) {
+			width: 220px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThCurrency,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(3) {
+			width: 180px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThAmount,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(4) {
+			width: 140px;
+			text-align: center !important;
+		}
+
 		/* Validation modal and invalid field styles */
 		.rpd-text-danger { color: #dc3545; font-weight: 700; margin-left: 6px; }
 		.rpd-invalid { border-color: #dc3545 !important; box-shadow: 0 0 0 4px rgba(220,53,69,0.06) !important; }
@@ -100,9 +138,127 @@ try {
 		.rpd-modal-ok:hover { background:#b02a37; }
 
 		.rpd-summary-badges { display:inline-flex; gap:10px; align-items:center; flex-wrap:wrap; margin-left:10px; }
+		.rpd-summary-label { color:#1f2937; font-weight:800; font-size:0.95rem; }
+		.rpd-summary-group { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; }
 		.rpd-summary-badge { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; font-weight:700; font-size:0.9rem; line-height:1; box-shadow:0 2px 6px rgba(2,6,23,0.06); }
 		.rpd-summary-badge--php { background:#ecfdf5; color:#065f46; }
 		.rpd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
+
+		.reports-webdata-content .txn-view-btn {
+			border: 1px solid #dc3545;
+			background: #fff;
+			color: #dc3545;
+			border-radius: 999px;
+			padding: 2px 10px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			line-height: 1.35;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		.reports-webdata-content .txn-view-btn:hover {
+			background: #dc3545;
+			color: #fff;
+		}
+
+		.txn-detail-modal {
+			position: fixed;
+			inset: 0;
+			z-index: 12000;
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.txn-detail-modal__overlay {
+			position: absolute;
+			inset: 0;
+			background: rgba(15, 23, 42, 0.48);
+		}
+
+		.txn-detail-modal__dialog {
+			position: relative;
+			width: min(780px, 94vw);
+			max-height: 88vh;
+			display: flex;
+			flex-direction: column;
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+			overflow: hidden;
+		}
+
+		.txn-detail-modal__head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 14px 18px;
+			border-top: 4px solid #dc3545;
+			border-bottom: 1px solid #e5e7eb;
+		}
+
+		.txn-detail-modal__head h4 {
+			margin: 0;
+			color: #1f2937;
+			font-size: 1rem;
+			font-weight: 700;
+		}
+
+		.txn-detail-modal__body {
+			padding: 16px 18px;
+			overflow: auto;
+		}
+
+		.txn-detail-grid {
+			margin: 0;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px 14px;
+		}
+
+		.txn-detail-item {
+			min-width: 0;
+			padding: 8px 10px;
+			border: 1px solid #e5e7eb;
+			border-radius: 6px;
+			background: #f8fafc;
+		}
+
+		.txn-detail-item dt {
+			margin: 0 0 4px;
+			color: #6b7280;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+
+		.txn-detail-item dd {
+			margin: 0;
+			color: #1f2937;
+			font-size: 0.86rem;
+			overflow-wrap: anywhere;
+		}
+
+		.txn-detail-close {
+			border: 1px solid #e5e7eb;
+			background: #fff;
+			color: #374151;
+			border-radius: 999px;
+			padding: 8px 18px;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+		}
+
+		.txn-detail-close:hover,
+		.txn-detail-close:focus-visible {
+			background: #dc3545;
+			border-color: #dc3545;
+			color: #fff;
+			box-shadow: 0 8px 18px rgba(220, 53, 69, 0.22);
+			outline: none;
+		}
 
 		@keyframes rpdModalIn { from { opacity:0; transform: translateY(-6px) scale(0.98); } to { opacity:1; transform: translateY(0) scale(1); } }
 	</style>
@@ -132,6 +288,7 @@ try {
 
 			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
 			</div>
 		</form>
 
@@ -156,7 +313,16 @@ try {
 					<h4 id="rpdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
 					<p id="rpdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
 				</div>
-				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
+				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+					<label for="rpdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
+						<select id="rpdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
+							<option value="">ALL</option>
+							<option value="PHP">PHP</option>
+							<option value="USD">USD</option>
+						</select>
+					</label>
+					<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
+				</div>
 			</div>
 			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
 				<table id="rpdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
@@ -188,6 +354,17 @@ try {
 		</div>
 	</div>
 
+	<div id="rpdTxnDetailModal" class="txn-detail-modal" aria-hidden="true">
+		<div class="txn-detail-modal__overlay" data-action="close-rpd-detail"></div>
+		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="MONEYGRAM Partner Transaction Details">
+			<div class="txn-detail-modal__head">
+				<h4>MONEYGRAM Partner Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rpd-detail">Close</button>
+			</div>
+			<div class="txn-detail-modal__body" data-role="rpdTxnDetailBody">Loading...</div>
+		</div>
+	</div>
+
 	<script>
 	(function(){
 		const form = document.getElementById('rpdForm');
@@ -197,15 +374,23 @@ try {
 		const resultsTitle = document.getElementById('rpdResultsTitle');
 		const resultsSummary = document.getElementById('rpdResultsSummary');
 		const resultsBody = document.getElementById('rpdResultsBody');
+		const resultsWrap = document.querySelector('#rpdResults .rwd-results-table-wrap');
 		const exportBtn = document.getElementById('rpdExportBtn');
+		const hideBtn = document.getElementById('rpdHideBtn');
+		const currencyFilter = document.getElementById('rpdCurrencyFilter');
 		const pagination = document.getElementById('rpdPagination');
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
 		const prevBtn = document.getElementById('rpdPrevBtn');
 		const nextBtn = document.getElementById('rpdNextBtn');
 		const partners = <?= json_encode($partners) ?>;
 		const PAGE_SIZE = 10000;
+		const VIRTUAL_ROW_HEIGHT = 48;
+		const VIRTUAL_BUFFER_ROWS = 12;
 		let currentFilters = null;
 		let lastReportData = null;
+		let virtualPartnerRows = [];
+		let virtualPartnerMode = 'standard';
+		let virtualPartnerColCount = 10;
 
 		// Autocomplete function
 		function attachPartnerAutocomplete(inputEl, suggestions){
@@ -247,8 +432,8 @@ try {
 
 			function selectSuggestion(value){
 				inputEl.value = value;
-				closeSuggestions();
 				inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+				closeSuggestions();
 				inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 			}
 
@@ -318,6 +503,19 @@ try {
 
 		function showRequiredModal(missing) {
 			if (!Array.isArray(missing)) missing = [String(missing || '')];
+			if (window.Swal) {
+				const html = '<ul style="margin:0;text-align:left;padding-left:1.25rem;">' + missing.map(function(it){
+					return '<li>' + escapeHtml(String(it || '')) + '</li>';
+				}).join('') + '</ul>';
+				return Swal.fire({
+					title: 'Required Fields',
+					html: html,
+					icon: 'warning',
+					confirmButtonText: 'OK',
+					confirmButtonColor: '#dc3545',
+					heightAuto: false
+				});
+			}
 			missingListEl.innerHTML = '';
 			missing.forEach(it => {
 				const li = document.createElement('li');
@@ -342,13 +540,46 @@ try {
 		// Remove red border on input when user fills value
 		const sdEl = document.getElementById('rpdStartDate');
 		const edEl = document.getElementById('rpdEndDate');
-		if (sdEl) sdEl.addEventListener('input', function(){ if (sdEl.value) sdEl.classList.remove('rpd-invalid'); });
+		function showDurationAlert(message) {
+			if (window.Swal) {
+				return Swal.fire({
+					text: String(message || ''),
+					icon: 'warning',
+					confirmButtonText: 'OK',
+					confirmButtonColor: '#dc3545',
+					heightAuto: false
+				});
+			}
+			alert(message);
+			return Promise.resolve();
+		}
+		function syncEndDateToStartDate() {
+			if (sdEl && edEl && sdEl.value) {
+				edEl.value = sdEl.value;
+				edEl.classList.remove('rpd-invalid');
+			}
+			if (sdEl && sdEl.value) sdEl.classList.remove('rpd-invalid');
+		}
+		if (sdEl) {
+			sdEl.addEventListener('input', syncEndDateToStartDate);
+			sdEl.addEventListener('change', syncEndDateToStartDate);
+		}
 		if (edEl) edEl.addEventListener('input', function(){ if (edEl.value) edEl.classList.remove('rpd-invalid'); });
 
 		// Format currency
 		function formatCurrency(value, currency) {
 			if (value === '' || value === null || value === undefined || isNaN(Number(value))) return '';
 			const num = parseFloat(value);
+			try {
+				return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+			} catch (e) {
+				return num.toFixed(2);
+			}
+		}
+
+		function formatCurrencyAbsolute(value) {
+			if (value === '' || value === null || value === undefined || isNaN(Number(value))) return '';
+			const num = Math.abs(parseFloat(value));
 			try {
 				return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 			} catch (e) {
@@ -378,12 +609,87 @@ try {
 			return parts.length > 0 ? `/${parts[0]}` : '';
 		}
 
+		function escapeHtml(value) {
+			return String(value === null || value === undefined ? '' : value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function formatDetailDateValue(value) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+			if (!match) return raw;
+			return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
+		}
+
+		function isAmountDetailField(key) {
+			return /(^|_)(amount|amt|php|usd|charge|fee|comm|commission|total|principal)(_|$)/i.test(String(key || ''));
+		}
+
+		function renderDetailGrid(data) {
+			const entries = Object.entries(data || {});
+			if (!entries.length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			return '<dl class="txn-detail-grid">' + entries.map(([key, value]) => {
+				const displayValue = isAmountDetailField(key) ? formatCurrencyAbsolute(value) : formatDetailDateValue(value);
+				return '<div class="txn-detail-item"><dt>' + escapeHtml(key) + '</dt><dd>' + escapeHtml(displayValue) + '</dd></div>';
+			}).join('') + '</dl>';
+		}
+
+		function closePartnerDetailModal() {
+			const modal = document.getElementById('rpdTxnDetailModal');
+			if (!modal) return;
+			modal.style.display = 'none';
+			modal.setAttribute('aria-hidden', 'true');
+		}
+
+		async function openPartnerDetailModal(id) {
+			const modal = document.getElementById('rpdTxnDetailModal');
+			const body = modal ? modal.querySelector('[data-role="rpdTxnDetailBody"]') : null;
+			if (!modal || !body || !id) return;
+			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
+			modal.style.display = 'flex';
+			modal.setAttribute('aria-hidden', 'false');
+			try {
+				const res = await fetch(`${getAppBasePath()}/src/controllers/recon/moneygram-partner-transaction-details.php?id=${encodeURIComponent(id)}`, { method: 'GET' });
+				const json = await res.json();
+				if (!res.ok || !(json && json.success && json.data)) {
+					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+					return;
+				}
+				body.innerHTML = renderDetailGrid(json.data);
+			} catch (err) {
+				console.error('MONEYGRAM partner detail error', err);
+				body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			}
+		}
+
+		document.querySelectorAll('[data-action="close-rpd-detail"]').forEach(btn => {
+			btn.addEventListener('click', closePartnerDetailModal);
+		});
+
 		// Format date
 		function formatDate(dateStr) {
 			if (!dateStr) return '';
 			const date = new Date(dateStr);
 			if (isNaN(date.getTime())) return dateStr;
 			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+		}
+
+		function formatDateMonthDayYear(dateStr) {
+			if (!dateStr) return '';
+			const dateOnly = String(dateStr).trim().split(/\s+/)[0];
+			const parts = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+			if (parts) return `${parts[2]}-${parts[3]}-${parts[1]}`;
+
+			const date = new Date(dateStr);
+			if (isNaN(date.getTime())) return String(dateStr);
+			const month = String(date.getMonth() + 1).padStart(2, '0');
+			const day = String(date.getDate()).padStart(2, '0');
+			return `${month}-${day}-${date.getFullYear()}`;
 		}
 
 		async function fetchTransactions(page) {
@@ -399,6 +705,7 @@ try {
 					partner: currentFilters.partner,
 					start_date: currentFilters.startDate,
 					end_date: currentFilters.endDate,
+					settlement_currency: currentFilters.currency || '',
 					page: String(page),
 					per_page: String(PAGE_SIZE)
 				});
@@ -442,8 +749,12 @@ try {
 				if (!partnerVal) input.focus();
 				return;
 			}
+			if (startDate > endDate) {
+				await showDurationAlert('Start Date cannot be greater than End Date.');
+				return;
+			}
 
-			currentFilters = { partner: partnerVal, startDate, endDate };
+			currentFilters = { partner: partnerVal, startDate, endDate, currency: currencyFilter ? currencyFilter.value : '' };
 			await fetchTransactions(1);
 		}
 
@@ -458,6 +769,14 @@ try {
 			await runReport();
 		});
 
+		if (currencyFilter) {
+			currencyFilter.addEventListener('change', function() {
+				if (!currentFilters) return;
+				currentFilters.currency = currencyFilter.value || '';
+				fetchTransactions(1);
+			});
+		}
+
 		function isWorldcomPartner(name) {
 			return /worldcom|\bwic\b/i.test(String(name || ''));
 		}
@@ -468,6 +787,26 @@ try {
 
 		function isMoneygramPartner(name) {
 			return /^moneygram$/i.test(String(name || '').trim());
+		}
+
+		function hideReportData() {
+			resultsBody.innerHTML = '';
+			if (resultsDiv) {
+				resultsDiv.style.display = 'none';
+				if (resultsDiv.dataset) resultsDiv.dataset.reportData = '';
+			}
+			if (pagination) pagination.style.display = 'none';
+			if (hideBtn) hideBtn.style.display = 'none';
+			virtualPartnerRows = [];
+			lastReportData = null;
+			currentFilters = null;
+		}
+
+		if (hideBtn) {
+			hideBtn.addEventListener('click', function(e) {
+				e.preventDefault();
+				hideReportData();
+			});
 		}
 
 		function applyPartnerColumnConfig(partnerName) {
@@ -510,22 +849,20 @@ try {
 			}
 
 			noHeader.textContent = 'No.';
-			controlSeriesHeader.textContent = isWic ? 'Transaction Id' : 'Control Series';
-			dateClaimedHeader.textContent = isWic ? 'Date' : 'Date Claimed';
-			// For WIC we hide the original CCREF NO column (it was renamed earlier),
-			// and display Currency as "Coin" and the numeric Amount as the last column.
+			noHeader.style.display = isWic ? 'none' : '';
+			controlSeriesHeader.textContent = isWic ? 'Date' : 'Control Series';
+			dateClaimedHeader.textContent = isWic ? 'Transaction ID' : 'Date Claimed';
 			ccrefHeader.textContent = 'CCREF NO';
 			ccrefHeader.style.display = isWic ? 'none' : '';
-			currencyHeader.textContent = isWic ? 'Coin' : 'Currency';
-			amountHeader.textContent = isWic ? 'Amount' : 'Amount';
+			currencyHeader.textContent = isWic ? 'Amount' : 'Currency';
+			amountHeader.textContent = isWic ? 'Coin' : 'Amount';
 			senderHeader.textContent = 'Sender';
 			beneficiaryHeader.textContent = 'Beneficiary';
 			operatorHeader.textContent = 'Operator';
 			branchHeader.textContent = 'Branch';
 
-			// Align headers for WIC: Coin (currency code) left, Amount (numeric) right
-			currencyHeader.style.textAlign = isWic ? 'left' : 'left';
-			amountHeader.style.textAlign = isWic ? 'right' : 'right';
+			currencyHeader.style.textAlign = 'left';
+			amountHeader.style.textAlign = isWic ? 'center' : 'right';
 			beneficiaryHeader.style.textAlign = 'left';
 			operatorHeader.style.textAlign = 'left';
 			branchHeader.style.textAlign = 'left';
@@ -535,6 +872,168 @@ try {
 				document.getElementById(id).style.display = hiddenDisplay;
 			});
 		}
+
+		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','product','tran_type','tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt','settlement_currency','orig_cntry','rcv_cntry'];
+		const moneygramAmtCols = new Set(['fx_rev_share_amt','base_amt','comm_amt']);
+
+		function createPartnerSpacerRow(height, colSpan) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = colSpan;
+			td.style.height = Math.max(0, height) + 'px';
+			td.style.padding = '0';
+			td.style.border = '0';
+			tr.appendChild(td);
+			return tr;
+		}
+
+		function createMoneygramResultRow(row, visibleIndex) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			moneygramCols.forEach(col => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				const raw = (row[col] === null || row[col] === undefined) ? '' : row[col];
+				if(col === 'tran_date'){
+					td.textContent = formatDateMonthDayYear(raw);
+				} else if(col === 'tran_type'){
+					const value = String(raw || '').trim();
+					td.textContent = value.toUpperCase() === 'REC' ? 'REC(PAY OUT)' : value;
+				} else if(moneygramAmtCols.has(col)){
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+					td.textContent = raw !== '' ? formatCurrencyAbsolute(raw) : '';
+				} else if(col === 'tran_fx_rate'){
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+					td.textContent = raw !== '' ? String(raw) : '';
+				} else if (col === 'legacy_id') {
+					td.style.textAlign = 'center';
+					td.textContent = raw !== '' ? String(raw) : '';
+				} else {
+					td.textContent = String(raw);
+				}
+				tr.appendChild(td);
+			});
+
+			const viewTd = document.createElement('td');
+			viewTd.style.padding = '0.75rem';
+			viewTd.style.color = '#1f2937';
+			viewTd.style.textAlign = 'center';
+			const id = row['id'] || '';
+			if(id){
+				const viewBtn = document.createElement('button');
+				viewBtn.type = 'button';
+				viewBtn.className = 'txn-view-btn';
+				viewBtn.textContent = 'View';
+				viewBtn.dataset.txnId = id;
+				viewTd.appendChild(viewBtn);
+			}
+			tr.appendChild(viewTd);
+			return tr;
+		}
+
+		function createStandardPartnerResultRow(row, visibleIndex, mode) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			const allCells = [
+				row['no'] || '',
+				row['control_series_no'] || '',
+				formatDate(row['date_claimed']),
+				row['ccref_no'] || '',
+				row['currency'] || '',
+				formatCurrencyAbsolute(row['amount']),
+				row['sender_name'] || '',
+				row['beneficiary_receiver'] || '',
+				row['operator'] || '',
+				row['branch'] || ''
+			];
+
+			const mbtcCells = [
+				row['partner_date'] || row['date_claimed'] || '',
+				row['partner_time'] || '',
+				row['partner_reference_no'] || row['control_series_no'] || '',
+				row['partner_rts_tracer_no'] || '',
+				row['partner_provider'] || '',
+				row['partner_beneficiary_name'] || row['beneficiary_receiver'] || '',
+				row['partner_remitter_name'] || row['sender_name'] || '',
+				formatCurrencyAbsolute(row['partner_php']),
+				formatCurrencyAbsolute(row['partner_usd']),
+				formatCurrencyAbsolute(row['partner_in_php'])
+			];
+
+			const isMbtcMode = mode === 'mbtc';
+			const isWicMode = mode === 'wic';
+			const cells = isMbtcMode ? mbtcCells : (isWicMode ? [allCells[2], allCells[1], allCells[5], allCells[4]] : allCells);
+			const amountCellIdx = isWicMode ? 2 : 5;
+
+			cells.forEach((cellValue, cellIdx) => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				if (isMbtcMode && (cellIdx === 7 || cellIdx === 8 || cellIdx === 9)) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (!isMbtcMode && cellIdx === amountCellIdx && !isWicMode) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (isWicMode && cellIdx === amountCellIdx) {
+					td.style.textAlign = 'left';
+					td.style.fontFamily = 'monospace';
+				}
+				if (isWicMode && cellIdx === 3) {
+					td.style.textAlign = 'center';
+				}
+				td.textContent = cellValue;
+				tr.appendChild(td);
+			});
+
+			return tr;
+		}
+
+		function renderVirtualPartnerRows() {
+			if (!resultsWrap) return;
+			const rows = virtualPartnerRows || [];
+			const scrollTop = resultsWrap.scrollTop || 0;
+			if (!rows.length) return;
+
+			const viewportHeight = resultsWrap.clientHeight || 480;
+			const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_BUFFER_ROWS);
+			const visibleCount = Math.ceil(viewportHeight / VIRTUAL_ROW_HEIGHT) + (VIRTUAL_BUFFER_ROWS * 2);
+			const endIndex = Math.min(rows.length, startIndex + visibleCount);
+			const fragment = document.createDocumentFragment();
+			const topHeight = startIndex * VIRTUAL_ROW_HEIGHT;
+			const bottomHeight = Math.max(0, (rows.length - endIndex) * VIRTUAL_ROW_HEIGHT);
+
+			if (topHeight > 0) fragment.appendChild(createPartnerSpacerRow(topHeight, virtualPartnerColCount));
+			for (let i = startIndex; i < endIndex; i++) {
+				fragment.appendChild(virtualPartnerMode === 'moneygram'
+					? createMoneygramResultRow(rows[i], i)
+					: createStandardPartnerResultRow(rows[i], i, virtualPartnerMode));
+			}
+			if (bottomHeight > 0) fragment.appendChild(createPartnerSpacerRow(bottomHeight, virtualPartnerColCount));
+			resultsBody.replaceChildren(fragment);
+			if (resultsWrap.scrollTop !== scrollTop) resultsWrap.scrollTop = scrollTop;
+		}
+
+		if (resultsWrap) {
+			resultsWrap.addEventListener('scroll', function() {
+				window.requestAnimationFrame(renderVirtualPartnerRows);
+			});
+		}
+
+		resultsBody.addEventListener('click', function(event) {
+			const btn = event.target.closest ? event.target.closest('.txn-view-btn[data-txn-id]') : null;
+			if (!btn) return;
+			openPartnerDetailModal(btn.dataset.txnId);
+		});
 
 		// Display results in table
 		function displayResults(data) {
@@ -550,37 +1049,62 @@ try {
 			}
 
 			if (isMoneygramPartner(data.partner)) {
-				const phpTotal = Number(data.moneygram_php_total || 0);
-				const usdTotal = Number(data.moneygram_usd_total || 0);
+				const phpTotal = Math.abs(Number(data.moneygram_php_total || 0));
+				const usdTotal = Math.abs(Number(data.moneygram_usd_total || 0));
 				resultsSummary.innerHTML = `${dateRange}<span class="rpd-summary-badges"><span class="rpd-summary-badge rpd-summary-badge--php">PHP Total: ₱${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD Total: $${formatCurrencyAllowZero(usdTotal)}</span></span>`;
 			} else {
 				resultsSummary.textContent = dateRange;
 			}
 
+			if (isMoneygramPartner(data.partner)) {
+				const phpTotal = Math.abs(Number(data.moneygram_php_total || 0));
+				const usdTotal = Math.abs(Number(data.moneygram_usd_total || 0));
+				const phpCommissionTotal = Math.abs(Number(data.moneygram_commission_php_total || 0));
+				const usdCommissionTotal = Math.abs(Number(data.moneygram_commission_usd_total || 0));
+				resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rpd-summary-badges"><span class="rpd-summary-group"><span class="rpd-summary-label">Principal:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdTotal)}</span></span><span class="rpd-summary-group"><span class="rpd-summary-label">Commission:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpCommissionTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdCommissionTotal)}</span></span></span>`;
+				resultsSummary.textContent = '';
+				resultsSummary.style.display = 'none';
+			} else {
+				resultsSummary.style.display = '';
+			}
+
 			const isMoneygram = isMoneygramPartner(data.partner);
 			const isWic = isWorldcomPartner(data.partner);
 			const isMbtc = isMetrobankHeadOfficePartner(data.partner);
+			const phpTotal = Math.abs(Number(data.php_total !== undefined ? data.php_total : (data.moneygram_php_total || 0)));
+			const usdTotal = Math.abs(Number(data.usd_total !== undefined ? data.usd_total : (data.moneygram_usd_total || 0)));
+			const phpCommissionTotal = Math.abs(Number(data.php_commission_total !== undefined ? data.php_commission_total : (data.moneygram_commission_php_total || 0)));
+			const usdCommissionTotal = Math.abs(Number(data.usd_commission_total !== undefined ? data.usd_commission_total : (data.moneygram_commission_usd_total || 0)));
+			const principalHeader = `<span class="rpd-summary-group"><span class="rpd-summary-label">Principal:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdTotal)}</span></span>`;
+			const commissionHeader = isWic ? '' : `<span class="rpd-summary-group"><span class="rpd-summary-label">Commission:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpCommissionTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdCommissionTotal)}</span></span>`;
+			resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rpd-summary-badges">${principalHeader}${commissionHeader}</span>`;
+			resultsSummary.textContent = '';
+			resultsSummary.style.display = 'none';
+			const resultsTable = document.getElementById('rpdResultsTable');
+			if (resultsTable) {
+				resultsTable.classList.toggle('rpd-table--wic', isWic);
+			}
 			if(!isMoneygram){
 				applyPartnerColumnConfig(data.partner);
 			}
-			const visibleColCount = isMoneygram ? 9 : (isWic ? 5 : 10);
+			const visibleColCount = isMoneygram ? 15 : (isWic ? 4 : 10);
+			const rowsForDisplay = isMoneygram ? (Array.isArray(data.moneygram_rows) ? data.moneygram_rows : []) : (Array.isArray(data.rows) ? data.rows : []);
 
 			// Clear table
 			resultsBody.innerHTML = '';
+			virtualPartnerRows = [];
 
-			if (!data.rows || data.rows.length === 0) {
+			if (rowsForDisplay.length === 0) {
 				resultsBody.innerHTML = `<tr><td colspan="${visibleColCount}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
+				if (hideBtn) hideBtn.style.display = '';
 				return;
 			}
 
-			// Populate table
 			if(isMoneygram){
-				// Moneygram: 9 specific columns with proper formatting (includes Legacy ID)
-				const mgCols = ['transaction_id','reference_id','tran_date','tran_type','base_tran_amt','total_tran_amt','settlement_currency','agent_name','legacy_id'];
-				const mgHeaders = ['Transaction ID','Reference ID','Tran Date','Tran Type','Base Tran Amt','Total Tran Amt','Settlement Currency','Agent Name','Legacy ID'];
-				const mgAmtCols = new Set(['base_tran_amt','total_tran_amt']);
+				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Product','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Base Amt','Comm Amt','Settlement Currency','Orig Cntry','Rcv Cntry','Details'];
+				const mgNumericCols = new Set(['tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt']);
 				const thead = document.querySelector('#rpdResultsTable thead');
 				if(thead){
 					const tr = document.createElement('tr');
@@ -592,8 +1116,9 @@ try {
 						th.style.whiteSpace = 'nowrap';
 						th.style.background = '#f9fafb';
 						// Right align amounts, center legacy id, left otherwise
-						if (mgAmtCols.has(mgCols[i])) th.style.textAlign = 'right';
-						else if (mgCols[i] === 'legacy_id') th.style.textAlign = 'center';
+						const colName = moneygramCols[i] || '';
+						if (mgNumericCols.has(colName)) th.style.textAlign = 'right';
+						else if (colName === 'legacy_id' || h === 'Details') th.style.textAlign = 'center';
 						else th.style.textAlign = 'left';
 						th.textContent = h;
 						tr.appendChild(th);
@@ -601,89 +1126,19 @@ try {
 					thead.innerHTML = '';
 					thead.appendChild(tr);
 				}
-				const mgRows = Array.isArray(data.moneygram_rows) ? data.moneygram_rows : [];
-				mgRows.forEach((row, idx) => {
-					const tr = document.createElement('tr');
-					tr.style.borderBottom = '1px solid #f0f0f0';
-					if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-					mgCols.forEach(col => {
-						const td = document.createElement('td');
-						td.style.padding = '0.75rem';
-						td.style.color = '#1f2937';
-						const raw = (row[col] === null || row[col] === undefined) ? '' : row[col];
-						if(mgAmtCols.has(col)){
-							td.style.textAlign = 'right';
-							td.style.fontFamily = 'monospace';
-							td.textContent = raw !== '' ? formatCurrency(raw) : '';
-						} else if (col === 'legacy_id') {
-							td.style.textAlign = 'center';
-							td.textContent = raw !== '' ? String(raw) : '';
-						} else {
-							td.textContent = String(raw);
-						}
-						tr.appendChild(td);
-					});
-					resultsBody.appendChild(tr);
-				});
+				virtualPartnerRows = rowsForDisplay;
+				virtualPartnerMode = 'moneygram';
+				virtualPartnerColCount = 15;
 			} else {
-				data.rows.forEach((row, idx) => {
-				const tr = document.createElement('tr');
-				tr.style.borderBottom = '1px solid #f0f0f0';
-				if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-
-				const allCells = [
-					row['no'] || '',
-					row['control_series_no'] || '',
-					formatDate(row['date_claimed']),
-					row['ccref_no'] || '',
-					row['currency'] || '',
-					formatCurrency(row['amount'], row['currency']),
-					row['sender_name'] || '',
-					row['beneficiary_receiver'] || '',
-					row['operator'] || '',
-					row['branch'] || ''
-				];
-
-				const mbtcCells = [
-					row['partner_date'] || row['date_claimed'] || '',
-					row['partner_time'] || '',
-					row['partner_reference_no'] || row['control_series_no'] || '',
-					row['partner_rts_tracer_no'] || '',
-					row['partner_provider'] || '',
-					row['partner_beneficiary_name'] || row['beneficiary_receiver'] || '',
-					row['partner_remitter_name'] || row['sender_name'] || '',
-					formatCurrency(row['partner_php'], 'PHP'),
-					formatCurrency(row['partner_usd'], 'USD'),
-					formatCurrency(row['partner_in_php'], 'PHP')
-				];
-
-				// For WIC exclude the CCREF NO column (index 3). Final WIC columns: No., Transaction Id, Date, Coin, Amount
-				const cells = isMbtc
-					? mbtcCells
-					: (isWic ? [allCells[0], allCells[1], allCells[2], allCells[4], allCells[5]] : allCells);
-				const amountCellIdx = isWic ? 4 : 5;
-
-				cells.forEach((cellValue, cellIdx) => {
-					const td = document.createElement('td');
-					td.style.padding = '0.75rem';
-					td.style.color = '#1f2937';
-					if (isMbtc && (cellIdx === 7 || cellIdx === 8 || cellIdx === 9)) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					if (!isMbtc && cellIdx === amountCellIdx) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					td.textContent = cellValue;
-					tr.appendChild(td);
-				});
-
-					resultsBody.appendChild(tr);
-				});
+				virtualPartnerRows = rowsForDisplay;
+				virtualPartnerMode = isMbtc ? 'mbtc' : (isWic ? 'wic' : 'standard');
+				virtualPartnerColCount = visibleColCount;
 			}
+			if (resultsWrap) resultsWrap.scrollTop = 0;
+			renderVirtualPartnerRows();
 
 			resultsDiv.style.display = 'block';
+			if (hideBtn) hideBtn.style.display = '';
 
 			const page = Number(data.page || 1);
 			const perPage = Number(data.per_page || PAGE_SIZE);
@@ -696,8 +1151,6 @@ try {
 			nextBtn.disabled = page >= totalPages;
 			pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 
-			// Store data for export
-			resultsDiv.dataset.reportData = JSON.stringify(data);
 		}
 
 		prevBtn.addEventListener('click', function() {
@@ -717,9 +1170,9 @@ try {
 
 		// Export to CSV
 		exportBtn.addEventListener('click', function() {
-			if (!resultsDiv.dataset.reportData) return;
+			if (!lastReportData) return;
 
-			const data = JSON.parse(resultsDiv.dataset.reportData);
+			const data = lastReportData;
 			const partner = data.partner;
 				const rows = data.rows;
 const csvIsMoneygram = isMoneygramPartner(partner);
@@ -728,7 +1181,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 
 			// Moneygram: request server-side Excel export including Legacy ID
 			if(csvIsMoneygram){
-				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '' });
+				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', settlement_currency: currencyFilter ? currencyFilter.value : '' });
 				const url = `${getAppBasePath()}/src/controllers/excelcontrol/partner-data-export.php?${params.toString()}`;
 				exportBtn.disabled = true;
 				exportBtn.textContent = 'Preparing...';
@@ -770,7 +1223,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				headers = csvIsMbtc
 				? ['Date', 'Time', 'Reference No.', 'RTS Tracer No.', 'Provider', 'Beneficiary Name', 'Remitter Name', 'Payout Amount PHP', 'USD', 'In PHP']
 				: (csvIsWic
-				? ['No.', 'Transaction Id', 'Date', 'Coin', 'Amount']
+				? ['Date', 'Transaction ID', 'Amount', 'Coin']
 					: ['No.', 'Control Series', 'Date Claimed', 'CCREF NO', 'Currency', 'Amount', 'Sender', 'Beneficiary', 'Operator', 'Branch']);
 
 			// Build CSV content
@@ -803,7 +1256,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				];
 				const values = csvIsMbtc
 					? mbtcValues
-					: (csvIsWic ? [allValues[0], allValues[1], allValues[2], allValues[4], allValues[5]] : allValues);
+					: (csvIsWic ? [allValues[2], allValues[1], allValues[5], allValues[4]] : allValues);
 				const line = values.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',');
 
 				csv += line + '\n';
@@ -843,9 +1296,8 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 		}
 
 		window.addEventListener('resize', setPartnerRecordsHeight);
-		window.addEventListener('scroll', setPartnerRecordsHeight);
 		const origDisplayResultsRpd = displayResults;
-		displayResults = function(data){ origDisplayResultsRpd(data); setTimeout(setPartnerRecordsHeight,50); };
+		displayResults = function(data){ origDisplayResultsRpd(data); setTimeout(function(){ setPartnerRecordsHeight(); renderVirtualPartnerRows(); },50); };
 		setTimeout(setPartnerRecordsHeight,200);
 	})();
 	</script>

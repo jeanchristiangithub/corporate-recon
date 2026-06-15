@@ -26,6 +26,42 @@ try {
 } catch (Throwable $e) {
 	// fallback: keep placeholder
 }
+
+$motivationalQuotes = [
+	'Small progress every day adds up to meaningful results.',
+	'Accuracy first, speed follows.',
+	'Stay focused on the next clear step.',
+	'Great work is built one careful check at a time.',
+	'Consistency turns difficult work into reliable output.',
+	'Make today cleaner, clearer, and better than yesterday.',
+	'Every resolved mismatch is progress the team can trust.',
+	'Discipline in the details creates confidence in the results.',
+	'Clear records today prevent confusion tomorrow.',
+	'One accurate entry can save hours of rework.',
+	'Strong teams rely on careful hands and steady minds.',
+	'Review the details, then move forward with confidence.',
+	'Good results come from patient, consistent effort.',
+	'Each completed task strengthens the whole process.',
+	'Focus on quality, and the numbers will tell the story.',
+	'Reliable work starts with one thoughtful decision.',
+	'Progress is built by finishing what matters most.',
+	'Every careful check protects the integrity of the work.',
+	'Do the simple things well, and the complex work becomes easier.',
+	'Trust grows when every result can be explained clearly.',
+	'Steady attention turns busy work into dependable results.',
+	'Correct the small gaps before they become bigger questions.',
+	'Clean data today gives the team better decisions tomorrow.',
+	'The best progress is progress you can verify.',
+	'Careful work creates fewer surprises and stronger outcomes.',
+	'Each accurate reconciliation brings the bigger picture into focus.',
+	'Take the time to get it right; the record will carry the proof.',
+	'Reliable output starts with honest review and steady follow-through.',
+	'Keep the process clear, and the results will be easier to trust.',
+	'One focused review can prevent many repeated corrections.',
+	'Precision is a habit built through consistent attention.',
+	'Finish each check with the same care you started with.',
+];
+$quoteOfTheDay = $motivationalQuotes[array_rand($motivationalQuotes)];
 ?>
 <section class="dashboard-root" aria-label="Dashboard">
 	<link rel="stylesheet" href="./components/dashboard.css">
@@ -37,10 +73,10 @@ try {
 ?>
 
 <?php if ($userCreateError !== ''): ?>
-	<div style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userCreateError, ENT_QUOTES, 'UTF-8') ?></div>
+	<div data-role="user-create-alert" style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userCreateError, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 <?php if ($userCreateSuccess !== ''): ?>
-	<div style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userCreateSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+	<div data-role="user-create-alert" style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userCreateSuccess, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
 	<div class="dashboard-banner" style="position:relative;overflow:visible">
@@ -81,6 +117,10 @@ try {
 		</div>
 	</div>
 
+	<div class="quote-card" aria-label="Motivational quote">
+		<h3>Motivational Quotes</h3>
+		<p><?= htmlspecialchars($quoteOfTheDay, ENT_QUOTES, 'UTF-8') ?></p>
+	</div>
 
 </section>
 <?php include __DIR__ . '/../../../modals/user/add-user-modal.php'; ?>

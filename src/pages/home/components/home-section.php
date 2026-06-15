@@ -53,6 +53,7 @@ try {
                     </label>
                     <div style="display:inline-flex;align-items:flex-end;gap:8px">
                         <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Start Reconcile</button>
+                        <button id="hsViewLockedDates" class="material-btn locked-dates-btn" type="button">View Locked Dates</button>
                     </div>
                 </div>
                 <div class="filters-actions">
@@ -63,6 +64,35 @@ try {
             </div>
 
             
+        </div>
+
+        <div id="lockedReconDatesModal" class="locked-dates-modal" aria-hidden="true">
+            <div class="locked-dates-modal__panel" role="dialog" aria-modal="true" aria-labelledby="lockedReconDatesTitle">
+                <div class="locked-dates-modal__header">
+                    <h3 id="lockedReconDatesTitle">Reconciliation Dates</h3>
+                </div>
+                <div id="lockedReconDatesMessage" class="locked-dates-modal__message" hidden></div>
+                <div class="locked-dates-modal__body">
+                    <div id="lockedReconDatesEmpty" class="locked-dates-empty" hidden>No locked reconciliation dates found.</div>
+                    <div class="locked-dates-table-wrap">
+                        <table class="locked-dates-table">
+                            <thead>
+                                <tr>
+                                    <th>Corporate Partner</th>
+                                    <th>Transaction Date</th>
+                                    <th>Details</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lockedReconDatesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="locked-dates-modal__footer">
+                    <button type="button" class="material-btn" data-action="close-locked-dates">Close</button>
+                </div>
+            </div>
         </div>
 
         <div class="days">
@@ -90,7 +120,7 @@ try {
         const IS_ADMIN = <?= isset($_SESSION['user']['role']) && strcasecmp((string)($_SESSION['user']['role']), 'Admin') === 0 ? 'true' : 'false' ?>;
 
         // lightweight modal utilities for confirmation and alerts
-        function showConfirmModal(message){
+        function showConfirmModal(message, opts){
             return new Promise(resolve => {
                 let m = document.getElementById('__mbtc_confirm_modal');
                 if(m) m.parentNode.removeChild(m);
@@ -100,7 +130,7 @@ try {
                 const txt = document.createElement('div'); txt.textContent = message; txt.style.marginBottom = '12px';
                 const row = document.createElement('div'); row.style.textAlign = 'right';
                 const btnCancel = document.createElement('button'); btnCancel.textContent = 'Cancel'; btnCancel.className = 'material-btn'; btnCancel.style.marginRight = '8px';
-                const btnOk = document.createElement('button'); btnOk.textContent = 'Lock'; btnOk.className = 'material-btn material-btn--primary';
+                const btnOk = document.createElement('button'); btnOk.textContent = (opts && opts.confirmText) ? opts.confirmText : 'Delete'; btnOk.className = 'material-btn material-btn--primary';
                 btnCancel.addEventListener('click', ()=>{ try{ document.body.removeChild(m); }catch(e){} resolve(false); });
                 btnOk.addEventListener('click', ()=>{ try{ document.body.removeChild(m); }catch(e){} resolve(true); });
                 row.appendChild(btnCancel); row.appendChild(btnOk);
@@ -108,17 +138,43 @@ try {
             });
         }
 
-        function showAlertModal(message){
+        function showAlertModal(message, opts){
+            if(window.Swal){
+                const messageText = String(message || '');
+                const alertOptions = {
+                    title: (opts && opts.title) ? opts.title : '',
+                    icon: (opts && opts.icon) ? opts.icon : 'warning',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545',
+                    heightAuto: false
+                };
+                if(messageText.indexOf('\n') !== -1){
+                    alertOptions.html = escapeHtml(messageText).replace(/\n/g, '<br>');
+                } else {
+                    alertOptions.text = messageText;
+                }
+                return Swal.fire(alertOptions);
+            }
             return new Promise(resolve => {
                 let m = document.getElementById('__mbtc_alert_modal');
                 if(m) m.parentNode.removeChild(m);
                 m = document.createElement('div'); m.id = '__mbtc_alert_modal';
                 Object.assign(m.style, { position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.35)', zIndex:200002 });
                 const box = document.createElement('div'); Object.assign(box.style, { background:'#fff', padding:'18px', borderRadius:'8px', minWidth:'280px', maxWidth:'90%' });
-                const txt = document.createElement('div'); txt.textContent = message; txt.style.marginBottom = '12px';
+                const title = String((opts && opts.title) || '').trim();
+                if(title){
+                    const heading = document.createElement('div');
+                    heading.textContent = title;
+                    Object.assign(heading.style, { fontWeight:'700', fontSize:'16px', marginBottom:'10px', color:'#111827' });
+                    box.appendChild(heading);
+                }
+                const txt = document.createElement('div'); txt.textContent = message; Object.assign(txt.style, { marginBottom:'12px', whiteSpace:'pre-line', lineHeight:'1.45' });
+                const actions = document.createElement('div');
+                Object.assign(actions.style, { display:'flex', justifyContent:'flex-end', marginTop:'14px' });
                 const btnOk = document.createElement('button'); btnOk.textContent = 'OK'; btnOk.className = 'material-btn material-btn--primary';
                 btnOk.addEventListener('click', ()=>{ try{ document.body.removeChild(m); }catch(e){} resolve(); });
-                box.appendChild(txt); box.appendChild(btnOk); m.appendChild(box); document.body.appendChild(m);
+                actions.appendChild(btnOk);
+                box.appendChild(txt); box.appendChild(actions); m.appendChild(box); document.body.appendChild(m);
             });
         }
 
@@ -144,12 +200,105 @@ try {
             return raw;
         }
 
+        function formatDateLongMonth(dateStr){
+            if(!dateStr) return '';
+            const raw = String(dateStr || '').trim();
+            let d = null;
+            const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if(m){
+                d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            } else {
+                d = new Date(raw);
+            }
+            if(!d || isNaN(d.getTime())) return raw;
+            return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+
+        function createReconDateSeparatorRow(dateValue, colspan){
+            const isoDate = normalizeIsoDate(dateValue || '');
+            const label = formatDateLongMonth(isoDate || dateValue || '') || 'NO DATE';
+            const tr = document.createElement('tr');
+            tr.className = 'date-separator-row';
+            tr.setAttribute('data-role', 'date-separator');
+            tr.setAttribute('data-date', isoDate || String(dateValue || ''));
+            tr.innerHTML = '<td colspan="' + (colspan || 4) + '">' + escapeHtml(label) + '</td>';
+            return tr;
+        }
+
+        function appendDateSeparatorIfNeeded(tbody, dateValue, state, colspan){
+            if(!tbody || !state) return;
+            const dateKey = normalizeIsoDate(dateValue || '') || String(dateValue || '').trim() || 'NO DATE';
+            if(state.lastDate === dateKey) return;
+            tbody.appendChild(createReconDateSeparatorRow(dateKey, colspan || 4));
+            state.lastDate = dateKey;
+        }
+
+        function updateVisibleReconDateSeparators(tbody){
+            if(!tbody) return;
+            let currentSeparator = null;
+            let hasVisibleRow = false;
+            const flush = function(){
+                if(currentSeparator) currentSeparator.style.display = hasVisibleRow ? '' : 'none';
+            };
+            Array.from(tbody.querySelectorAll('tr')).forEach((tr) => {
+                if(tr.getAttribute('data-role') === 'date-separator'){
+                    flush();
+                    currentSeparator = tr;
+                    hasVisibleRow = false;
+                    return;
+                }
+                if(tr.style.display !== 'none' && !tr.classList.contains('empty-row') && !tr.classList.contains('no-results') && !tr.classList.contains('row-placeholder')){
+                    hasVisibleRow = true;
+                }
+            });
+            flush();
+        }
+
+        function setReconSummary(modal, matchedCount, unmatchedCount, duplicateCount){
+            const summaryEl = modal ? modal.querySelector('[data-role="summary"]') : null;
+            if(!summaryEl) return;
+            const matched = Number(matchedCount || 0);
+            const unmatched = Number(unmatchedCount || 0);
+            const duplicates = Number(duplicateCount || 0);
+            const matchedLabel = matched === 1 ? 'transaction' : 'transactions';
+            const unmatchedLabel = unmatched === 1 ? 'transaction' : 'transactions';
+            const duplicateLabel = duplicates === 1 ? 'transaction' : 'transactions';
+            summaryEl.innerHTML =
+                '<span class="recon-summary__item">Matched: ' + matched.toLocaleString() + ' ' + matchedLabel + '</span>' +
+                '<span class="recon-summary__sep">|</span>' +
+                '<span class="recon-summary__item">Not Matched: ' + unmatched.toLocaleString() + ' ' + unmatchedLabel + '</span>' +
+                '<span class="recon-summary__sep">|</span>' +
+                '<span class="recon-summary__item">Duplicates: ' + duplicates.toLocaleString() + ' ' + duplicateLabel + '</span>';
+        }
+
+        function getKpxWebDate(row, fallbackDate){
+            return row && (row.web_date_claimed || row.web_date || row.web_date_claim || row.date_claimed || row.date || fallbackDate || '');
+        }
+
+        function getKpxWebKptn(row){
+            return row && (row.web_kptn || row.kptn || row.web_control_series_no || row.control_series_no || '');
+        }
+
+        function getKpxWebCurrency(row, fallbackCurrency){
+            return row && (row.web_currency || row.web_ccy || row.web_currency_code || row.currency || row.coin || fallbackCurrency || '');
+        }
+
+        function formatPrincipalSummary(phpTotal, usdTotal){
+            const php = Number(phpTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const usd = Number(usdTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return 'Principal: PHP: ' + php + ' USD: ' + usd;
+        }
+
+        function formatOptionalTwoDecimalAmount(value){
+            const amount = Number(value || 0);
+            if(!Number.isFinite(amount) || amount === 0) return '';
+            return amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function getDayCardReconData(dayCard){
             if(!dayCard) return null;
             const dateKey = normalizeIsoDate(dayCard.getAttribute('data-date') || '');
-            const daysArr = Array.isArray(window._lastMbtcDays)
-                ? window._lastMbtcDays
-                : (typeof _lastMbtcDays !== 'undefined' && Array.isArray(_lastMbtcDays) ? _lastMbtcDays : []);
+            const daysArr = getCachedReconDaysForCurrentPartner();
             const currentPartner = (company && company.value) ? String(company.value).trim().toUpperCase() : '';
             const matches = Array.isArray(daysArr) ? daysArr.filter((dayObj) => normalizeIsoDate(dayObj && dayObj.date || '') === dateKey) : [];
             if(matches.length > 0) return matches[0];
@@ -171,6 +320,23 @@ try {
 
         function getSelectedPartnerLockKey(){
             return (company && company.value) ? String(company.value).trim().toUpperCase() : '';
+        }
+
+        function setCachedReconDaysForCurrentPartner(days){
+            const normalizedDays = Array.isArray(days) ? days : [];
+            window._lastMbtcDays = normalizedDays;
+            window._lastMbtcDaysPartner = getSelectedPartnerLockKey();
+            if(typeof _lastMbtcDays !== 'undefined') _lastMbtcDays = normalizedDays;
+            if(typeof _lastMbtcDaysPartner !== 'undefined') _lastMbtcDaysPartner = window._lastMbtcDaysPartner;
+        }
+
+        function getCachedReconDaysForCurrentPartner(){
+            const selectedPartner = getSelectedPartnerLockKey();
+            const cachedPartner = String(window._lastMbtcDaysPartner || (typeof _lastMbtcDaysPartner !== 'undefined' ? _lastMbtcDaysPartner : '') || '').trim().toUpperCase();
+            if(selectedPartner && cachedPartner && selectedPartner !== cachedPartner) return [];
+            return Array.isArray(window._lastMbtcDays)
+                ? window._lastMbtcDays
+                : (typeof _lastMbtcDays !== 'undefined' && Array.isArray(_lastMbtcDays) ? _lastMbtcDays : []);
         }
 
         function setDayCardLockState(card, locked){
@@ -255,6 +421,11 @@ try {
         }
 
         const company = document.getElementById('hsCompany');
+        const lockedDatesBtn = document.getElementById('hsViewLockedDates');
+        const lockedDatesModal = document.getElementById('lockedReconDatesModal');
+        const lockedDatesBody = document.getElementById('lockedReconDatesBody');
+        const lockedDatesEmpty = document.getElementById('lockedReconDatesEmpty');
+        const lockedDatesMessage = document.getElementById('lockedReconDatesMessage');
         // Reconcile button behavior: show day cards only when valid partner selected
         const reconcileBtn = document.getElementById('hsReconcile');
         const daysContainerWrap = document.querySelector('.days');
@@ -264,6 +435,7 @@ try {
         hideDays();
 
         const reconOverlay = document.getElementById('reconProcessingOverlay');
+        let reconcileRunning = false;
         function showReconLoader(){
             if(reconOverlay) reconOverlay.classList.add('active');
             reconcileBtn.disabled = true;
@@ -275,6 +447,262 @@ try {
             reconcileBtn.disabled = false;
             reconcileBtn.classList.remove('disabled');
             reconcileBtn.textContent = origText || 'Start Reconcile';
+        }
+
+        function setLockedDatesMessage(message, type){
+            if(!lockedDatesMessage) return;
+            const text = String(message || '').trim();
+            lockedDatesMessage.textContent = text;
+            lockedDatesMessage.className = 'locked-dates-modal__message ' + (type === 'success' ? 'is-success' : 'is-error');
+            lockedDatesMessage.hidden = text === '';
+        }
+
+        function openLockedDatesModal(){
+            if(!lockedDatesModal) return;
+            lockedDatesModal.classList.add('is-open');
+            lockedDatesModal.setAttribute('aria-hidden', 'false');
+            try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            loadLockedDates();
+        }
+
+        function closeLockedDatesModal(){
+            if(!lockedDatesModal) return;
+            lockedDatesModal.classList.remove('is-open');
+            lockedDatesModal.setAttribute('aria-hidden', 'true');
+            try{ document.body.style.overflow = ''; }catch(e){}
+        }
+
+        function renderLockedDates(rows){
+            if(!lockedDatesBody) return;
+            lockedDatesBody.innerHTML = '';
+            const list = Array.isArray(rows) ? rows : [];
+            if(lockedDatesEmpty) lockedDatesEmpty.hidden = list.length > 0;
+            const formatLockedDisplayDate = function(dateString){
+                const raw = String(dateString || '').trim();
+                const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if(!match) return raw;
+                return match[2] + '-' + match[3] + '-' + match[1];
+            };
+            list.forEach((row) => {
+                const partner = String(row.partnername || row.corporate_partner || '').trim();
+                const transactionDate = normalizeIsoDate(row.transaction_date || row.recon_date || row.date || '');
+                const status = String(row.status || 'locked').trim() || 'locked';
+                const tr = document.createElement('tr');
+                tr.dataset.partnername = partner;
+                tr.dataset.transactionDate = transactionDate;
+                tr.innerHTML =
+                    '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
+                    '<td>' + escapeHtml(formatLockedDisplayDate(transactionDate) || '') + '</td>' +
+                    '<td><div class="locked-dates-actions">' +
+                        '<button type="button" class="material-btn locked-dates-action-btn locked-dates-view" data-action="view-locked-date-details">View</button>' +
+                    '</div></td>' +
+                    '<td><span class="locked-dates-status">' + escapeHtml(status) + '</span></td>' +
+                    '<td><div class="locked-dates-actions">' +
+                        '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="unlock-locked-date">Unlock</button>' +
+                    '</div></td>';
+                lockedDatesBody.appendChild(tr);
+            });
+        }
+
+        async function loadLockedDates(){
+            if(!lockedDatesBody) return;
+            setLockedDatesMessage('', '');
+            lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
+            if(lockedDatesEmpty) lockedDatesEmpty.hidden = true;
+            const selectedPartner = (company && company.value) ? String(company.value).trim() : '';
+            const url = location.origin + '/autorecon/src/controllers/recon/get_locked_reconciliation_dates.php' + (selectedPartner ? ('?partnername=' + encodeURIComponent(selectedPartner)) : '');
+            try{
+                const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
+                const json = await res.json();
+                if(!res.ok || !(json && json.success)){
+                    renderLockedDates([]);
+                    setLockedDatesMessage((json && (json.error || json.message)) || 'Failed to load locked reconciliation dates.', 'error');
+                    return;
+                }
+                renderLockedDates(Array.isArray(json.locked_dates) ? json.locked_dates : []);
+            }catch(e){
+                console.warn('Failed to load locked reconciliation dates', e);
+                renderLockedDates([]);
+                setLockedDatesMessage('Failed to load locked reconciliation dates.', 'error');
+            }
+        }
+
+        function buildLockedMoneygramAggregate(payload, partner, transactionDate){
+            const days = Array.isArray(payload && payload.days) ? payload.days : [];
+            const aggregate = {
+                partner: String(partner || '').trim().toUpperCase(),
+                startDate: (payload && payload.start_date) ? String(payload.start_date) : transactionDate,
+                endDate: (payload && payload.end_date) ? String(payload.end_date) : transactionDate,
+                rows: [],
+                duplicates: [],
+                allMissingWebRefs: [],
+                allMissingPartnerRefs: []
+            };
+
+            days.forEach((dayObj) => {
+                if(!dayObj) return;
+                const dayDate = String(dayObj.date || transactionDate || '');
+                if(Array.isArray(dayObj.rows) && dayObj.rows.length){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        if(!next.partner_tran_date && dayDate) next.partner_tran_date = dayDate;
+                        aggregate.rows.push(next);
+                    });
+                }
+                if(Array.isArray(dayObj.missing_web_refs)){
+                    dayObj.missing_web_refs.forEach((ref) => {
+                        aggregate.allMissingWebRefs.push({ ref: ref, date: dayDate });
+                    });
+                }
+                if(Array.isArray(dayObj.missing_partner_refs)){
+                    dayObj.missing_partner_refs.forEach((ref) => {
+                        aggregate.allMissingPartnerRefs.push({ ref: ref, date: dayDate });
+                    });
+                }
+                if(Array.isArray(dayObj.duplicates) && dayObj.duplicates.length){
+                    aggregate.duplicates = aggregate.duplicates.concat(dayObj.duplicates);
+                }
+            });
+
+            return aggregate;
+        }
+
+        function buildLockedWicAggregate(payload, partner, transactionDate){
+            const days = Array.isArray(payload && payload.days) ? payload.days : [];
+            const aggregate = {
+                partner: String(partner || WIC_PARTNER_NAME).trim().toUpperCase(),
+                startDate: (payload && payload.start_date) ? String(payload.start_date) : transactionDate,
+                endDate: (payload && payload.end_date) ? String(payload.end_date) : transactionDate,
+                rows: [],
+                matchedCount: 0,
+                unmatchedCount: 0
+            };
+
+            days.forEach((dayObj) => {
+                if(!dayObj) return;
+                const dayDate = String(dayObj.date || transactionDate || '');
+                if(dayDate !== transactionDate) return;
+                if(Array.isArray(dayObj.rows)){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        next.__wic_date = dayDate;
+                        aggregate.rows.push(next);
+                    });
+                }
+            });
+
+            aggregate.rows.forEach((row) => {
+                const tx = row.partner_transaction_id || row.partner_reference_no || row.partner_ref_no || row.partner_ref || '';
+                const wRef = row.web_ccref_no || row.web_cc_ref || row.web_ccref || row.web_ref || '';
+                if(tx && wRef) aggregate.matchedCount++;
+                else aggregate.unmatchedCount++;
+            });
+
+            return aggregate;
+        }
+
+        function buildLockedMbtcDay(payload, partner, transactionDate){
+            const days = Array.isArray(payload && payload.days) ? payload.days : [];
+            const dayObj = days.find((item) => String(item && item.date || '') === String(transactionDate || '')) || days[0] || {};
+            const result = Object.assign({}, dayObj);
+            result.partner = String(partner || MBTC_PARTNER_NAME).trim().toUpperCase();
+            result.date = String(result.date || transactionDate || '');
+            result.day = result.day || (result.date ? Number(String(result.date).slice(8, 10)) : 1);
+            if(Array.isArray(result.rows)){
+                result.rows = result.rows.map((row) => {
+                    const next = Object.assign({}, row);
+                    if(!next.__mbtc_date && result.date) next.__mbtc_date = result.date;
+                    return next;
+                });
+            }
+            return result;
+        }
+
+        async function viewLockedDateDetails(rowEl){
+            if(!rowEl) return;
+            const partner = rowEl.dataset.partnername || '';
+            const transactionDate = rowEl.dataset.transactionDate || '';
+            if(!partner || !transactionDate){
+                await showAlertModal('Missing locked date details.');
+                return;
+            }
+
+            const btn = rowEl.querySelector('[data-action="view-locked-date-details"]');
+            if(btn){ btn.disabled = true; btn.textContent = 'Loading...'; }
+            try{
+                const url = location.origin + '/autorecon/src/controllers/recon/get_locked_reconciliation_details.php'
+                    + '?partnername=' + encodeURIComponent(partner)
+                    + '&transaction_date=' + encodeURIComponent(transactionDate);
+                const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
+                const json = await res.json();
+                if(!res.ok || !(json && json.success)){
+                    await showAlertModal((json && (json.error || json.message)) || 'Failed to load locked reconciliation details.');
+                    return;
+                }
+
+                closeLockedDatesModal();
+                if(isWorldInternationalCommunications(partner)){
+                    const aggregate = buildLockedWicAggregate(json, partner, transactionDate);
+                    openWicRangeModal(aggregate, partner);
+                    return;
+                }
+
+                if(isMetrobankHeadOffice(partner)){
+                    const dayObj = buildLockedMbtcDay(json, partner, transactionDate);
+                    openMbtcReconModal(dayObj, { lockedDates: [transactionDate], partnerName: partner });
+                    return;
+                }
+
+                const aggregate = buildLockedMoneygramAggregate(json, partner, transactionDate);
+                openMoneygramRangeModal(aggregate, partner, { lockedDates: [transactionDate] });
+            }catch(e){
+                console.warn('Failed to load locked reconciliation details', e);
+                await showAlertModal('Failed to load locked reconciliation details.');
+            }finally{
+                if(btn){ btn.disabled = false; btn.textContent = 'View'; }
+            }
+        }
+
+        async function unlockLockedDate(rowEl){
+            if(!rowEl) return;
+            const partner = rowEl.dataset.partnername || '';
+            const transactionDate = rowEl.dataset.transactionDate || '';
+            if(!partner || !transactionDate){
+                await showAlertModal('Missing locked date details.');
+                return;
+            }
+            const confirmed = await showConfirmModal('Are you sure you want to unlock this reconciliation date?', { confirmText: 'Unlock' });
+            if(!confirmed) return;
+            const btn = rowEl.querySelector('[data-action="unlock-locked-date"]');
+            if(btn){ btn.disabled = true; btn.textContent = 'Unlocking...'; }
+            try{
+                const res = await fetch(location.origin + '/autorecon/src/controllers/recon/unlock_reconciliation_date.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ partnername: partner, transaction_date: transactionDate })
+                });
+                const json = await res.json();
+                if(!res.ok || !(json && json.success)){
+                    if(btn){ btn.disabled = false; btn.textContent = 'Unlock'; }
+                    setLockedDatesMessage((json && (json.error || json.message)) || 'Failed to unlock reconciliation date.', 'error');
+                    return;
+                }
+                rowEl.remove();
+                if(lockedDatesBody && lockedDatesBody.children.length === 0 && lockedDatesEmpty) lockedDatesEmpty.hidden = false;
+                setLockedDatesMessage('Reconciliation date unlocked successfully.', 'success');
+                daysContainer.querySelectorAll('.day-card[data-date]').forEach((card) => {
+                    const cardDate = normalizeIsoDate(card.getAttribute('data-date') || '');
+                    const cardPartner = String(card.getAttribute('data-partner') || getSelectedPartnerLockKey() || '').trim().toUpperCase();
+                    if(cardDate === transactionDate && cardPartner === String(partner).trim().toUpperCase()){
+                        setDayCardLockState(card, false);
+                    }
+                });
+            }catch(e){
+                console.warn('Failed to unlock reconciliation date', e);
+                if(btn){ btn.disabled = false; btn.textContent = 'Unlock'; }
+                setLockedDatesMessage('Failed to unlock reconciliation date.', 'error');
+            }
         }
 
         function toUpperKey(value){
@@ -296,15 +724,35 @@ try {
             return Number.isFinite(n) ? n : 0;
         }
 
+        function escapeHtml(value){
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatDetailDateValue(value){
+            const raw = String(value === null || value === undefined ? '' : value).trim();
+            if(!raw) return '';
+            const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+            if(!match) return raw;
+            return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
+        }
+
         async function fetchMoneygramRangeAggregate(partnerName, startDate, endDate){
-            const baseUrl = location.origin + '/autorecon/src/controllers/recon/moneygram-recon.php?start_date=' + encodeURIComponent(startDate || '') + '&end_date=' + encodeURIComponent(endDate || '') + '&partnerName=' + encodeURIComponent(partnerName || '');
-            const summaryResp = await fetch(baseUrl, { method: 'GET', credentials: 'same-origin' });
-            if(!summaryResp || !summaryResp.ok){
-                throw new Error('summary_fetch_failed');
+            const url = location.origin + '/autorecon/src/controllers/recon/moneygram-recon.php?start_date=' + encodeURIComponent(startDate || '') + '&end_date=' + encodeURIComponent(endDate || '') + '&partnerName=' + encodeURIComponent(partnerName || '') + '&detail=1&range_detail=1';
+            const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+            if(!resp || !resp.ok){
+                throw new Error('recon_fetch_failed');
             }
 
-            const summaryJson = await summaryResp.json();
-            const days = Array.isArray(summaryJson && summaryJson.days) ? summaryJson.days : [];
+            const json = await resp.json();
+            if(!(json && json.success)){
+                throw new Error((json && json.error) || 'recon_fetch_failed');
+            }
+            const days = Array.isArray(json && json.days) ? json.days : [];
             const aggregate = {
                 partner: String(partnerName || '').trim().toUpperCase(),
                 startDate: startDate || '',
@@ -315,60 +763,270 @@ try {
                 allMissingPartnerRefs: []
             };
 
-            const detailDays = days.filter((dayObj) => {
-                if(!dayObj) return false;
-                const status = String(dayObj.status || '').toLowerCase();
-                if(status === 'green' || status === 'red' || status === 'yellow') return true;
-                if(Number(dayObj.vol || 0) > 0) return true;
-                if(Array.isArray(dayObj.missing_web_refs) && dayObj.missing_web_refs.length > 0) return true;
-                if(Array.isArray(dayObj.missing_partner_refs) && dayObj.missing_partner_refs.length > 0) return true;
-                return false;
+            days.forEach((dayObj) => {
+                if(!dayObj) return;
+                const dayDate = String(dayObj.date || '');
+                if(Array.isArray(dayObj.rows) && dayObj.rows.length){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        if(!next.partner_tran_date && dayDate) next.partner_tran_date = dayDate;
+                        aggregate.rows.push(next);
+                    });
+                }
+
+                if(Array.isArray(dayObj.missing_web_refs)){
+                    dayObj.missing_web_refs.forEach((ref) => {
+                        aggregate.allMissingWebRefs.push({ ref: ref, date: dayDate });
+                    });
+                }
+                if(Array.isArray(dayObj.missing_partner_refs)){
+                    dayObj.missing_partner_refs.forEach((ref) => {
+                        aggregate.allMissingPartnerRefs.push({ ref: ref, date: dayDate });
+                    });
+                }
+                if(Array.isArray(dayObj.duplicates) && dayObj.duplicates.length){
+                    aggregate.duplicates = aggregate.duplicates.concat(dayObj.duplicates);
+                }
             });
 
-            for(const dayObj of detailDays){
-                const dayNum = Number(dayObj.day || 0);
-                const dayDate = String(dayObj.date || '');
-                if(!dayNum || !dayDate) continue;
+            return aggregate;
+        }
 
-                const detailUrl = baseUrl + '&detail=1&day=' + encodeURIComponent(String(dayNum)) + '&date=' + encodeURIComponent(dayDate);
-                try{
-                    const detailResp = await fetch(detailUrl, { method: 'GET', credentials: 'same-origin' });
-                    if(!detailResp || !detailResp.ok) continue;
-                    const detailJson = await detailResp.json();
-                    let detailDay = null;
-                    if(detailJson && detailJson.day) detailDay = detailJson.day;
-                    else if(detailJson && Array.isArray(detailJson.days)) detailDay = detailJson.days.find((d) => String(d.day) === String(dayNum) || String(d.date) === dayDate) || null;
+        function eachIsoDateInRange(startDate, endDate){
+            const dates = [];
+            const start = new Date(String(startDate || '') + 'T00:00:00');
+            const end = new Date(String(endDate || '') + 'T00:00:00');
+            if(isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return dates;
+            for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)){
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                dates.push(y + '-' + m + '-' + day);
+            }
+            return dates;
+        }
 
-                    if(detailDay && Array.isArray(detailDay.rows) && detailDay.rows.length){
-                        detailDay.rows.forEach((row) => {
-                            const next = Object.assign({}, row);
-                            if(!next.partner_tran_date && dayDate) next.partner_tran_date = dayDate;
-                            aggregate.rows.push(next);
-                        });
-                    }
+        async function fetchWicRangeAggregate(partnerName, startDate, endDate){
+            const aggregate = {
+                partner: WIC_PARTNER_NAME,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                rows: [],
+                matchedCount: 0,
+                unmatchedCount: 0
+            };
 
-                    if(detailDay && Array.isArray(detailDay.missing_web_refs)){
-                        detailDay.missing_web_refs.forEach((ref) => {
-                            aggregate.allMissingWebRefs.push({ ref: ref, date: dayDate });
-                        });
-                    }
-                    if(detailDay && Array.isArray(detailDay.missing_partner_refs)){
-                        detailDay.missing_partner_refs.forEach((ref) => {
-                            aggregate.allMissingPartnerRefs.push({ ref: ref, date: dayDate });
-                        });
-                    }
-                    if(detailDay && Array.isArray(detailDay.duplicates) && detailDay.duplicates.length){
-                        aggregate.duplicates = aggregate.duplicates.concat(detailDay.duplicates);
-                    }
-                }catch(_detailErr){
-                    // Skip a failed day detail fetch and continue with remaining days.
+            const dates = eachIsoDateInRange(startDate, endDate);
+            for(const dateValue of dates){
+                const parts = dateValue.split('-');
+                const year = Number(parts[0] || 0);
+                const month = Number(parts[1] || 0);
+                const day = Number(parts[2] || 0);
+                if(!year || !month || !day) continue;
+
+                const url = location.origin + '/autorecon/src/controllers/recon/wic-recon.php?month='
+                    + encodeURIComponent(month)
+                    + '&year=' + encodeURIComponent(year)
+                    + '&day=' + encodeURIComponent(day)
+                    + '&detail=1'
+                    + '&partnerName=' + encodeURIComponent(partnerName || WIC_PARTNER_NAME);
+                const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                if(!resp || !resp.ok) throw new Error('wic_recon_fetch_failed');
+                const json = await resp.json();
+                if(!(json && json.success)) throw new Error((json && json.error) || 'wic_recon_fetch_failed');
+
+                const dayObj = (Array.isArray(json.days) ? json.days : []).find((item) => Number(item && item.day) === day);
+                if(!dayObj) continue;
+
+                if(Array.isArray(dayObj.rows)){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        next.__wic_date = dayObj.date || dateValue;
+                        aggregate.rows.push(next);
+                    });
+                }
+            }
+
+            aggregate.rows.forEach((row) => {
+                const tx = row.partner_transaction_id || row.partner_reference_no || row.partner_ref_no || row.partner_ref || '';
+                const wRef = row.web_ccref_no || row.web_cc_ref || row.web_ccref || row.web_ref || '';
+                if(tx && wRef) aggregate.matchedCount++;
+                else aggregate.unmatchedCount++;
+            });
+
+            return aggregate;
+        }
+
+        async function fetchMbtcRangeAggregate(partnerName, startDate, endDate){
+            const aggregate = {
+                partner: MBTC_PARTNER_NAME,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                date: startDate && endDate && startDate !== endDate ? (startDate + ' - ' + endDate) : (startDate || endDate || ''),
+                rows: [],
+                matchedCount: 0,
+                unmatchedCount: 0,
+                principal: 0,
+                commission: 0,
+                web_principal: 0,
+                web_commission: 0,
+                total_partner_amount: 0,
+                total_web_amount: 0,
+                variance: 0,
+                vol: 0,
+                missing_web_refs: [],
+                missing_partner_refs: [],
+                mismatches: [],
+                duplicates: []
+            };
+
+            const dates = eachIsoDateInRange(startDate, endDate);
+            for(const dateValue of dates){
+                const url = location.origin + '/autorecon/src/controllers/recon/mbtc-recon.php?start_date='
+                    + encodeURIComponent(dateValue)
+                    + '&end_date=' + encodeURIComponent(dateValue)
+                    + '&date=' + encodeURIComponent(dateValue)
+                    + '&detail=1'
+                    + '&partnerName=' + encodeURIComponent(partnerName || MBTC_PARTNER_NAME);
+                const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                if(!resp || !resp.ok) throw new Error('mbtc_recon_fetch_failed');
+                const json = await resp.json();
+                if(!(json && json.success)) throw new Error((json && json.error) || 'mbtc_recon_fetch_failed');
+
+                const dayObj = (Array.isArray(json.days) ? json.days : []).find((item) => String(item && item.date || '') === dateValue);
+                if(!dayObj) continue;
+
+                aggregate.matchedCount += Number(dayObj.matchedCount || dayObj.vol || 0);
+                aggregate.unmatchedCount += Number(dayObj.unmatchedCount || 0);
+                aggregate.principal += Number(dayObj.principal || 0);
+                aggregate.commission += Number(dayObj.commission || 0);
+                aggregate.web_principal += Number(dayObj.web_principal || 0);
+                aggregate.web_commission += Number(dayObj.web_commission || 0);
+                aggregate.total_partner_amount += Number(dayObj.total_partner_amount || 0);
+                aggregate.total_web_amount += Number(dayObj.total_web_amount || 0);
+                aggregate.variance += Number(dayObj.variance || 0);
+                aggregate.vol += Number(dayObj.vol || 0);
+
+                if(Array.isArray(dayObj.rows)){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        next.__mbtc_date = dayObj.date || dateValue;
+                        aggregate.rows.push(next);
+                    });
+                }
+                if(Array.isArray(dayObj.missing_web_refs)){
+                    aggregate.missing_web_refs = aggregate.missing_web_refs.concat(dayObj.missing_web_refs);
+                }
+                if(Array.isArray(dayObj.missing_partner_refs)){
+                    aggregate.missing_partner_refs = aggregate.missing_partner_refs.concat(dayObj.missing_partner_refs);
+                }
+                if(Array.isArray(dayObj.mismatches)){
+                    aggregate.mismatches = aggregate.mismatches.concat(dayObj.mismatches);
+                }
+                if(Array.isArray(dayObj.duplicates)){
+                    aggregate.duplicates = aggregate.duplicates.concat(dayObj.duplicates);
                 }
             }
 
             return aggregate;
         }
 
-        function openMoneygramRangeModal(aggregate, partnerName){
+        async function fetchSkybridgePaymentIncRangeAggregate(partnerName, startDate, endDate){
+            const aggregate = {
+                partner: SKYBRIDGE_PARTNER_NAME,
+                startDate: startDate || '',
+                endDate: endDate || '',
+                date: startDate && endDate && startDate !== endDate ? (startDate + ' - ' + endDate) : (startDate || endDate || ''),
+                rows: [],
+                matchedCount: 0,
+                unmatchedCount: 0,
+                principal: 0,
+                commission: 0,
+                web_principal: 0,
+                web_commission: 0,
+                total_partner_amount: 0,
+                total_web_amount: 0,
+                variance: 0,
+                vol: 0,
+                missing_web_refs: [],
+                missing_partner_refs: [],
+                mismatches: [],
+                duplicates: []
+            };
+
+            const dates = eachIsoDateInRange(startDate, endDate);
+            for(const dateValue of dates){
+                const url = location.origin + '/autorecon/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='
+                    + encodeURIComponent(dateValue)
+                    + '&end_date=' + encodeURIComponent(dateValue)
+                    + '&date=' + encodeURIComponent(dateValue)
+                    + '&detail=1'
+                    + '&partnerName=' + encodeURIComponent(partnerName || SKYBRIDGE_PARTNER_NAME);
+                const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+                if(!resp || !resp.ok) throw new Error('skybridgepaymentinc_recon_fetch_failed');
+                const json = await resp.json();
+                if(!(json && json.success)) throw new Error((json && json.error) || 'skybridgepaymentinc_recon_fetch_failed');
+
+                const dayObj = (Array.isArray(json.days) ? json.days : []).find((item) => String(item && item.date || '') === dateValue);
+                if(!dayObj) continue;
+
+                aggregate.matchedCount += Number(dayObj.matchedCount || dayObj.vol || 0);
+                aggregate.unmatchedCount += Number(dayObj.unmatchedCount || 0);
+                aggregate.principal += Number(dayObj.principal || 0);
+                aggregate.commission += Number(dayObj.commission || 0);
+                aggregate.web_principal += Number(dayObj.web_principal || 0);
+                aggregate.web_commission += Number(dayObj.web_commission || 0);
+                aggregate.total_partner_amount += Number(dayObj.total_partner_amount || 0);
+                aggregate.total_web_amount += Number(dayObj.total_web_amount || 0);
+                aggregate.variance += Number(dayObj.variance || 0);
+                aggregate.vol += Number(dayObj.vol || 0);
+
+                if(Array.isArray(dayObj.rows)){
+                    dayObj.rows.forEach((row) => {
+                        const next = Object.assign({}, row);
+                        next.__skybridgepaymentinc_date = dayObj.date || dateValue;
+                        aggregate.rows.push(next);
+                    });
+                }
+                if(Array.isArray(dayObj.missing_web_refs)){
+                    aggregate.missing_web_refs = aggregate.missing_web_refs.concat(dayObj.missing_web_refs);
+                }
+                if(Array.isArray(dayObj.missing_partner_refs)){
+                    aggregate.missing_partner_refs = aggregate.missing_partner_refs.concat(dayObj.missing_partner_refs);
+                }
+                if(Array.isArray(dayObj.mismatches)){
+                    aggregate.mismatches = aggregate.mismatches.concat(dayObj.mismatches);
+                }
+                if(Array.isArray(dayObj.duplicates)){
+                    aggregate.duplicates = aggregate.duplicates.concat(dayObj.duplicates);
+                }
+            }
+
+            return aggregate;
+        }
+
+        async function fetchLockedRangeDates(partnerName, startDate, endDate){
+            try{
+                const resp = await fetch(location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_range.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partnername: partnerName || '',
+                        start_date: startDate || '',
+                        end_date: endDate || ''
+                    })
+                });
+                const json = await resp.json().catch(() => null);
+                return Array.isArray(json && json.locked_dates) ? json.locked_dates.map((date) => normalizeIsoDate(date)).filter(Boolean) : [];
+            }catch(e){
+                console.warn('Failed to check locked reconciliation range', e);
+                return [];
+            }
+        }
+
+        function openMoneygramRangeModal(aggregate, partnerName, options){
             const modal = document.getElementById('moneygramReconViewModal');
             if(!modal) throw new Error('moneygram_modal_not_found');
 
@@ -377,6 +1035,10 @@ try {
             modal.style.display = 'block';
             try{ document.body.style.overflow = 'hidden'; }catch(e){}
 
+            const lockedDates = Array.isArray(options && options.lockedDates) ? options.lockedDates.map((date) => normalizeIsoDate(date)).filter(Boolean) : [];
+            const lockedDateSet = new Set(lockedDates);
+            modal.dataset.lockedView = lockedDates.length > 0 ? 'true' : 'false';
+            modal.dataset.lockedDates = lockedDates.join(',');
             modal.dataset.partnerName = String(partnerName || '');
             modal.dataset.reconDate = String(aggregate && aggregate.startDate || '');
             modal.dataset.startDate = String(aggregate && aggregate.startDate || '');
@@ -393,8 +1055,10 @@ try {
             const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
             const searchEl = modal.querySelector('[data-role="resultSearch"]');
             const filterEl = modal.querySelector('[data-role="resultFilter"]');
+            const partnersScroll = modal.querySelector('[data-role="partnersScroll"]');
+            const webScroll = modal.querySelector('[data-role="webScroll"]');
 
-            if(!partnersBody || !webBody){
+            if(!partnersBody || !webBody || !partnersScroll || !webScroll){
                 if(loadingEl) loadingEl.style.display = 'none';
                 throw new Error('moneygram_modal_table_not_found');
             }
@@ -405,7 +1069,9 @@ try {
             const rows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows : [];
             const allMissingWebRefs = Array.isArray(aggregate && aggregate.allMissingWebRefs) ? aggregate.allMissingWebRefs : [];
             const allMissingPartnerRefs = Array.isArray(aggregate && aggregate.allMissingPartnerRefs) ? aggregate.allMissingPartnerRefs : [];
-            const duplicateRefs = new Set((Array.isArray(aggregate && aggregate.duplicates) ? aggregate.duplicates : []).map((d) => toUpperKey(d && d.ref ? d.ref : '')));
+            const duplicateItems = Array.isArray(aggregate && aggregate.duplicates) ? aggregate.duplicates : [];
+            const duplicateRefs = new Set(duplicateItems.map((d) => toUpperKey(d && d.ref ? d.ref : '')));
+            const partnerDuplicateRefs = new Set(duplicateItems.filter((d) => String(d && d.type || '').toLowerCase() === 'partner').map((d) => toUpperKey(d && d.ref ? d.ref : '')));
 
             const alignedPairs = [];
             const partnerBucket = new Map();
@@ -434,9 +1100,10 @@ try {
                 const tr = document.createElement('tr');
                 if(obj && obj.placeholder){
                     tr.classList.add('row-placeholder');
-                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
+                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
                     tr.dataset.ref = '';
                     tr.dataset.amount = '0';
+                    tr.dataset.commission = '0';
                     tr.dataset.currency = '';
                     tr.dataset.isoDate = '';
                     return tr;
@@ -444,12 +1111,16 @@ try {
                 const dateText = formatDateMMDDYYYY(obj.pDate || '');
                 const isoDate = normalizeIsoDate(obj.pDate || '');
                 const amount = toMoneygramAmount(obj.pAmt);
+                const commission = toMoneygramAmount(obj.pComm);
                 const currency = String(obj.pCoin || '').trim();
+                const partnerId = obj.partnerId ? String(obj.partnerId) : '';
                 tr.dataset.ref = String(obj.tx || '');
                 tr.dataset.amount = String(amount);
+                tr.dataset.commission = String(commission);
                 tr.dataset.currency = currency;
                 tr.dataset.isoDate = isoDate;
-                tr.innerHTML = '<td>' + dateText + '</td><td class="highlight-ref">' + String(obj.tx || '') + '</td><td>' + Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td><td>' + currency + '</td>';
+                if(partnerId) tr.dataset.partnerId = partnerId;
+                tr.innerHTML = '<td>' + dateText + '</td><td class="highlight-ref"><span class="moneygram-ref-text">' + String(obj.tx || '') + '</span></td><td>' + Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td><td>' + Math.abs(commission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td><td>' + currency + '</td>';
                 return tr;
             };
 
@@ -457,7 +1128,7 @@ try {
                 const tr = document.createElement('tr');
                 if(obj && obj.placeholder){
                     tr.classList.add('row-placeholder');
-                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
+                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
                     tr.dataset.ref = '';
                     tr.dataset.amount = '0';
                     tr.dataset.currency = '';
@@ -466,30 +1137,31 @@ try {
                 }
                 const dateText = formatDateMMDDYYYY(obj.wDateRaw || '');
                 const isoDate = normalizeIsoDate(obj.wDateRaw || '');
+                const kptn = String(obj.wKptn || '').trim();
                 const amount = toMoneygramAmount(obj.wAmt);
                 const currency = String(obj.wCurrency || '').trim();
                 tr.dataset.ref = String(obj.wRef || '');
+                tr.dataset.kptn = kptn;
                 tr.dataset.amount = String(amount);
                 tr.dataset.currency = currency;
                 tr.dataset.isoDate = isoDate;
-                tr.innerHTML = '<td>' + dateText + '</td><td class="highlight-ref">' + String(obj.wRef || '') + '</td><td>' + Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td><td>' + currency + '</td>';
+                tr.innerHTML = '<td>' + dateText + '</td><td>' + kptn + '</td><td class="highlight-ref">' + String(obj.wRef || '') + '</td><td>' + Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td><td>' + currency + '</td>';
                 return tr;
             };
 
-            const createDateSeparatorRow = function(isoDate){
+            const createDateSeparatorRow = function(isoDate, colspan, showDetailsNotice){
                 const tr = document.createElement('tr');
                 tr.className = 'date-sep-row';
                 tr.setAttribute('data-role', 'date-separator');
                 tr.setAttribute('data-date', isoDate || '');
-                const label = formatDateMMDDYYYY(isoDate || '') || 'NO DATE';
-                tr.innerHTML = '<td colspan="4" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">===== ' + label + ' =====</td>';
+                const label = formatDateLongMonth(isoDate || '') || 'NO DATE';
+                const notice = showDetailsNotice ? ' <span style="margin-left:12px;color:#64748b;font-weight:600;font-size:0.78rem;"><span class="material-icons" aria-hidden="true" style="font-size:0.9rem;vertical-align:-2px;margin-right:4px;color:#f59e0b;">info</span>Double click row to show transaction details</span>' : '';
+                tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">' + label + notice + '</td>';
                 return tr;
             };
 
             let pairInsertIndex = 0;
             const addAlignedPair = function(partnerObj, webObj){
-                const partnerRow = createPartnerRow(partnerObj || { placeholder: true });
-                const webRow = createWebRow(webObj || { placeholder: true });
                 const pRef = toUpperKey(partnerObj ? partnerObj.tx : '');
                 const wRef = toUpperKey(webObj ? webObj.wRef : '');
                 const hasPartner = !!partnerObj;
@@ -497,29 +1169,28 @@ try {
                 const isMatch = hasPartner && hasWeb && pRef && wRef && pRef === wRef;
                 const isDuplicate = !!((pRef && duplicateRefs.has(pRef)) || (wRef && duplicateRefs.has(wRef)));
 
-                if(isDuplicate){
-                    partnerRow.classList.add('dup-row');
-                    webRow.classList.add('row-duplicate');
-                } else if(isMatch){
-                    partnerRow.classList.add('matched-row');
-                    webRow.classList.add('row-match');
-                } else {
-                    partnerRow.classList.add('mismatch-row');
-                    webRow.classList.add('row-mismatch');
-                }
-
                 const pairDateIso = normalizeIsoDate(
                     (partnerObj && partnerObj.pDate) ||
                     (webObj && webObj.wDateRaw) ||
                     aggregate.startDate || ''
                 );
                 alignedPairs.push({
-                    partnerRow: partnerRow,
-                    webRow: webRow,
+                    partnerObj: partnerObj || null,
+                    webObj: webObj || null,
                     isMismatch: !isMatch,
                     isDuplicate: isDuplicate,
                     pairDateIso: pairDateIso,
-                    insertIndex: pairInsertIndex++
+                    insertIndex: pairInsertIndex++,
+                    partnerId: partnerObj && partnerObj.partnerId ? String(partnerObj.partnerId) : '',
+                    partnerRef: partnerObj && partnerObj.tx ? String(partnerObj.tx) : '',
+                    webRef: webObj && webObj.wRef ? String(webObj.wRef) : '',
+                    webKptn: webObj && webObj.wKptn ? String(webObj.wKptn) : '',
+                    partnerAmount: partnerObj ? toMoneygramAmount(partnerObj.pAmt) : 0,
+                    partnerCommission: partnerObj ? toMoneygramAmount(partnerObj.pComm) : 0,
+                    webAmount: webObj ? toMoneygramAmount(webObj.wAmt) : 0,
+                    partnerCurrency: partnerObj ? String(partnerObj.pCoin || '').trim() : '',
+                    webCurrency: webObj ? String(webObj.wCurrency || '').trim() : '',
+                    locked: lockedDateSet.has(pairDateIso)
                 });
             };
 
@@ -527,13 +1198,16 @@ try {
                 const tx = extractMoneygramPartnerRef(row);
                 const wRef = extractMoneygramWebRef(row);
                 const pObj = tx ? {
+                    partnerId: row.partner_id || '',
                     pDate: row.partner_tran_date || row.partner_date || row.partner_fx_date_trn || row.partner_cover_date || row.partner_date_claimed || row.partner_date_send || aggregate.startDate || '',
                     tx: tx,
-                    pAmt: toMoneygramAmount(row.partner_principal || row.partner_base_tran_amt || row.partner_total_tran_amt || row.partner_amount || 0),
-                    pCoin: row.partner_transaction_currency || row.partner_base_cncy || row.partner_currency || row.partner_coin || ''
+                    pAmt: toMoneygramAmount(row.partner_principal || row.partner_base_amt || 0),
+                    pComm: toMoneygramAmount(row.partner_commission || row.partner_comm_amt || row.partner_comm_tran_amt || row.partner_fee_tran_amt || 0),
+                    pCoin: row.partner_settlement_currency || row.partner_transaction_currency || row.partner_base_cncy || row.partner_currency || row.partner_coin || ''
                 } : null;
                 const wObj = wRef ? {
                     wDateRaw: row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || '',
+                    wKptn: row.web_kptn || row.kptn || '',
                     wRef: wRef,
                     wAmt: toMoneygramAmount(row.web_amount || row.web_amt || 0),
                     wCurrency: row.web_currency || row.web_ccy || row.web_currency_code || ''
@@ -590,15 +1264,17 @@ try {
                 }
                 if(source){
                     const pObj = {
+                        partnerId: source.partner_id || '',
                         pDate: source.partner_tran_date || source.partner_date || source.partner_fx_date_trn || source.partner_cover_date || source.partner_date_claimed || source.partner_date_send || aggregate.startDate || item && item.date || '',
                         tx: ref,
-                        pAmt: toMoneygramAmount(source.partner_principal || source.partner_base_tran_amt || source.partner_total_tran_amt || source.partner_amount || source.amount || 0),
-                        pCoin: source.partner_transaction_currency || source.partner_base_cncy || source.partner_currency || source.partner_coin || ''
+                        pAmt: toMoneygramAmount(source.partner_principal || source.partner_base_amt || 0),
+                        pComm: toMoneygramAmount(source.partner_commission || source.partner_comm_amt || source.partner_comm_tran_amt || source.partner_fee_tran_amt || 0),
+                        pCoin: source.partner_settlement_currency || source.partner_transaction_currency || source.partner_base_cncy || source.partner_currency || source.partner_coin || ''
                     };
                     seenPartnerOnlyKeys.add(normalizeIsoDate(pObj.pDate || '') + '|' + toUpperKey(pObj.tx || ''));
                     addAlignedPair(pObj, null);
                 } else {
-                    const pObj = { pDate: item && item.date || aggregate.startDate || '', tx: ref, pAmt: 0, pCoin: '' };
+                    const pObj = { pDate: item && item.date || aggregate.startDate || '', tx: ref, pAmt: 0, pComm: 0, pCoin: '' };
                     seenPartnerOnlyKeys.add(normalizeIsoDate(pObj.pDate || '') + '|' + toUpperKey(pObj.tx || ''));
                     addAlignedPair(pObj, null);
                 }
@@ -620,6 +1296,7 @@ try {
                 if(source){
                     const wObj = {
                         wDateRaw: source.web_date_claimed || source.web_date_send || source.web_tran_date || source.web_date || '',
+                        wKptn: source.web_kptn || source.kptn || '',
                         wRef: ref,
                         wAmt: toMoneygramAmount(source.web_amount || source.web_amt || source.amount || 0),
                         wCurrency: source.web_currency || source.web_ccy || source.web_currency_code || ''
@@ -627,67 +1304,156 @@ try {
                     seenWebOnlyKeys.add(normalizeIsoDate(wObj.wDateRaw || '') + '|' + toUpperKey(wObj.wRef || ''));
                     addAlignedPair(null, wObj);
                 } else {
-                    const wObj = { wDateRaw: item && item.date || aggregate.startDate || '', wRef: ref, wAmt: 0, wCurrency: '' };
+                    const wObj = { wDateRaw: item && item.date || aggregate.startDate || '', wKptn: '', wRef: ref, wAmt: 0, wCurrency: '' };
                     seenWebOnlyKeys.add(normalizeIsoDate(wObj.wDateRaw || '') + '|' + toUpperKey(wObj.wRef || ''));
                     addAlignedPair(null, wObj);
                 }
             });
 
-            const dateSeparatorPairs = [];
-            const renderAlignedPairsByDate = function(){
-                partnersBody.innerHTML = '';
-                webBody.innerHTML = '';
-                dateSeparatorPairs.length = 0;
+            const sortedPairs = alignedPairs.slice().sort((a, b) => {
+                const aDate = a.pairDateIso || '9999-12-31';
+                const bDate = b.pairDateIso || '9999-12-31';
+                if(aDate < bDate) return -1;
+                if(aDate > bDate) return 1;
 
-                const sorted = alignedPairs.slice().sort((a, b) => {
-                    const aDate = a.pairDateIso || '9999-12-31';
-                    const bDate = b.pairDateIso || '9999-12-31';
-                    if(aDate < bDate) return -1;
-                    if(aDate > bDate) return 1;
+                // Within each date group, keep matched rows above mismatched/duplicates.
+                const aRank = (a.isMismatch || a.isDuplicate) ? 1 : 0;
+                const bRank = (b.isMismatch || b.isDuplicate) ? 1 : 0;
+                if(aRank !== bRank) return aRank - bRank;
 
-                    // Within each date group, keep matched rows above mismatched/duplicates.
-                    const aRank = (a.isMismatch || a.isDuplicate) ? 1 : 0;
-                    const bRank = (b.isMismatch || b.isDuplicate) ? 1 : 0;
-                    if(aRank !== bRank) return aRank - bRank;
+                return a.insertIndex - b.insertIndex;
+            });
+            let filteredPairs = sortedPairs.slice();
+            let virtualRows = [];
+            const VIRTUAL_ROW_HEIGHT = 22;
+            const VIRTUAL_BUFFER = 18;
+            let virtualFrame = 0;
+            let lastVirtualStart = -1;
+            let lastVirtualEnd = -1;
 
-                    return a.insertIndex - b.insertIndex;
-                });
+            const applyPairClasses = function(pair, partnerRow, webRow){
+                if(pair.isDuplicate){
+                    partnerRow.classList.add('dup-row');
+                    webRow.classList.add('row-duplicate');
+                } else if(!pair.isMismatch){
+                    partnerRow.classList.add('matched-row');
+                    webRow.classList.add('row-match');
+                    if(pair.locked){
+                        partnerRow.classList.add('locked-row');
+                        partnerRow.classList.add('is-locked-row');
+                    }
+                } else {
+                    partnerRow.classList.add('mismatch-row');
+                    webRow.classList.add('row-mismatch');
+                }
+            };
 
+            const createSpacerRow = function(height, colspan){
+                const tr = document.createElement('tr');
+                tr.className = 'moneygram-virtual-spacer';
+                tr.setAttribute('aria-hidden', 'true');
+                tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="height:' + Math.max(0, height) + 'px;padding:0;border:0;background:transparent;"></td>';
+                return tr;
+            };
+
+            const rebuildVirtualRows = function(){
+                virtualRows = [];
                 let currentDate = null;
-                sorted.forEach((pair) => {
+                const showDuplicateDetailsNotice = filterEl && String(filterEl.value || '') === 'duplicates';
+                const duplicateDates = new Set(filteredPairs.filter((pair) => pair.isDuplicate).map((pair) => pair.pairDateIso || ''));
+                filteredPairs.forEach((pair) => {
                     const pairDate = pair.pairDateIso || '';
                     if(pairDate !== currentDate){
                         currentDate = pairDate;
-                        const pSep = createDateSeparatorRow(currentDate);
-                        const wSep = createDateSeparatorRow(currentDate);
-                        partnersBody.appendChild(pSep);
-                        webBody.appendChild(wSep);
-                        dateSeparatorPairs.push({ date: currentDate, partnerRow: pSep, webRow: wSep });
+                        virtualRows.push({ type: 'date', date: currentDate, hasDuplicate: showDuplicateDetailsNotice && duplicateDates.has(currentDate) });
                     }
-                    partnersBody.appendChild(pair.partnerRow);
-                    webBody.appendChild(pair.webRow);
+                    virtualRows.push({ type: 'pair', pair: pair });
+                });
+                lastVirtualStart = -1;
+                lastVirtualEnd = -1;
+            };
+
+            const renderVirtualRows = function(force){
+                if(!force && virtualFrame) return;
+                virtualFrame = requestAnimationFrame(() => {
+                    virtualFrame = 0;
+                    const scrollTop = partnersScroll.scrollTop || webScroll.scrollTop || 0;
+                    const viewHeight = Math.max(partnersScroll.clientHeight || 0, webScroll.clientHeight || 0, 320);
+                    const visibleCount = Math.ceil(viewHeight / VIRTUAL_ROW_HEIGHT) + (VIRTUAL_BUFFER * 2);
+                    const start = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_BUFFER);
+                    const end = Math.min(virtualRows.length, start + visibleCount);
+                    if(!force && start === lastVirtualStart && end === lastVirtualEnd) return;
+                    lastVirtualStart = start;
+                    lastVirtualEnd = end;
+
+                    partnersBody.innerHTML = '';
+                    webBody.innerHTML = '';
+
+                    if(virtualRows.length === 0){
+                        const emptyPartner = document.createElement('tr');
+                        emptyPartner.className = 'empty-row';
+                        emptyPartner.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
+                        const emptyWeb = document.createElement('tr');
+                        emptyWeb.className = 'empty-row';
+                        emptyWeb.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
+                        partnersBody.appendChild(emptyPartner);
+                        webBody.appendChild(emptyWeb);
+                        return;
+                    }
+
+                    const topHeight = start * VIRTUAL_ROW_HEIGHT;
+                    const bottomHeight = Math.max(0, (virtualRows.length - end) * VIRTUAL_ROW_HEIGHT);
+                    const partnerFrag = document.createDocumentFragment();
+                    const webFrag = document.createDocumentFragment();
+                    if(topHeight > 0){
+                        partnerFrag.appendChild(createSpacerRow(topHeight, 5));
+                        webFrag.appendChild(createSpacerRow(topHeight, 5));
+                    }
+
+                    for(let i = start; i < end; i++){
+                        const item = virtualRows[i];
+                        if(item.type === 'date'){
+                            partnerFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate));
+                            webFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate));
+                            continue;
+                        }
+                        const pair = item.pair;
+                        const partnerRow = createPartnerRow(pair.partnerObj || { placeholder: true });
+                        const webRow = createWebRow(pair.webObj || { placeholder: true });
+                        applyPairClasses(pair, partnerRow, webRow);
+                        partnerFrag.appendChild(partnerRow);
+                        webFrag.appendChild(webRow);
+                    }
+
+                    if(bottomHeight > 0){
+                        partnerFrag.appendChild(createSpacerRow(bottomHeight, 5));
+                        webFrag.appendChild(createSpacerRow(bottomHeight, 5));
+                    }
+
+                    partnersBody.appendChild(partnerFrag);
+                    webBody.appendChild(webFrag);
                 });
             };
 
-            const updateDateSeparatorVisibility = function(){
-                dateSeparatorPairs.forEach((sep) => {
-                    const hasVisibleData = alignedPairs.some((pair) => {
-                        if((pair.pairDateIso || '') !== (sep.date || '')) return false;
-                        return pair.partnerRow.style.display !== 'none' || pair.webRow.style.display !== 'none';
-                    });
-                    sep.partnerRow.style.display = hasVisibleData ? '' : 'none';
-                    sep.webRow.style.display = hasVisibleData ? '' : 'none';
-                });
+            const onVirtualScroll = function(){
+                renderVirtualRows(false);
             };
-
-            renderAlignedPairsByDate();
+            if(modal._moneygramVirtualScrollHandler){
+                partnersScroll.removeEventListener('scroll', modal._moneygramVirtualScrollHandler);
+                webScroll.removeEventListener('scroll', modal._moneygramVirtualScrollHandler);
+            }
+            modal._moneygramVirtualScrollHandler = onVirtualScroll;
+            partnersScroll.addEventListener('scroll', modal._moneygramVirtualScrollHandler, { passive: true });
+            webScroll.addEventListener('scroll', modal._moneygramVirtualScrollHandler, { passive: true });
 
             const matchedCount = alignedPairs.filter((p) => !p.isMismatch && !p.isDuplicate).length;
-            const unmatchedCount = alignedPairs.filter((p) => (p.isMismatch || p.isDuplicate)).length;
+            const unmatchedCount = alignedPairs.filter((p) => (p.isMismatch && !p.isDuplicate)).length;
+            const duplicateCount = alignedPairs.filter((p) => p.isDuplicate).length;
             const matchedLabel = matchedCount === 1 ? 'transaction' : 'transactions';
             const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
+            const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
             if(summaryEl){
-                summaryEl.innerHTML = '<span class="recon-summary__item">Matched: ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span>';
+                summaryEl.innerHTML = '<span class="recon-summary__item">Matched: ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
             }
 
             const ensureEmptyRow = function(tbody, colspan = 4, message = 'No Data Found'){
@@ -708,56 +1474,73 @@ try {
             };
 
             const updateMetrics = function(){
-                const visiblePairs = alignedPairs.filter((pair) => pair.partnerRow.style.display !== 'none' || pair.webRow.style.display !== 'none');
-
                 let partnerVisibleCount = 0;
                 let webVisibleCount = 0;
                 let pPhp = 0;
                 let pUsd = 0;
+                let pCommissionPhp = 0;
+                let pCommissionUsd = 0;
                 let wPhp = 0;
                 let wUsd = 0;
 
-                visiblePairs.forEach((pair) => {
-                    if(pair.partnerRow.style.display !== 'none'){
-                        const pRef = String(pair.partnerRow.dataset.ref || '').trim();
-                        if(pRef) partnerVisibleCount++;
-                        const amount = toMoneygramAmount(pair.partnerRow.dataset.amount);
-                        const cur = toUpperKey(pair.partnerRow.dataset.currency || '');
-                        if(cur.indexOf('PHP') !== -1) pPhp += Math.abs(amount);
-                        else if(cur.indexOf('USD') !== -1) pUsd += Math.abs(amount);
+                filteredPairs.forEach((pair) => {
+                    if(String(pair.partnerRef || '').trim()){
+                        partnerVisibleCount++;
+                        const cur = toUpperKey(pair.partnerCurrency || '');
+                        if(cur.indexOf('PHP') !== -1){
+                            pPhp += Math.abs(pair.partnerAmount || 0);
+                            pCommissionPhp += Math.abs(pair.partnerCommission || 0);
+                        } else if(cur.indexOf('USD') !== -1){
+                            pUsd += Math.abs(pair.partnerAmount || 0);
+                            pCommissionUsd += Math.abs(pair.partnerCommission || 0);
+                        }
                     }
-                    if(pair.webRow.style.display !== 'none'){
-                        const wRef = String(pair.webRow.dataset.ref || '').trim();
-                        if(wRef) webVisibleCount++;
-                        const amount = toMoneygramAmount(pair.webRow.dataset.amount);
-                        const cur = toUpperKey(pair.webRow.dataset.currency || '');
-                        if(cur.indexOf('PHP') !== -1) wPhp += amount;
-                        else if(cur.indexOf('USD') !== -1) wUsd += amount;
+                    if(String(pair.webRef || '').trim()){
+                        webVisibleCount++;
+                        const cur = toUpperKey(pair.webCurrency || '');
+                        if(cur.indexOf('PHP') !== -1) wPhp += pair.webAmount || 0;
+                        else if(cur.indexOf('USD') !== -1) wUsd += pair.webAmount || 0;
                     }
                 });
 
                 if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + partnerVisibleCount.toLocaleString();
                 if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + webVisibleCount.toLocaleString();
-                if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = 'Principal PHP: ' + pPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.textContent = 'Principal USD: ' + pUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = 'Principal PHP: ' + wPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                if(webPrincipalUsdEl) webPrincipalUsdEl.textContent = 'Principal USD: ' + wUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if(partnersPrincipalPhpEl) {
+                    partnersPrincipalPhpEl.innerHTML = formatPrincipalSummary(pPhp, pUsd)
+                        + '<span class="moneygram-summary-gap" aria-hidden="true"></span>Commission: PHP: '
+                        + Number(pCommissionPhp || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        + ' USD: ' + Number(pCommissionUsd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
+                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
+            };
+
+            const updateSummaryCounts = function(){
+                const matchedCount = alignedPairs.filter((p) => !p.isMismatch && !p.isDuplicate).length;
+                const unmatchedCount = alignedPairs.filter((p) => (p.isMismatch && !p.isDuplicate)).length;
+                const duplicateCount = alignedPairs.filter((p) => p.isDuplicate).length;
+                const matchedLabel = matchedCount === 1 ? 'transaction' : 'transactions';
+                const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
+                const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
+                if(summaryEl){
+                    summaryEl.innerHTML = '<span class="recon-summary__item">Matched: ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                }
             };
 
             const applySearchFilter = function(){
                 const query = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
 
-                alignedPairs.forEach((pair) => {
-                    const pRef = String(pair.partnerRow.dataset.ref || '').toLowerCase();
-                    const wRef = String(pair.webRow.dataset.ref || '').toLowerCase();
+                filteredPairs = sortedPairs.filter((pair) => {
+                    const pRef = String(pair.partnerRef || '').toLowerCase();
+                    const wRef = String(pair.webRef || '').toLowerCase();
                     let show = true;
                     if(query) show = pRef.includes(query) || wRef.includes(query);
                     if(filter === 'mismatch') show = show && (pair.isMismatch && !pair.isDuplicate);
                     else if(filter === 'duplicates') show = show && pair.isDuplicate;
                     else if(filter === 'matched') show = show && !pair.isMismatch && !pair.isDuplicate;
-                    pair.partnerRow.style.display = show ? '' : 'none';
-                    pair.webRow.style.display = show ? '' : 'none';
+                    return show;
                 });
 
                 // If a specific search query is present, collapse duplicate/secondary
@@ -767,9 +1550,9 @@ try {
                 // definitive row (either matched OR mismatched), not both.
                 if(query){
                     const refGroups = new Map();
-                    alignedPairs.forEach((pair) => {
-                        const pRef = String(pair.partnerRow.dataset.ref || '').toLowerCase();
-                        const wRef = String(pair.webRow.dataset.ref || '').toLowerCase();
+                    filteredPairs.forEach((pair) => {
+                        const pRef = String(pair.partnerRef || '').toLowerCase();
+                        const wRef = String(pair.webRef || '').toLowerCase();
                         const key = pRef || wRef;
                         if(!key) return;
                         if(!refGroups.has(key)) refGroups.set(key, []);
@@ -782,19 +1565,15 @@ try {
                         let chosen = group.find(p => !p.isMismatch && !p.isDuplicate);
                         // If none, prefer a mismatch (non-duplicate) or fallback to first
                         if(!chosen) chosen = group.find(p => p.isMismatch && !p.isDuplicate) || group[0];
-                        group.forEach(p => {
-                            if(p !== chosen){
-                                p.partnerRow.style.display = 'none';
-                                p.webRow.style.display = 'none';
-                            }
-                        });
+                        filteredPairs = filteredPairs.filter(p => group.indexOf(p) === -1 || p === chosen);
                     }
                 }
 
-                updateDateSeparatorVisibility();
-                ensureEmptyRow(partnersBody);
-                ensureEmptyRow(webBody);
+                rebuildVirtualRows();
+                partnersScroll.scrollTop = 0;
+                webScroll.scrollTop = 0;
                 updateMetrics();
+                renderVirtualRows(true);
             };
 
             if(searchEl && modal._moneygramRangeSearchHandler){
@@ -803,19 +1582,111 @@ try {
             if(filterEl && modal._moneygramRangeFilterHandler){
                 filterEl.removeEventListener('change', modal._moneygramRangeFilterHandler);
             }
-            modal._moneygramRangeSearchHandler = applySearchFilter;
+            let searchFilterTimer = 0;
+            modal._moneygramRangeSearchHandler = function(){
+                clearTimeout(searchFilterTimer);
+                searchFilterTimer = setTimeout(applySearchFilter, 120);
+            };
             modal._moneygramRangeFilterHandler = applySearchFilter;
             if(searchEl){ searchEl.value = ''; searchEl.addEventListener('input', modal._moneygramRangeSearchHandler); }
             if(filterEl){ filterEl.value = 'all'; filterEl.addEventListener('change', modal._moneygramRangeFilterHandler); }
 
-            ensureEmptyRow(partnersBody);
-            ensureEmptyRow(webBody);
-            updateMetrics();
+            modal._moneygramVirtual = {
+                pairs: alignedPairs,
+                render: function(){ renderVirtualRows(true); },
+                applyFilters: applySearchFilter,
+                getMatchedPairs: function(){
+                    return alignedPairs.filter((pair) => !pair.isMismatch && !pair.isDuplicate && String(pair.partnerRef || '').trim());
+                }
+            };
+            modal.dataset.virtualReady = String(Date.now());
+            if(lockedDates.length){
+                const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
+                if(lockBtn){
+                    lockBtn.disabled = false;
+                    lockBtn.textContent = 'UNLOCK MATCHED TRANSACTIONS';
+                }
+            }
+
             applySearchFilter();
+
+            if(modal._moneygramDuplicateViewHandler){
+                modal.removeEventListener('dblclick', modal._moneygramDuplicateViewHandler);
+            }
+            modal._moneygramDuplicateViewHandler = async function(event){
+                const row = event.target && event.target.closest ? event.target.closest('[data-role="partnersBody"] tr[data-partner-id]') : null;
+                if(!row || !modal.contains(row)) return;
+                event.preventDefault();
+                event.stopPropagation();
+
+                const partnerId = String(row.dataset.partnerId || '').trim();
+                if(!partnerId) return;
+
+                const detailModal = document.getElementById('moneygramPartnerDetailModal');
+                const detailBody = detailModal ? detailModal.querySelector('[data-role="moneygramPartnerDetailBody"]') : null;
+                if(!detailModal || !detailBody) return;
+
+                const closeDetail = function(){
+                    detailModal.style.display = 'none';
+                    detailModal.dataset.partnerId = '';
+                };
+                Array.from(detailModal.querySelectorAll('[data-action="close-moneygram-partner-detail"]')).forEach((closeBtn) => {
+                    closeBtn.onclick = closeDetail;
+                });
+
+                detailModal.dataset.partnerId = partnerId;
+                detailBody.innerHTML = '<div class="moneygram-partner-detail-modal__loading">Loading...</div>';
+                detailModal.style.display = 'flex';
+
+                try{
+                    const res = await fetch(location.origin + '/autorecon/src/controllers/recon/moneygram-partner-transaction-details.php?id=' + encodeURIComponent(partnerId), {
+                        method: 'GET',
+                        credentials: 'same-origin'
+                    });
+                    const json = await res.json();
+                    if(!res.ok || !(json && json.success && json.data)){
+                        detailBody.innerHTML = '<div class="moneygram-partner-detail-modal__empty">Transaction details not found.</div>';
+                        return;
+                    }
+
+                    const data = json.data || {};
+                    const fields = [
+                        'id',
+                        'account_number',
+                        'agent_name',
+                        'legacy_id',
+                        'branch_id',
+                        'tran_date',
+                        'transaction_date',
+                        'transaction_id',
+                        'reference_id',
+                        'product',
+                        'tran_type',
+                        'orig_cntry',
+                        'rcv_cntry',
+                        'base_tran_amt',
+                        'fee_tran_amt',
+                        'comm_tran_amt',
+                        'total_tran_amt',
+                        'settlement_currency',
+                        'transaction_currency'
+                    ];
+                    detailBody.innerHTML = '<dl class="moneygram-partner-detail-grid">' + fields.map((field) => {
+                        return '<div class="moneygram-partner-detail-item"><dt>' + escapeHtml(field) + '</dt><dd>' + escapeHtml(formatDetailDateValue(data[field])) + '</dd></div>';
+                    }).join('') + '</dl>';
+                }catch(e){
+                    console.warn('Failed to load MONEYGRAM partner transaction details', e);
+                    detailBody.innerHTML = '<div class="moneygram-partner-detail-modal__empty">Transaction details not found.</div>';
+                    return;
+                }
+            };
+            modal.addEventListener('dblclick', modal._moneygramDuplicateViewHandler);
 
             const closeBtn = modal.querySelector('[data-action="close-moneygram-recon"]');
             if(closeBtn){
                 closeBtn.onclick = function(){
+                    modal.dataset.lockedView = 'false';
+                    modal.dataset.lockedDates = '';
                     if(searchEl) searchEl.value = '';
                     if(filterEl) filterEl.value = 'all';
                     modal.style.display = 'none';
@@ -826,9 +1697,171 @@ try {
             if(loadingEl) loadingEl.style.display = 'none';
         }
 
+        function openWicRangeModal(aggregate, partnerName){
+            const modal = document.getElementById('wicReconViewModal');
+            if(!modal) throw new Error('wic_modal_not_found');
+
+            const loadingEl = modal.querySelector('.wic-recon-modal__loading');
+            if(loadingEl) loadingEl.style.display = 'flex';
+            modal.style.display = 'block';
+            try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            modal.dataset.partnerName = String(partnerName || WIC_PARTNER_NAME);
+            modal.dataset.reconDate = String(aggregate && aggregate.startDate || '');
+            modal.dataset.startDate = String(aggregate && aggregate.startDate || '');
+            modal.dataset.endDate = String(aggregate && aggregate.endDate || '');
+
+            const partnersBody = modal.querySelector('[data-role="partnersBody"]');
+            const webBody = modal.querySelector('[data-role="webBody"]');
+            if(!partnersBody || !webBody) throw new Error('wic_modal_body_not_found');
+            partnersBody.innerHTML = '';
+            webBody.innerHTML = '';
+
+            const rows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows : [];
+            let matchedCount = 0;
+            let unmatchedCount = 0;
+            let pVolume = 0;
+            let wVolume = 0;
+            let pTotal = 0;
+            let wTotal = 0;
+            let pPhp = 0;
+            let pUsd = 0;
+            let wPhp = 0;
+            let wUsd = 0;
+            const partnerDateState = { lastDate: '' };
+            const webDateState = { lastDate: '' };
+
+            rows.forEach((r) => {
+                const pDate = r.partner_date || r.partner_cover_date || r.partner_date_claimed || r.__wic_date || aggregate.startDate || '';
+                const tx = r.partner_transaction_id || r.partner_reference_no || r.partner_ref_no || r.partner_ref || '';
+                const pAmt = Number(r.partner_principal || 0);
+                const pCoin = r.partner_coin || '';
+                const wDateRaw = getKpxWebDate(r, r.__wic_date || aggregate.startDate || '');
+                const wKptn = getKpxWebKptn(r);
+                const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
+                const wAmt = Number(r.web_amount || 0);
+                const wCurrency = getKpxWebCurrency(r, '');
+
+                const pr = document.createElement('tr');
+                pr.dataset.ref = tx || '';
+                pr.dataset.isoDate = normalizeIsoDate(pDate || wDateRaw || aggregate.startDate || '');
+                pr.innerHTML = `<td>${formatDateMMDDYYYY(pDate)}</td><td class="highlight-ref">${escapeHtml(tx)}</td><td>${Number.isFinite(pAmt) && pAmt ? pAmt.toLocaleString() : ''}</td><td>${escapeHtml(pCoin)}</td>`;
+                appendDateSeparatorIfNeeded(partnersBody, pDate || wDateRaw, partnerDateState, 4);
+                partnersBody.appendChild(pr);
+
+                const wr = document.createElement('tr');
+                wr.dataset.ref = wRef || '';
+                wr.dataset.isoDate = normalizeIsoDate(wDateRaw || pDate || aggregate.startDate || '');
+                wr.innerHTML = `<td>${formatDateMMDDYYYY(wDateRaw)}</td><td>${escapeHtml(wKptn)}</td><td class="highlight-ref">${escapeHtml(wRef)}</td><td>${Number.isFinite(wAmt) && wAmt ? wAmt.toLocaleString() : ''}</td><td>${escapeHtml(wCurrency)}</td>`;
+                appendDateSeparatorIfNeeded(webBody, wDateRaw || pDate, webDateState, 5);
+                webBody.appendChild(wr);
+
+                if(tx) {
+                    pVolume++;
+                    if(Number.isFinite(pAmt)) {
+                        pTotal += Math.abs(pAmt);
+                        const pCurrency = String(pCoin || '').trim().toUpperCase();
+                        if(pCurrency.indexOf('USD') !== -1) pUsd += Math.abs(pAmt);
+                        else pPhp += Math.abs(pAmt);
+                    }
+                }
+                if(wRef) {
+                    wVolume++;
+                    if(Number.isFinite(wAmt)) {
+                        wTotal += Math.abs(wAmt);
+                        const webCurrency = String(wCurrency || '').trim().toUpperCase();
+                        if(webCurrency.indexOf('USD') !== -1) wUsd += Math.abs(wAmt);
+                        else wPhp += Math.abs(wAmt);
+                    }
+                }
+
+                if(tx && wRef){
+                    matchedCount++;
+                    pr.classList.add('matched-row');
+                    wr.classList.add('row-match');
+                } else {
+                    unmatchedCount++;
+                    if(!wRef) pr.classList.add('mismatch-row');
+                    if(!tx) wr.classList.add('row-mismatch');
+                }
+            });
+
+            const duplicateCount = rows.filter((row) => row && (row.isDuplicate || row.duplicate || row.duplicate_count || row.partner_duplicate || row.web_duplicate)).length;
+            setReconSummary(modal, matchedCount, unmatchedCount, duplicateCount);
+
+            const partnersCountEl = modal.querySelector('[data-role="partnersCount"]');
+            const webCountEl = modal.querySelector('[data-role="webCount"]');
+            const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
+            const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
+            const partnersPrincipalEl = modal.querySelector('[data-role="partnersPrincipal"]');
+            const webPrincipalEl = modal.querySelector('[data-role="webPrincipal"]');
+            if(partnersCountEl) partnersCountEl.textContent = '(' + pVolume.toLocaleString() + ')';
+            if(webCountEl) webCountEl.textContent = '(' + wVolume.toLocaleString() + ')';
+            if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pVolume.toLocaleString();
+            if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wVolume.toLocaleString();
+            if(partnersPrincipalEl) partnersPrincipalEl.textContent = formatPrincipalSummary(pPhp, pUsd);
+            if(webPrincipalEl) webPrincipalEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+
+            try{
+                const searchEl = modal.querySelector('[data-role="resultSearch"]');
+                const filterEl = modal.querySelector('[data-role="resultFilter"]');
+                const render = function(){
+                    const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
+                    const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                    Array.from(partnersBody.querySelectorAll('tr')).forEach((tr) => {
+                        if(tr.getAttribute('data-role') === 'date-separator') return;
+                        const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[1]?.textContent || '').toLowerCase();
+                        let show = true;
+                        if(q && !ref.includes(q)) show = false;
+                        if(filter === 'matched') show = show && tr.classList.contains('matched-row');
+                        else if(filter === 'mismatch') show = show && tr.classList.contains('mismatch-row');
+                        else if(filter === 'duplicates') show = false;
+                        tr.style.display = show ? '' : 'none';
+                    });
+                    Array.from(webBody.querySelectorAll('tr')).forEach((tr) => {
+                        if(tr.getAttribute('data-role') === 'date-separator') return;
+                        const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[2]?.textContent || '').toLowerCase();
+                        let show = true;
+                        if(q && !ref.includes(q)) show = false;
+                        if(filter === 'matched') show = show && tr.classList.contains('row-match');
+                        else if(filter === 'mismatch') show = show && tr.classList.contains('row-mismatch');
+                        else if(filter === 'duplicates') show = false;
+                        tr.style.display = show ? '' : 'none';
+                    });
+                    updateVisibleReconDateSeparators(partnersBody);
+                    updateVisibleReconDateSeparators(webBody);
+                    if(loadingEl) loadingEl.style.display = 'none';
+                };
+                if(searchEl){
+                    if(modal._wicRangeSearchHandler) searchEl.removeEventListener('input', modal._wicRangeSearchHandler);
+                    modal._wicRangeSearchHandler = render;
+                    searchEl.value = '';
+                    searchEl.addEventListener('input', modal._wicRangeSearchHandler);
+                }
+                if(filterEl){
+                    if(modal._wicRangeFilterHandler) filterEl.removeEventListener('change', modal._wicRangeFilterHandler);
+                    modal._wicRangeFilterHandler = render;
+                    filterEl.value = 'all';
+                    filterEl.addEventListener('change', modal._wicRangeFilterHandler);
+                }
+                render();
+            }catch(e){ console.warn('Error wiring WIC range modal filters', e); }
+
+            const closeBtn = modal.querySelector('[data-action="close-wic-recon"]');
+            if(closeBtn && !closeBtn._wicRangeCloseBound){
+                closeBtn._wicRangeCloseBound = true;
+                closeBtn.addEventListener('click', function(){
+                    modal.style.display = 'none';
+                    try{ document.body.style.overflow = ''; }catch(e){}
+                });
+            }
+            if(loadingEl) loadingEl.style.display = 'none';
+            modal.dataset.lockReady = String(Date.now());
+        }
+
         if(reconcileBtn && !reconcileBtn._listener){
             reconcileBtn.addEventListener('click', async function(ev){
                 ev.preventDefault();
+                if(reconcileRunning) return;
                 const origText = reconcileBtn.textContent;
                 // validate partner
                 const val = (company && company.value) ? String(company.value).trim() : '';
@@ -842,26 +1875,98 @@ try {
                     hideDays();
                     return;
                 }
+                const selectedCompanyName = company && company.value ? String(company.value) : '';
+                if(!isMoneygram(selectedCompanyName) && !isWorldInternationalCommunications(selectedCompanyName) && !isMetrobankHeadOffice(selectedCompanyName) && !isSkybridgePaymentInc(selectedCompanyName)){
+                    hideDays();
+                    await showAlertModal('No data to be reconciled.', { title: 'Notice' });
+                    return;
+                }
+                reconcileRunning = true;
                 showReconLoader();
+                await new Promise(resolve => requestAnimationFrame(() => resolve()));
                 try{
                     const range = getSelectedDateRange();
                     const companyName = company && company.value ? String(company.value) : '';
+                    const lockedDates = await fetchLockedRangeDates(companyName, range.startDate, range.endDate);
+                    if(lockedDates.length > 0){
+                        hideDays();
+                        hideReconLoader(origText);
+                        const isMultiple = lockedDates.length > 1;
+                        const lockedDateList = lockedDates.map(formatDateLongMonth).join('\n');
+                        await showAlertModal(
+                            (isMultiple ? 'Selected reconciliation dates are already locked.' : 'Selected reconciliation date is already locked.')
+                                + (lockedDateList ? '\n' + lockedDateList : ''),
+                            { title: 'Warning', icon: 'warning' }
+                        );
+                        return;
+                    }
+
+                    if(isWorldInternationalCommunications(companyName)){
+                        const aggregate = await fetchWicRangeAggregate(companyName, range.startDate, range.endDate);
+                        hideDays();
+
+                        const totalRows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows.length : 0;
+                        const totalCount = Number(aggregate && aggregate.matchedCount || 0) + Number(aggregate && aggregate.unmatchedCount || 0);
+                        if(totalRows === 0 && totalCount === 0){
+                            hideReconLoader(origText);
+                            await showAlertModal('No data to be reconciled.', { title: 'Notice' });
+                            return;
+                        }
+
+                        openWicRangeModal(aggregate, companyName);
+                        return;
+                    }
+
+                    if(isMetrobankHeadOffice(companyName)){
+                        const aggregate = await fetchMbtcRangeAggregate(companyName, range.startDate, range.endDate);
+                        hideDays();
+
+                        const totalRows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows.length : 0;
+                        const totalCount = Number(aggregate && aggregate.matchedCount || 0) + Number(aggregate && aggregate.unmatchedCount || 0);
+                        if(totalRows === 0 && totalCount === 0){
+                            hideReconLoader(origText);
+                            await showAlertModal('No data to be reconciled.', { title: 'Notice' });
+                            return;
+                        }
+
+                        openMbtcReconModal(aggregate);
+                        return;
+                    }
+
+                    if(isSkybridgePaymentInc(companyName)){
+                        const aggregate = await fetchSkybridgePaymentIncRangeAggregate(companyName, range.startDate, range.endDate);
+                        hideDays();
+
+                        const totalRows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows.length : 0;
+                        const totalCount = Number(aggregate && aggregate.matchedCount || 0) + Number(aggregate && aggregate.unmatchedCount || 0);
+                        if(totalRows === 0 && totalCount === 0){
+                            hideReconLoader(origText);
+                            await showAlertModal('No data to be reconciled.', { title: 'Notice' });
+                            return;
+                        }
+
+                        openSkybridgePaymentIncReconModal(aggregate, companyName);
+                        return;
+                    }
+
                     const aggregate = await fetchMoneygramRangeAggregate(companyName, range.startDate, range.endDate);
                     hideDays();
 
                     const totalRows = Array.isArray(aggregate && aggregate.rows) ? aggregate.rows.length : 0;
                     const totalCount = Number(aggregate && aggregate.matchedCount || 0) + Number(aggregate && aggregate.unmatchedCount || 0);
                     if(totalRows === 0 && totalCount === 0){
-                        await showAlertModal('No transactions found for selected dates.');
+                        hideReconLoader(origText);
+                        await showAlertModal('No data to be reconciled.', { title: 'Notice' });
                         return;
                     }
 
-                    openMoneygramRangeModal(aggregate, companyName);
+                    openMoneygramRangeModal(aggregate, companyName, { lockedDates: lockedDates });
                 }catch(err){
                     console.warn('Reconcile failed', err);
                     hideDays();
                     await showAlertModal('Failed to load reconciliation details.');
                 } finally {
+                    reconcileRunning = false;
                     hideReconLoader(origText);
                 }
             });
@@ -883,6 +1988,17 @@ try {
         if(company){ company.addEventListener('input', onCompanyChangeHideDays); company.addEventListener('change', onCompanyChangeHideDays); }
         const startDateInput = document.getElementById('hsStartDate');
         const endDateInput = document.getElementById('hsEndDate');
+
+        function syncEndDateToStartDate(){
+            if(startDateInput && endDateInput && startDateInput.value){
+                endDateInput.value = startDateInput.value;
+            }
+        }
+
+        if(startDateInput){
+            startDateInput.addEventListener('input', syncEndDateToStartDate);
+            startDateInput.addEventListener('change', syncEndDateToStartDate);
+        }
 
         function getSelectedDateRange(){
             const startDate = (startDateInput && startDateInput.value) ? String(startDateInput.value) : '';
@@ -951,6 +2067,7 @@ try {
         const MBTC_PARTNER_NAME = 'METROBANK HEAD OFFICE';
         const WIC_PARTNER_NAME = 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
         const RCBC_PARTNER_NAME = 'RCBC';
+        const SKYBRIDGE_PARTNER_NAME = 'SKYBRIDGE PAYMENT INC.';
         
         // Show/Hide View Cover PHP button only when a valid corporate partner is selected
         (function(){
@@ -981,6 +2098,7 @@ try {
             if(!input || !container || !list) return;
 
             let activeIndex = -1;
+            let suppressNextRender = false;
 
             function normalize(value){
                 return String(value || '').trim().toLowerCase();
@@ -1013,6 +2131,7 @@ try {
             }
 
             function selectSuggestion(value){
+                suppressNextRender = true;
                 input.value = value;
                 closeSuggestions();
                 input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1020,6 +2139,12 @@ try {
             }
 
             function renderSuggestions(){
+                if(suppressNextRender){
+                    suppressNextRender = false;
+                    closeSuggestions();
+                    return;
+                }
+
                 const matches = getMatches(input.value);
                 if(matches.length === 0){
                     closeSuggestions();
@@ -1082,12 +2207,17 @@ try {
 
         function isWorldInternationalCommunications(name){
             const normalized = String(name || '').trim().toUpperCase();
-            return normalized === 'WIC' || normalized === WIC_PARTNER_NAME;
+            return normalized === 'WIC' || normalized === WIC_PARTNER_NAME || normalized === 'WORLD INTERNATIONAL COMMUNICATIONS';
         }
 
         function isRcbc(name){
             const normalized = String(name || '').trim().toUpperCase();
             return normalized === 'RCBC' || normalized === RCBC_PARTNER_NAME;
+        }
+
+        function isSkybridgePaymentInc(name){
+            const normalized = String(name || '').trim().toUpperCase();
+            return normalized === 'SKYBRIDGE' || normalized === 'SKYBRIDGEPAYMENTINC' || normalized === SKYBRIDGE_PARTNER_NAME || normalized === 'SKYBRIDGEPAYMENTINC CORPORATE';
         }
 
         function isMoneygram(name){
@@ -1128,6 +2258,11 @@ try {
             // If RCBC is selected, request recon from server. Fallback to demo data if fetch fails.
             if(isRcbc(companyName)){
                 loadRcbcRecon(companyName, range.startDate, range.endDate);
+                return;
+            }
+
+            if(isSkybridgePaymentInc(companyName)){
+                loadSkybridgePaymentIncRecon(companyName, range.startDate, range.endDate);
                 return;
             }
 
@@ -1338,6 +2473,62 @@ try {
             await fetchDayCardLocks(startDate, endDate);
         }
 
+        async function loadSkybridgePaymentIncRecon(companyName, startDate, endDate){
+            daysContainer.innerHTML = '';
+            let daysInRange = 30;
+            if(startDate && endDate){
+                const startObj = new Date(startDate + 'T00:00:00');
+                const endObj = new Date(endDate + 'T00:00:00');
+                if(!isNaN(startObj.getTime()) && !isNaN(endObj.getTime()) && startObj <= endObj){
+                    daysInRange = Math.floor((endObj - startObj) / 86400000) + 1;
+                }
+            }
+
+            const loading = document.createElement('div');
+            loading.textContent = 'Loading recon...';
+            loading.style.padding = '1rem';
+            daysContainer.appendChild(loading);
+
+            if(_mbtcReconController){ try{ _mbtcReconController.abort(); }catch(e){} }
+            _mbtcReconController = new AbortController();
+            const signal = _mbtcReconController.signal;
+
+            const url = location.origin + '/autorecon/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || SKYBRIDGE_PARTNER_NAME);
+            let data = null;
+            try{
+                const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
+                if(res && res.ok){
+                    const txt = await res.text();
+                    try{ data = JSON.parse(txt); }
+                    catch(e){ console.warn('skybridgepaymentinc recon returned non-json', txt); }
+                } else if(res && res.status === 204){
+                    data = { success:true, days: [] };
+                }
+            }catch(e){
+                if(e.name === 'AbortError') return;
+                console.warn('skybridgepaymentinc recon fetch failed', e);
+            } finally {
+                _mbtcReconController = null;
+            }
+
+            if(!data || !Array.isArray(data.days)){
+                console.warn('Falling back to demo recon for SKYBRIDGE PAYMENT INC.');
+                const days = [];
+                for(let d=1; d<=daysInRange; d++) days.push({ day: d, status: 'white' });
+                window._lastMbtcDays = days;
+                renderReconDays(daysInRange, days);
+                await fetchDayCardLocks(startDate, endDate);
+                principalEl.textContent = '0 pesos';
+                if(commissionEl) commissionEl.textContent = '0 pesos';
+                if(varianceEl) varianceEl.textContent = 'Not yet computed';
+                return;
+            }
+
+            window._lastMbtcDays = data.days || [];
+            renderReconDays((data.days || []).length || daysInRange, data.days || []);
+            await fetchDayCardLocks(startDate, endDate);
+        }
+
         // Load WORLD INTERNATIONAL COMMUNICATIONS recon from server and render cards (mirrors MBTC loader but hits wic-recon.php)
         async function loadWicRecon(companyName, startDate, endDate){
             daysContainer.innerHTML = '';
@@ -1494,8 +2685,7 @@ try {
                     return aDate.localeCompare(bDate);
                 });
 
-            window._lastMbtcDays = visibleDays;
-            _lastMbtcDays = visibleDays;
+            setCachedReconDaysForCurrentPartner(visibleDays);
 
             if(visibleDays.length === 0){
                 const empty = document.createElement('div');
@@ -1698,13 +2888,274 @@ try {
 
         // store last fetched recon data for modal drill-down
         let _lastMbtcDays = null;
+        let _lastMbtcDaysPartner = '';
 
         // expose function to open modal for a given day
         function openMbtcReconModalForDay(dayNum){
-            if(!window._lastMbtcDays && !_lastMbtcDays) return;
-            const days = _lastMbtcDays || window._lastMbtcDays || [];
+            const days = getCachedReconDaysForCurrentPartner();
+            if(!days.length) return;
             const dayObj = days.find(dd => parseInt(dd.day,10) === parseInt(dayNum,10)) || { status: 'white', day: dayNum };
             openMbtcReconModal(dayObj);
+        }
+
+        function openSkybridgePaymentIncReconModal(dayObj, companyName){
+            const modal = document.getElementById('skybridgepaymentincReconViewModal');
+            if(!modal) return false;
+
+            const loadingEl = modal.querySelector('.moneygram-recon-modal__loading');
+            if(loadingEl) loadingEl.style.display = 'flex';
+            modal.style.display = 'block';
+            try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            try{
+                modal.dataset.reconDate = String(dayObj.date || '');
+                modal.dataset.partnerName = String(companyName || SKYBRIDGE_PARTNER_NAME);
+            }catch(_e){}
+
+            const partnersBody = modal.querySelector('[data-role="partnersBody"]');
+            const webBody = modal.querySelector('[data-role="webBody"]');
+            if(!partnersBody || !webBody) return false;
+            partnersBody.innerHTML = '';
+            webBody.innerHTML = '';
+
+            const rows = Array.isArray(dayObj.rows) ? dayObj.rows : [];
+            const duplicateRefs = new Set();
+            (Array.isArray(dayObj.duplicates) ? dayObj.duplicates : []).forEach(item => {
+                const ref = String((item && item.ref) || '').trim().toUpperCase();
+                if(ref) duplicateRefs.add(ref);
+            });
+
+            const partnerDateState = { lastDate: '' };
+            const webDateState = { lastDate: '' };
+            let pPhp = 0, pUsd = 0, wPhp = 0, wUsd = 0;
+
+            rows.forEach(r => {
+                const pDateRaw = r.partner_date || r.partner_cover_date || r.partner_transaction_date || r.__skybridgepaymentinc_date || dayObj.date || '';
+                const pRef = r.partner_control_no || r.partner_reference_no || r.partner_transaction_id || r.ref || '';
+                const pAmount = Number(r.partner_principal || r.partner_amount || r.partner_php || 0);
+                const pCurrency = String(r.partner_currency || r.partner_coin || r.partner_currency_code || 'PHP').trim().toUpperCase();
+
+                const wDateRaw = getKpxWebDate(r, r.__skybridgepaymentinc_date || dayObj.date || '');
+                const wKptn = getKpxWebKptn(r);
+                const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
+                const wAmount = Number(r.web_amount || 0);
+                const wCurrency = getKpxWebCurrency(r, '');
+
+                const refKey = String(pRef || wRef || '').trim().toUpperCase();
+                const hasPartner = !!String(pRef || '').trim();
+                const hasWeb = !!String(wRef || '').trim();
+                const isDuplicate = refKey && duplicateRefs.has(refKey);
+                const isMatched = hasPartner && hasWeb && !isDuplicate;
+
+                appendDateSeparatorIfNeeded(partnersBody, pDateRaw || dayObj.date || '', partnerDateState, 4);
+                const pr = document.createElement('tr');
+                pr.dataset.ref = pRef || wRef || '';
+                pr.dataset.isoDate = normalizeIsoDate(pDateRaw || dayObj.date || '');
+                pr.innerHTML =
+                    '<td>' + escapeHtml(formatDateMMDDYYYY(pDateRaw || dayObj.date || '')) + '</td>' +
+                    '<td class="highlight-ref">' + escapeHtml(pRef) + '</td>' +
+                    '<td>' + (pAmount ? pAmount.toLocaleString() : '') + '</td>' +
+                    '<td>PHP</td>';
+                if(isDuplicate) pr.classList.add('dup-row');
+                else if(isMatched) pr.classList.add('matched-row');
+                else pr.classList.add('mismatch-row');
+                partnersBody.appendChild(pr);
+
+                appendDateSeparatorIfNeeded(webBody, wDateRaw || dayObj.date || '', webDateState, 5);
+                const wr = document.createElement('tr');
+                wr.dataset.ref = wRef || pRef || '';
+                wr.dataset.isoDate = normalizeIsoDate(wDateRaw || dayObj.date || '');
+                wr.innerHTML =
+                    '<td>' + escapeHtml(formatDateMMDDYYYY(wDateRaw || dayObj.date || '')) + '</td>' +
+                    '<td>' + escapeHtml(wKptn) + '</td>' +
+                    '<td class="highlight-ref">' + escapeHtml(wRef) + '</td>' +
+                    '<td>' + (wAmount ? wAmount.toLocaleString() : '') + '</td>' +
+                    '<td>' + escapeHtml(wCurrency) + '</td>';
+                if(isDuplicate) wr.classList.add('row-duplicate');
+                else if(isMatched) wr.classList.add('row-match');
+                else wr.classList.add('row-mismatch');
+                webBody.appendChild(wr);
+
+                if(Number.isFinite(pAmount)){
+                    if(pCurrency.indexOf('USD') !== -1) pUsd += Math.abs(pAmount);
+                    else pPhp += Math.abs(pAmount);
+                }
+                if(Number.isFinite(wAmount)){
+                    const cur = String(wCurrency || '').trim().toUpperCase();
+                    if(cur.indexOf('USD') !== -1) wUsd += Math.abs(wAmount);
+                    else wPhp += Math.abs(wAmount);
+                }
+            });
+
+            if(rows.length === 0){
+                const pr = document.createElement('tr');
+                pr.className = 'empty-row';
+                pr.innerHTML = '<td colspan="4">No Data Found</td>';
+                partnersBody.appendChild(pr);
+                const wr = document.createElement('tr');
+                wr.className = 'empty-row';
+                wr.innerHTML = '<td colspan="5">No Data Found</td>';
+                webBody.appendChild(wr);
+            }
+
+            const pCount = partnersBody.querySelectorAll('tr:not([data-role="date-separator"]):not(.empty-row)').length;
+            const wCount = webBody.querySelectorAll('tr:not([data-role="date-separator"]):not(.empty-row)').length;
+            const duplicateCount = partnersBody.querySelectorAll('tr.dup-row').length || (Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0);
+            setReconSummary(modal, Number(dayObj.matchedCount || dayObj.vol || 0), Number(dayObj.unmatchedCount || 0), duplicateCount);
+
+            const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
+            const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
+            const partnersPrincipalEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
+            const webPrincipalEl = modal.querySelector('[data-role="webPrincipalPhp"]');
+            if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
+            if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
+            if(partnersPrincipalEl) partnersPrincipalEl.textContent = formatPrincipalSummary(pPhp, pUsd);
+            if(webPrincipalEl) webPrincipalEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+
+            const searchEl = modal.querySelector('[data-role="resultSearch"]');
+            const filterEl = modal.querySelector('[data-role="resultFilter"]');
+            if(searchEl) searchEl.value = '';
+            if(filterEl) filterEl.value = 'all';
+
+            const renderRows = function(){
+                const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
+                const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
+                    if(tr.getAttribute('data-role') === 'date-separator' || tr.classList.contains('empty-row')) return;
+                    const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[1]?.textContent || '').toLowerCase();
+                    let show = true;
+                    if(q && !ref.includes(q)) show = false;
+                    if(filter === 'matched') show = show && tr.classList.contains('matched-row');
+                    else if(filter === 'mismatch') show = show && tr.classList.contains('mismatch-row');
+                    else if(filter === 'duplicates') show = show && tr.classList.contains('dup-row');
+                    tr.style.display = show ? '' : 'none';
+                });
+                Array.from(webBody.querySelectorAll('tr')).forEach(tr => {
+                    if(tr.getAttribute('data-role') === 'date-separator' || tr.classList.contains('empty-row')) return;
+                    const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[2]?.textContent || '').toLowerCase();
+                    let show = true;
+                    if(q && !ref.includes(q)) show = false;
+                    if(filter === 'matched') show = show && tr.classList.contains('row-match');
+                    else if(filter === 'mismatch') show = show && tr.classList.contains('row-mismatch');
+                    else if(filter === 'duplicates') show = show && tr.classList.contains('row-duplicate');
+                    tr.style.display = show ? '' : 'none';
+                });
+                updateVisibleReconDateSeparators(partnersBody);
+                updateVisibleReconDateSeparators(webBody);
+            };
+
+            if(modal._skybridgeSearchHandler && searchEl) searchEl.removeEventListener('input', modal._skybridgeSearchHandler);
+            if(modal._skybridgeFilterHandler && filterEl) filterEl.removeEventListener('change', modal._skybridgeFilterHandler);
+            modal._skybridgeSearchHandler = renderRows;
+            modal._skybridgeFilterHandler = renderRows;
+            if(searchEl) searchEl.addEventListener('input', modal._skybridgeSearchHandler);
+            if(filterEl) filterEl.addEventListener('change', modal._skybridgeFilterHandler);
+            renderRows();
+
+            const lockBtn = modal.querySelector('#skybridgepaymentincLockAllMatchedBtn');
+            const matchedRefs = function(){
+                return Array.from(new Set(Array.from(partnersBody.querySelectorAll('tr.matched-row')).map(tr => String(tr.dataset.ref || '').trim()).filter(Boolean)));
+            };
+            const matchedDates = function(){
+                return Array.from(new Set(Array.from(partnersBody.querySelectorAll('tr.matched-row')).map(tr => String(tr.dataset.isoDate || modal.dataset.reconDate || '').trim()).filter(Boolean)));
+            };
+            if(lockBtn){
+                lockBtn.disabled = false;
+                lockBtn.textContent = 'LOCK MATCHED TRANSACTIONS';
+                lockBtn.onclick = async function(){
+                    if(typeof IS_ADMIN !== 'undefined' && !IS_ADMIN){
+                        await showAlertModal('You are not authorized to lock transactions.');
+                        return;
+                    }
+                    const refs = matchedRefs();
+                    if(!refs.length){
+                        await showAlertModal('No matched rows to lock/unlock.');
+                        return;
+                    }
+                    const mode = String(lockBtn.textContent || '').trim() === 'UNLOCK MATCHED TRANSACTIONS' ? 'unlock' : 'lock';
+                    const ok = await showConfirmModal(mode === 'lock' ? 'Lock matched transactions?' : 'Unlock matched transactions?', {
+                        title: mode === 'lock' ? 'Confirm Lock' : 'Confirm Unlock',
+                        confirmText: mode === 'lock' ? 'Lock' : 'Unlock',
+                        cancelText: 'Cancel',
+                        hideText: true,
+                        icon: 'question'
+                    });
+                    if(!ok) return;
+                    const endpoint = mode === 'lock' ? '/autorecon/src/controllers/recon/lock_matched_rows.php' : '/autorecon/src/controllers/recon/unlock_matched_rows.php';
+                    lockBtn.disabled = true;
+                    lockBtn.textContent = mode === 'lock' ? 'Locking...' : 'Unlocking...';
+                    try{
+                        const res = await fetch(location.origin + endpoint, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ partner: modal.dataset.partnerName || SKYBRIDGE_PARTNER_NAME, date: modal.dataset.reconDate || '', refs: refs, dates: matchedDates() })
+                        });
+                        const json = await res.json();
+                        if(!res.ok || !(json && json.success)) throw new Error((json && json.error) || 'Failed to save lock state.');
+                        Array.from(partnersBody.querySelectorAll('tr.matched-row')).forEach(tr => {
+                            if(refs.indexOf(String(tr.dataset.ref || '').trim()) === -1) return;
+                            tr.classList.toggle('locked-row', mode === 'lock');
+                            tr.classList.toggle('is-locked-row', mode === 'lock');
+                        });
+                        lockBtn.textContent = mode === 'lock' ? 'UNLOCK MATCHED TRANSACTIONS' : 'LOCK MATCHED TRANSACTIONS';
+                        window.showSuccessToast && showSuccessToast(mode === 'lock' ? 'Matched transactions locked successfully.' : 'Matched transactions unlocked successfully.');
+                    }catch(e){
+                        console.warn('Skybridge lock/unlock failed', e);
+                        await showAlertModal('Failed to save lock state.');
+                        lockBtn.textContent = mode === 'lock' ? 'LOCK MATCHED TRANSACTIONS' : 'UNLOCK MATCHED TRANSACTIONS';
+                    }finally{
+                        lockBtn.disabled = false;
+                    }
+                };
+
+                (async function hydrateSkybridgeLockState(){
+                    const refs = matchedRefs();
+                    const dates = matchedDates();
+                    if(!refs.length || !dates.length) return;
+                    try{
+                        const rowLockUrl = location.origin + '/autorecon/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(modal.dataset.partnerName || SKYBRIDGE_PARTNER_NAME) + '&date=' + encodeURIComponent(modal.dataset.reconDate || '');
+                        const rowLockRes = await fetch(rowLockUrl, { method: 'GET', credentials: 'same-origin' });
+                        if(rowLockRes && rowLockRes.ok){
+                            const rowLockJson = await rowLockRes.json();
+                            const lockSet = new Set((Array.isArray(rowLockJson && rowLockJson.locks) ? rowLockJson.locks : []).map(ref => String(ref || '').trim()));
+                            if(lockSet.size){
+                                Array.from(partnersBody.querySelectorAll('tr.matched-row')).forEach(tr => {
+                                    if(lockSet.has(String(tr.dataset.ref || '').trim())){
+                                        tr.classList.add('locked-row');
+                                        tr.classList.add('is-locked-row');
+                                    }
+                                });
+                            }
+                        }
+
+                        const activeRes = await fetch(location.origin + '/autorecon/src/controllers/recon/get_active_locked_dates.php', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ partner: modal.dataset.partnerName || SKYBRIDGE_PARTNER_NAME, dates: dates })
+                        });
+                        if(activeRes && activeRes.ok){
+                            const activeJson = await activeRes.json();
+                            lockBtn.textContent = activeJson && activeJson.has_active_locks ? 'UNLOCK MATCHED TRANSACTIONS' : 'LOCK MATCHED TRANSACTIONS';
+                        }
+                    }catch(e){
+                        console.warn('Failed to hydrate Skybridge lock state', e);
+                    }
+                })();
+            }
+
+            const closeBtn = modal.querySelector('[data-action="close-skybridgepaymentinc-recon"]');
+            if(closeBtn){
+                closeBtn.onclick = function(){
+                    if(searchEl) searchEl.value = '';
+                    if(filterEl) filterEl.value = 'all';
+                    modal.style.display = 'none';
+                    try{ document.body.style.overflow = ''; }catch(e){}
+                };
+            }
+
+            if(loadingEl) loadingEl.style.display = 'none';
+            return true;
         }
 
         // click handler for day cards: show loading overlay, fetch details if needed, then open modal
@@ -1730,7 +3181,7 @@ try {
 
             try{
                 // try to use cached day diagnostics first
-                const daysArr = window._lastMbtcDays || _lastMbtcDays || [];
+                const daysArr = getCachedReconDaysForCurrentPartner();
                 let dayObj = daysArr.find(dd => String(dd.day) === String(d));
 
                 // if cached data is missing detailed row-level matches, fetch from server
@@ -1742,9 +3193,9 @@ try {
                     const yVal = (year && year.value) ? year.value : '';
                     const range = getSelectedDateRange();
                     const companyName = (company && company.value) ? String(company.value).toUpperCase() : '';
-                    const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : 'mbtc-recon.php')));
+                    const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : (isSkybridgePaymentInc(companyName) ? 'skybridgepaymentinc-recon.php' : 'mbtc-recon.php'))));
                     const selectedDate = (dayObj && dayObj.date) ? String(dayObj.date) : (card.getAttribute('data-date') || '');
-                    const url = (isMetrobankHeadOffice(companyName) || isMoneygram(companyName))
+                    const url = (isMetrobankHeadOffice(companyName) || isMoneygram(companyName) || isSkybridgePaymentInc(companyName))
                         ? (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
                         : (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
                     try{
@@ -1839,13 +3290,14 @@ try {
                                 const tr = document.createElement('tr');
                                 if(obj && obj.placeholder){
                                     tr.classList.add('row-placeholder');
-                                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
+                                    tr.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
                                     tr.dataset.ref = '';
                                     tr.dataset.amount = '0';
                                     tr.dataset.currency = '';
                                     return tr;
                                 }
                                 const wRef = obj.wRef || '';
+                                const wKptn = obj.wKptn || '';
                                 const wAmt = Number(obj.wAmt || 0);
                                 const wDateRaw = obj.wDateRaw || '';
                                 const wDate = formatDateMMDDYYYY(wDateRaw);
@@ -1853,8 +3305,9 @@ try {
                                 const wAmtDisplay = Number.isFinite(wAmt) ? Math.abs(wAmt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
                                 const wCurrency = obj.wCurrency || '';
                                 tr.dataset.ref = wRef;
+                                tr.dataset.kptn = wKptn;
                                 tr.dataset.currency = wCurrency;
-                                tr.innerHTML = `<td>${wDate}</td><td class="highlight-ref">${wRef}</td><td>${wAmtDisplay}</td><td>${wCurrency? wCurrency: ''}</td>`;
+                                tr.innerHTML = `<td>${wDate}</td><td>${wKptn}</td><td class="highlight-ref">${wRef}</td><td>${wAmtDisplay}</td><td>${wCurrency? wCurrency: ''}</td>`;
                                 return tr;
                             };
 
@@ -1899,16 +3352,17 @@ try {
                                 dayObj.rows.forEach(r => {
                                     const pDate = r.partner_tran_date || r.partner_date || r.partner_fx_date_trn || dayObj.date || '';
                                     const tx = r.partner_reference_id || r.partner_transaction_id || r.partner_reference_no || r.partner_ref_no || '';
-                                    const pAmt = Number(r.partner_principal || r.partner_base_tran_amt || 0);
-                                    const pCoin = r.partner_transaction_currency || r.partner_base_cncy || r.partner_currency || r.partner_coin || '';
+                                    const pAmt = Number(r.partner_principal || r.partner_base_amt || 0);
+                                    const pCoin = r.partner_settlement_currency || r.partner_transaction_currency || r.partner_base_cncy || r.partner_currency || r.partner_coin || '';
 
                                     const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
                                     const wAmt = Number(r.web_amount || 0);
                                     const wCurrency = r.web_currency || r.web_ccy || r.web_currency_code || '';
                                     const wDateRaw = r.web_date_claimed || r.web_date_send || r.web_tran_date || r.web_date || '';
+                                    const wKptn = r.web_kptn || r.kptn || '';
 
                                     const pObj = tx ? { pDate, tx, pAmt, pCoin } : null;
-                                    const wObj = wRef ? { wRef, wAmt, wCurrency, wDateRaw } : null;
+                                    const wObj = wRef ? { wRef, wKptn, wAmt, wCurrency, wDateRaw } : null;
 
                                     if(pObj){
                                         const pKey = normalizeKey(tx);
@@ -1946,10 +3400,11 @@ try {
                                             pDate: dayObj.date || '',
                                             tx: mm.ref || '',
                                             pAmt: Number(mm.partner_principal || 0),
-                                            pCoin: mm.partner_transaction_currency || ''
+                                            pCoin: mm.partner_settlement_currency || mm.partner_transaction_currency || ''
                                         },
                                         {
                                             wRef: mm.ref || '',
+                                            wKptn: mm.web_kptn || mm.kptn || '',
                                             wAmt: Number(mm.web_amount || 0),
                                             wCurrency: mm.web_currency || mm.web_currency_code || mm.web_ccy || '',
                                             wDateRaw: mm.web_date_claimed || mm.web_date_send || mm.web_tran_date || mm.web_date || ''
@@ -1967,7 +3422,7 @@ try {
                                 missingPartner.forEach(ref => {
                                     addAlignedPair(
                                         null,
-                                        { wRef: ref || '', wAmt: 0, wCurrency: '' }
+                                        { wRef: ref || '', wKptn: '', wAmt: 0, wCurrency: '' }
                                     );
                                 });
                             }
@@ -1975,9 +3430,9 @@ try {
                             try{
                                 const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
                                 const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
-                                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
+                                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"], [data-role="partnersPrincipal"]');
                                 const partnersPrincipalUsdEl = modal.querySelector('[data-role="partnersPrincipalUsd"]');
-                                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
+                                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"], [data-role="webPrincipal"]');
                                 const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
                                 const pRows = Array.from(partnersBody.querySelectorAll('tr:not(.dup-sep)'));
                                 const wRows = Array.from(webBody.querySelectorAll('tr:not(.dup-sep)'));
@@ -2072,9 +3527,9 @@ try {
                                             const c = textVal(tr.cells[3]);
                                             return Boolean(d || r || a || c);
                                         } else {
-                                            const r = textVal(tr.cells[1]);
-                                            const a = textVal(tr.cells[2]);
-                                            const c = textVal(tr.cells[3]);
+                                            const r = textVal(tr.cells[2]);
+                                            const a = textVal(tr.cells[3]);
+                                            const c = textVal(tr.cells[4]);
                                             return Boolean(r || a || c);
                                         }
                                     }
@@ -2092,9 +3547,11 @@ try {
                                         if(summaryEl){
                                             const m = Number(matchedVisible || 0);
                                             const u = Number(mismatchVisible || 0);
+                                            const d = Number(duplicateVisible || 0);
                                             const mLabel = (m === 1) ? 'transaction' : 'transactions';
                                             const uLabel = (u === 1) ? 'transaction' : 'transactions';
-                                            summaryEl.innerHTML = `<span class="recon-summary__item">Matched: ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ${u.toLocaleString()} ${uLabel}</span>`;
+                                            const dLabel = (d === 1) ? 'transaction' : 'transactions';
+                                            summaryEl.innerHTML = `<span class="recon-summary__item">Matched: ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ${u.toLocaleString()} ${uLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ${d.toLocaleString()} ${dLabel}</span>`;
                                         }
 
                                         const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
@@ -2121,17 +3578,17 @@ try {
                                         let wPhp = 0, wUsd = 0;
                                         alignedPairs.forEach(p => {
                                             if(p.webRow.style.display === 'none') return;
-                                            const raw = p.webRow.dataset.amount !== undefined ? p.webRow.dataset.amount : (((p.webRow.cells[2] && p.webRow.cells[2].textContent) || '').replace(/,/g, ''));
+                                            const raw = p.webRow.dataset.amount !== undefined ? p.webRow.dataset.amount : (((p.webRow.cells[3] && p.webRow.cells[3].textContent) || '').replace(/,/g, ''));
                                             const val = Number(raw);
-                                            const cur = (p.webRow.dataset.currency || (p.webRow.cells[3] && p.webRow.cells[3].textContent) || '').toString().trim().toUpperCase();
+                                            const cur = (p.webRow.dataset.currency || (p.webRow.cells[4] && p.webRow.cells[4].textContent) || '').toString().trim().toUpperCase();
                                             if(!Number.isFinite(val)) return;
                                             if(cur.indexOf('PHP') !== -1){ wPhp += val; }
                                             else if(cur.indexOf('USD') !== -1){ wUsd += val; }
                                         });
-                                        if(modal.querySelector('[data-role="partnersPrincipalPhp"]')) modal.querySelector('[data-role="partnersPrincipalPhp"]').textContent = 'Principal PHP: ' + pPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                                        if(modal.querySelector('[data-role="partnersPrincipalUsd"]')) modal.querySelector('[data-role="partnersPrincipalUsd"]').textContent = 'Principal USD: ' + pUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                        if(modal.querySelector('[data-role="webPrincipalPhp"]')) modal.querySelector('[data-role="webPrincipalPhp"]').textContent = 'Principal PHP: ' + wPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                                        if(modal.querySelector('[data-role="webPrincipalUsd"]')) modal.querySelector('[data-role="webPrincipalUsd"]').textContent = 'Principal USD: ' + wUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                        if(modal.querySelector('[data-role="partnersPrincipalPhp"]')) modal.querySelector('[data-role="partnersPrincipalPhp"]').textContent = formatPrincipalSummary(pPhp, pUsd);
+                                        if(modal.querySelector('[data-role="partnersPrincipalUsd"]')) modal.querySelector('[data-role="partnersPrincipalUsd"]').style.display = 'none';
+                                        if(modal.querySelector('[data-role="webPrincipalPhp"]')) modal.querySelector('[data-role="webPrincipalPhp"]').textContent = formatPrincipalSummary(wPhp, wUsd);
+                                        if(modal.querySelector('[data-role="webPrincipalUsd"]')) modal.querySelector('[data-role="webPrincipalUsd"]').style.display = 'none';
                                     }catch(e){ console.warn('Error updating MONEYGRAM counts after filter', e); }
 
                                     // Manage empty-state placeholders when a filter yields nothing
@@ -2139,7 +3596,7 @@ try {
                                         if(partnerVisible === 0) ensureEmptyRow(partnersBody, 4, 'No Data Found');
                                         else Array.from(partnersBody.querySelectorAll('.empty-row')).forEach(el => el.remove());
 
-                                        if(webVisible === 0) ensureEmptyRow(webBody, 4, 'No Data Found');
+                                        if(webVisible === 0) ensureEmptyRow(webBody, 5, 'No Data Found');
                                         else Array.from(webBody.querySelectorAll('.empty-row')).forEach(el => el.remove());
                                     } else {
                                         Array.from(partnersBody.querySelectorAll('.empty-row')).forEach(el => el.remove());
@@ -2179,7 +3636,7 @@ try {
                                 modalRenderMoneygramRows();
                                 // Ensure empty-state message shows when there are no visible rows
                                 ensureEmptyRow(partnersBody, 4, 'No Data Found');
-                                ensureEmptyRow(webBody, 4, 'No Data Found');
+                                ensureEmptyRow(webBody, 5, 'No Data Found');
                             }catch(e){ console.warn('Error wiring MONEYGRAM search/filter', e); }
 
                             const closeBtn = modal.querySelector('[data-action="close-moneygram-recon"]');
@@ -2214,15 +3671,14 @@ try {
                         if(modal){
                             const loadingEl = modal.querySelector('.wic-recon-modal__loading'); if(loadingEl) loadingEl.style.display = 'flex';
                             modal.style.display = 'block'; try{ document.body.style.overflow = 'hidden'; }catch(e){}
+                            try{ modal.dataset.reconDate = String(dayObj.date || ''); modal.dataset.partnerName = String(companyName || WIC_PARTNER_NAME); }catch(_e){}
 
                             // populate header
                             {
                                 const m = Number(dayObj.matchedCount || 0);
                                 const u = Number(dayObj.unmatchedCount || 0);
-                                const mLabel = (m === 1) ? 'transaction' : 'transactions';
-                                const uLabel = (u === 1) ? 'transaction' : 'transactions';
-                                const el = modal.querySelector('[data-role="summary"]');
-                                if(el) el.innerHTML = `<span class="recon-summary__item">Matched: ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ${u.toLocaleString()} ${uLabel}</span>`;
+                                const d = Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0;
+                                setReconSummary(modal, m, u, d);
                             }
 
                             const partnersBody = modal.querySelector('[data-role="partnersBody"]');
@@ -2231,6 +3687,8 @@ try {
                             webBody.innerHTML = '';
 
                             let rowNo = 1;
+                            const partnerDateState = { lastDate: '' };
+                            const webDateState = { lastDate: '' };
                             if(Array.isArray(dayObj.rows) && dayObj.rows.length){
                                 dayObj.rows.forEach(r => {
                                     const pDate = r.partner_date || r.partner_cover_date || r.partner_date_claimed || dayObj.date || '';
@@ -2240,17 +3698,22 @@ try {
 
                                     const pr = document.createElement('tr');
                                     pr.dataset.ref = tx || '';
+                                    pr.dataset.isoDate = normalizeIsoDate(pDate || dayObj.date || '');
                                         pr.innerHTML = `<td>${formatDateMMDDYYYY(pDate)}</td><td class="highlight-ref">${tx}</td><td>${pAmt? pAmt.toLocaleString(): ''}</td><td>${pCoin}</td>`;
+                                    appendDateSeparatorIfNeeded(partnersBody, pDate || dayObj.date || '', partnerDateState, 4);
                                     partnersBody.appendChild(pr);
 
-                                    const wDateRaw = r.web_date || r.web_date_claimed || dayObj.date || '';
+                                    const wDateRaw = getKpxWebDate(r, dayObj.date || '');
                                     const wDate = formatDateMMDDYYYY(wDateRaw);
+                                    const wKptn = getKpxWebKptn(r);
                                     const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
                                     const wAmt = Number(r.web_amount || 0);
-                                    const wCtp = Number(r.web_ctp || 0);
+                                    const wCurrency = getKpxWebCurrency(r, '');
                                     const wr = document.createElement('tr');
                                     wr.dataset.ref = wRef || '';
-                                        wr.innerHTML = `<td class="highlight-ref">${wRef}</td><td>${wDate}</td><td>${wAmt? wAmt.toLocaleString(): ''}</td><td>${wCtp? wCtp.toLocaleString(): ''}</td>`;
+                                    wr.dataset.isoDate = normalizeIsoDate(wDateRaw || dayObj.date || '');
+                                        wr.innerHTML = `<td>${wDate}</td><td>${escapeHtml(wKptn)}</td><td class="highlight-ref">${escapeHtml(wRef)}</td><td>${wAmt? wAmt.toLocaleString(): ''}</td><td>${escapeHtml(wCurrency)}</td>`;
+                                        appendDateSeparatorIfNeeded(webBody, wDateRaw || dayObj.date || '', webDateState, 5);
                                         webBody.appendChild(wr);
 
                                         // determine match status: for WORLD INTERNATIONAL COMMUNICATIONS we consider a row matched when partner transaction id equals web CCREF (presence on both sides)
@@ -2274,19 +3737,28 @@ try {
                                 const missingWeb = Array.isArray(dayObj.missing_web_refs) ? dayObj.missing_web_refs : [];
                                 mismatches.forEach(mm => {
                                     const pr = document.createElement('tr');
+                                    pr.dataset.ref = mm.ref || '';
+                                    pr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
                                     pr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td class="highlight-ref">${mm.ref||''}</td><td>${Number(mm.partner_principal||0).toLocaleString()}</td><td>${mm.partner_coin||''}</td>`;
                                     pr.classList.add('mismatch-row');
+                                    appendDateSeparatorIfNeeded(partnersBody, dayObj.date || '', partnerDateState, 4);
                                     partnersBody.appendChild(pr);
 
                                         const wr = document.createElement('tr');
-                                        wr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td class="highlight-ref">${mm.ref||''}</td><td>${Number(mm.web_amount||0).toLocaleString()}</td><td>${Number(mm.web_ctp||0).toLocaleString()}</td>`;
+                                        wr.dataset.ref = mm.ref || '';
+                                        wr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
+                                        wr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td>${escapeHtml(getKpxWebKptn(mm))}</td><td class="highlight-ref">${escapeHtml(mm.ref||'')}</td><td>${Number(mm.web_amount||0).toLocaleString()}</td><td>${escapeHtml(getKpxWebCurrency(mm, ''))}</td>`;
                                     // web rows intentionally show no status icon
+                                    appendDateSeparatorIfNeeded(webBody, dayObj.date || '', webDateState, 5);
                                     webBody.appendChild(wr);
                                     rowNo++;
                                 });
                                 missingWeb.forEach(ref => {
                                     const tr = document.createElement('tr');
+                                    tr.dataset.ref = ref || '';
+                                    tr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
                                     tr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td>${ref}</td><td></td><td></td>`;
+                                    appendDateSeparatorIfNeeded(partnersBody, dayObj.date || '', partnerDateState, 4);
                                     partnersBody.appendChild(tr);
                                     rowNo++;
                                 });
@@ -2298,24 +3770,26 @@ try {
                                 const webCountEl = modal.querySelector('[data-role="webCount"]');
                                 const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
                                 const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
-                                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
+                                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"], [data-role="partnersPrincipal"]');
                                 const partnersPrincipalUsdEl = modal.querySelector('[data-role="partnersPrincipalUsd"]');
-                                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
+                                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"], [data-role="webPrincipal"]');
                                 const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
-                                const pCount = partnersBody.querySelectorAll('tr:not(.dup-sep)').length || 0;
-                                const wCount = webBody.querySelectorAll('tr:not(.dup-sep)').length || 0;
+                                const pCount = partnersBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])').length || 0;
+                                const wCount = webBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])').length || 0;
+                                const visibleDuplicateCount = partnersBody.querySelectorAll('tr.dup-row:not([data-role="date-separator"])').length || (Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0);
+                                setReconSummary(modal, Number(dayObj.matchedCount || 0), Number(dayObj.unmatchedCount || 0), visibleDuplicateCount);
                                 // compute per-currency totals (partners use absolute values)
                                 let pPhp = 0, pUsd = 0;
-                                Array.from(partnersBody.querySelectorAll('tr:not(.dup-sep)')).forEach(tr => {
-                                    const raw = ((tr.cells[2] && tr.cells[2].textContent) || '').replace(/,/g, '');
+                                Array.from(partnersBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])')).forEach(tr => {
+                                    const raw = ((tr.cells[3] && tr.cells[3].textContent) || '').replace(/,/g, '');
                                     const val = Number(raw);
-                                    const cur = ((tr.cells[3] && tr.cells[3].textContent) || '').toString().trim().toUpperCase();
+                                    const cur = ((tr.cells[4] && tr.cells[4].textContent) || '').toString().trim().toUpperCase();
                                     if(!Number.isFinite(val)) return;
                                     if(cur.indexOf('PHP') !== -1){ pPhp += Math.abs(val); }
                                     else if(cur.indexOf('USD') !== -1){ pUsd += Math.abs(val); }
                                 });
                                 let wPhp = 0, wUsd = 0;
-                                Array.from(webBody.querySelectorAll('tr:not(.dup-sep)')).forEach(tr => {
+                                Array.from(webBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])')).forEach(tr => {
                                     const raw = ((tr.cells[2] && tr.cells[2].textContent) || '').replace(/,/g, '');
                                     const val = Number(raw);
                                     const cur = ((tr.cells[3] && tr.cells[3].textContent) || '').toString().trim().toUpperCase();
@@ -2328,10 +3802,10 @@ try {
                                 if(webCountEl) webCountEl.textContent = '(' + ((dayObj.webCount ?? wCount).toLocaleString()) + ')';
                                 if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
                                 if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
-                                if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = 'Principal PHP: ' + pPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.textContent = 'Principal USD: ' + pUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = 'Principal PHP: ' + wPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                                if(webPrincipalUsdEl) webPrincipalUsdEl.textContent = 'Principal USD: ' + wUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = formatPrincipalSummary(pPhp, pUsd);
+                                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
+                                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                                if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
                             }catch(e){ console.warn('Error updating WORLD INTERNATIONAL COMMUNICATIONS counts', e); }
 
                             // wire search/filter within WORLD INTERNATIONAL COMMUNICATIONS modal
@@ -2345,35 +3819,41 @@ try {
                                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
                                     // partners: match Transaction ID (.highlight-ref)
                                     Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
+                                        if(tr.getAttribute('data-role') === 'date-separator') return;
                                         if(tr.classList && tr.classList.contains('dup-sep')){ tr.style.display = ''; return; }
                                         const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[1]?.textContent || '').toLowerCase();
                                         let show = true;
                                         if(q && !ref.includes(q)) show = false;
-                                        if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
-                                        if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
+                                        if(filter === 'matched'){ show = show && tr.classList.contains('matched-row'); }
+                                        else if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
+                                        else if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
                                         tr.style.display = show ? '' : 'none';
                                     });
                                     // web: match CCREF (.highlight-ref)
                                     Array.from(webBody.querySelectorAll('tr')).forEach(tr => {
+                                        if(tr.getAttribute('data-role') === 'date-separator') return;
                                         if(tr.classList && tr.classList.contains('dup-sep')){ tr.style.display = ''; return; }
-                                        const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[0]?.textContent || '').toLowerCase();
+                                        const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[2]?.textContent || '').toLowerCase();
                                         let show = true;
                                         if(q && !ref.includes(q)) show = false;
-                                        if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
-                                        if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
+                                        if(filter === 'matched'){ show = show && tr.classList.contains('row-match'); }
+                                        else if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
+                                        else if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
                                         tr.style.display = show ? '' : 'none';
                                     });
+                                    updateVisibleReconDateSeparators(partnersBody);
+                                    updateVisibleReconDateSeparators(webBody);
                                     // if filter yields no visible rows, show a friendly 'No results' message instead of a loading placeholder
                                     try{
                                         const visibleP = partnersBody.querySelectorAll('tr:not([style*="display: none"])');
                                         const visibleW = webBody.querySelectorAll('tr:not([style*="display: none"])');
-                                        const noP = Array.from(visibleP).filter(r=> !r.classList.contains('dup-sep')).length === 0;
-                                        const noW = Array.from(visibleW).filter(r=> !r.classList.contains('dup-sep')).length === 0;
+                                        const noP = Array.from(visibleP).filter(r=> !r.classList.contains('dup-sep') && r.getAttribute('data-role') !== 'date-separator').length === 0;
+                                        const noW = Array.from(visibleW).filter(r=> !r.classList.contains('dup-sep') && r.getAttribute('data-role') !== 'date-separator').length === 0;
                                         // remove any previous no-results placeholders
                                         Array.from(partnersBody.querySelectorAll('.no-results')).forEach(n=>n.parentNode && n.parentNode.removeChild(n));
                                         Array.from(webBody.querySelectorAll('.no-results')).forEach(n=>n.parentNode && n.parentNode.removeChild(n));
                                         if(noP){ const tr = document.createElement('tr'); tr.className = 'no-results'; tr.innerHTML = `<td colspan="4">No matching entries</td>`; partnersBody.appendChild(tr); }
-                                        if(noW){ const tr = document.createElement('tr'); tr.className = 'no-results'; tr.innerHTML = `<td colspan="4">No matching entries</td>`; webBody.appendChild(tr); }
+                                        if(noW){ const tr = document.createElement('tr'); tr.className = 'no-results'; tr.innerHTML = `<td colspan="5">No matching entries</td>`; webBody.appendChild(tr); }
                                     }catch(e){ /* ignore */ }
                                 }
                                 if(searchEl) searchEl.addEventListener('input', modalRenderWicRows);
@@ -2387,10 +3867,19 @@ try {
                             if(closeBtn){ closeBtn.addEventListener('click', function(){ modal.style.display='none'; try{ document.body.style.overflow=''; }catch(e){} }); }
                             // hide modal loader now that content is rendered
                             if(loadingEl) loadingEl.style.display = 'none';
+                            modal.dataset.lockReady = String(Date.now());
                         }
                         try{ document.body.removeChild(overlay); }catch(e){}
                         return;
                     }catch(modErr){ console.error('Error opening WORLD INTERNATIONAL COMMUNICATIONS modal', modErr); }
+                }
+
+                if(isSkybridgePaymentInc(companyName)){
+                    try{
+                        const opened = openSkybridgePaymentIncReconModal(dayObj || { day: d }, companyName);
+                        try{ document.body.removeChild(overlay); }catch(e){}
+                        if(opened) return;
+                    }catch(modErr){ console.error('Error opening SKYBRIDGE PAYMENT INC. modal', modErr); }
                 }
 
                 console.log('[home-section] Day card clicked', { day: d, partner: dayObj?.partner || MBTC_PARTNER_NAME, date: dayObj?.date || null, status: dayObj?.status || null });
@@ -2479,16 +3968,16 @@ try {
             }
 
             async function ensureDayDetails(dayNum){
-                const daysArr = window._lastMbtcDays || _lastMbtcDays || [];
+                const daysArr = getCachedReconDaysForCurrentPartner();
                 let dayObj = daysArr.find(dd => String(dd.day) === String(dayNum));
                 if(!dayObj || !Array.isArray(dayObj.rows)){
                     const mVal = (month && month.value) ? month.value : '';
                     const yVal = (year && year.value) ? year.value : '';
                     const range = getSelectedDateRange();
                     const companyName = (company && company.value) ? String(company.value).toUpperCase() : '';
-                    const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : 'mbtc-recon.php')));
+                    const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : (isSkybridgePaymentInc(companyName) ? 'skybridgepaymentinc-recon.php' : 'mbtc-recon.php'))));
                     const selectedDate = (dayObj && dayObj.date) ? String(dayObj.date) : '';
-                    const url = isMetrobankHeadOffice(companyName)
+                    const url = (isMetrobankHeadOffice(companyName) || isSkybridgePaymentInc(companyName))
                         ? (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
                         : (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
                     try{
@@ -2499,7 +3988,7 @@ try {
                                 const found = payload.days.find(dd=>String(dd.day)===String(dayNum));
                                 if(found){
                                     // update cached array
-                                    if(!window._lastMbtcDays) window._lastMbtcDays = daysArr;
+                                    if(!window._lastMbtcDays) setCachedReconDaysForCurrentPartner(daysArr);
                                     const idx = daysArr.findIndex(dd=>String(dd.day)===String(dayNum));
                                     if(idx !== -1) daysArr[idx] = found; else daysArr.push(found);
                                     dayObj = found;
@@ -2612,17 +4101,26 @@ try {
                 if(v) v.parentNode.removeChild(v);
                 v = document.createElement('div'); v.id = 'mbtcViewerOverlay';
                 Object.assign(v.style, { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:200001, display:'flex', alignItems:'center', justifyContent:'center', padding:'18px' });
+                const closeViewer = function(ev){
+                    if(ev){
+                        try{ ev.preventDefault(); }catch(e){}
+                        try{ ev.stopPropagation(); }catch(e){}
+                    }
+                    try{ if(v && v.parentNode) v.parentNode.removeChild(v); }catch(e){}
+                    try{ document.body.style.overflow=''; }catch(e){}
+                };
                 const box = document.createElement('div');
                 Object.assign(box.style, { background:'#fff', width:'95%', height:'90%', borderRadius:'8px', overflow:'auto', boxShadow:'0 18px 40px rgba(2,6,23,0.32)', position:'relative', padding:'14px' });
                 const close = document.createElement('button');
                 close.type = 'button';
                 close.textContent = '×';
                 close.setAttribute('aria-label', 'Close');
+                close.setAttribute('data-action', 'close-viewer-modal');
                 Object.assign(close.style, {
                     position:'absolute',
                     right:'12px',
                     top:'12px',
-                    zIndex:2,
+                    zIndex:20,
                     width:'50px',
                     height:'50px',
                     borderRadius:'6px',
@@ -2634,19 +4132,23 @@ try {
                     alignItems:'center',
                     justifyContent:'center',
                     cursor:'pointer',
+                    pointerEvents:'auto',
                     transition:'background .18s ease, transform .16s ease, color .18s ease'
                 });
                 close.addEventListener('mouseenter', ()=>{
-                    close.style.background = 'rgba(15, 23, 42, 0.04)';
-                    close.style.transform = 'scale(1.03)';
-                    close.style.color = '#dc3545';
+                    close.style.background = '#dc3545';
+                    close.style.transform = 'scale(1.06)';
+                    close.style.color = '#ffffff';
+                    close.style.boxShadow = '0 8px 18px rgba(220, 53, 69, 0.24)';
                 });
                 close.addEventListener('mouseleave', ()=>{
                     close.style.background = 'transparent';
                     close.style.transform = 'none';
                     close.style.color = '#5f6368';
+                    close.style.boxShadow = 'none';
                 });
-                close.addEventListener('click', ()=>{ try{ document.body.removeChild(v); }catch(e){} try{ document.body.style.overflow=''; }catch(e){} });
+                close.addEventListener('pointerdown', closeViewer, true);
+                close.addEventListener('click', closeViewer, true);
                 box.appendChild(close);
                 const wrapper = document.createElement('div'); wrapper.innerHTML = html; wrapper.style.paddingTop = '36px';
                 // Execute any scripts contained in the returned HTML (innerHTML doesn't run them)
@@ -2696,8 +4198,18 @@ try {
         })();
 
         // open modal and populate (shows loading overlay while populating)
-        function openMbtcReconModal(dayObj){
+        function openMbtcReconModal(dayObj, options){
             const companyName = (company && company.value) ? String(company.value).toUpperCase() : '';
+            const modalPartnerName = String(
+                (options && options.partnerName) ||
+                (dayObj && dayObj.partner) ||
+                companyName ||
+                ''
+            ).trim();
+            const lockedDates = Array.isArray(options && options.lockedDates)
+                ? options.lockedDates.map((date) => normalizeIsoDate(date)).filter(Boolean)
+                : [];
+            const lockedDateSet = new Set(lockedDates);
             let modal = null;
             if(isWorldInternationalCommunications(companyName)) modal = document.getElementById('wicReconViewModal');
             else if(isMoneygram(companyName) || (dayObj && String(dayObj.partner||'').toUpperCase() === 'MONEYGRAM')) modal = document.getElementById('moneygramReconViewModal');
@@ -2710,11 +4222,21 @@ try {
             modal.style.display = 'block';
             try{ document.body.style.overflow = 'hidden'; } catch(e){}
             // expose partner/date to modal for row-level operations
-            try{ modal.dataset.reconDate = String(dayObj.date || ''); modal.dataset.partnerName = String(companyName || ''); }catch(_e){}
+            try{
+                modal.dataset.reconDate = String(dayObj.date || '');
+                modal.dataset.partnerName = modalPartnerName;
+                modal.dataset.lockedView = lockedDates.length > 0 ? 'true' : 'false';
+                modal.dataset.lockedDates = lockedDates.join(',');
+            }catch(_e){}
 
             try{
             // populate header metrics
-            modal.querySelector('[data-role="summary"]').textContent = `Matched: ${((dayObj.matchedCount||0).toLocaleString())} | Not Matched: ${((dayObj.unmatchedCount||0).toLocaleString())}`;
+            setReconSummary(
+                modal,
+                Number(dayObj.matchedCount || dayObj.vol || 0),
+                Number(dayObj.unmatchedCount || 0),
+                Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0
+            );
 
             // primary totals come from server; if zero, attempt to compute fallback totals from diagnostics so user sees useful numbers
             let principalLeft = Number(dayObj.principal || 0);
@@ -2824,19 +4346,34 @@ try {
 
                 dayObj.rows.forEach(r => {
                     const ref = r.ref || '';
+                    const pRef = r.partner_reference_no || '';
+                    const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
+                    const hasPartner = !!String(pRef || '').trim();
+                    const hasWeb = !!String(wRef || '').trim();
                     const pVal = Number(r.partner_principal || 0);
                     const pC = Number(r.partner_commission || 0);
                     const wVal = Number(r.web_amount || 0);
                     const wC = Number(r.web_ctp || 0);
+                    const pDate = hasPartner ? (r.partner_cover_date || r.partner_date || r.partner_date_claimed || r.__mbtc_date || dayObj.date || '') : '';
+                    const wDate = hasWeb ? getKpxWebDate(r, r.__mbtc_date || dayObj.date || '') : '';
+                    const wKptn = hasWeb ? getKpxWebKptn(r) : '';
+                    const wCurrency = hasWeb ? getKpxWebCurrency(r, '') : '';
 
                     const pr = document.createElement('tr'); pr.dataset.ref = ref;
-                    pr.innerHTML = `<td class="highlight-ref">${ref}</td><td>${dayObj.date||''}</td><td>${pVal? pVal.toLocaleString(): ''}</td><td>${pC? pC.toLocaleString(): ''}</td>`;
+                    pr.dataset.isoDate = normalizeIsoDate(pDate || wDate || dayObj.date || '');
+                    pr.dataset.amount = String(Number.isFinite(pVal) ? pVal : 0);
+                    pr.dataset.commission = String(Number.isFinite(pC) ? pC : 0);
+                    pr.dataset.currency = 'PHP';
+                    pr.innerHTML = `<td>${hasPartner ? formatDateMMDDYYYY(pDate) : ''}</td><td class="highlight-ref">${escapeHtml(pRef)}</td><td>${hasPartner && pVal ? pVal.toLocaleString(): ''}</td><td>${hasPartner ? formatOptionalTwoDecimalAmount(pC) : ''}</td>`;
 
                     const wr = document.createElement('tr'); wr.dataset.ref = ref;
-                    wr.innerHTML = `<td class="highlight-ref">${ref}</td><td>${dayObj.date||''}</td><td>${wVal? wVal.toLocaleString(): ''}</td><td>${wC? wC.toLocaleString(): ''}</td>`;
+                    wr.dataset.isoDate = normalizeIsoDate(wDate || pDate || dayObj.date || '');
+                    wr.dataset.amount = String(Number.isFinite(wVal) ? wVal : 0);
+                    wr.dataset.currency = wCurrency || 'PHP';
+                    wr.innerHTML = `<td>${hasWeb ? formatDateMMDDYYYY(wDate) : ''}</td><td>${escapeHtml(wKptn)}</td><td class="highlight-ref">${escapeHtml(wRef)}</td><td>${hasWeb && wVal ? wVal.toLocaleString(): ''}</td><td>${escapeHtml(wCurrency)}</td>`;
 
                     // determine status for this row (matched / mismatched / missing)
-                    const bothPresent = pVal !== 0 && wVal !== 0;
+                    const bothPresent = hasPartner && hasWeb;
                     const principalMatch = bothPresent ? (Math.abs(pVal - wVal) < 0.01) : false;
                     const commissionMatch = (pC || wC) ? (Math.abs(pC - wC) < 0.01) : true;
 
@@ -2860,36 +4397,55 @@ try {
                     rowNo++;
                 });
 
+                const appendRowsWithDateSeparators = function(tbody, rowList, colspan){
+                    const dateState = { lastDate: '' };
+                    rowList.forEach(tr => {
+                        appendDateSeparatorIfNeeded(tbody, tr.dataset.isoDate || dayObj.date || '', dateState, colspan || 4);
+                        tbody.appendChild(tr);
+                    });
+                };
+
                 // append normal rows first (preserve ordering), then duplicates grouped at bottom
-                normalPartnerRows.forEach(tr => partnersBody.appendChild(tr));
+                appendRowsWithDateSeparators(partnersBody, normalPartnerRows, 4);
                 if(dupPartnerRows.length){
                     const sep = document.createElement('tr'); sep.className = 'dup-sep'; sep.innerHTML = `<td colspan="4">Duplicate entries</td>`;
                     partnersBody.appendChild(sep);
-                    dupPartnerRows.forEach(tr => partnersBody.appendChild(tr));
+                    appendRowsWithDateSeparators(partnersBody, dupPartnerRows, 4);
                 }
 
-                normalWebRows.forEach(tr => webBody.appendChild(tr));
+                appendRowsWithDateSeparators(webBody, normalWebRows, 5);
                 if(dupWebRows.length){
-                    const sep = document.createElement('tr'); sep.className = 'dup-sep'; sep.innerHTML = `<td colspan="4">Duplicate entries</td>`;
+                    const sep = document.createElement('tr'); sep.className = 'dup-sep'; sep.innerHTML = `<td colspan="5">Duplicate entries</td>`;
                     webBody.appendChild(sep);
-                    dupWebRows.forEach(tr => webBody.appendChild(tr));
+                    appendRowsWithDateSeparators(webBody, dupWebRows, 5);
                 }
 
             } else {
                 // fallback to previous diagnostics-only rendering when `rows` not available
                 // mismatches: show both sides
+                const partnerDateState = { lastDate: '' };
+                const webDateState = { lastDate: '' };
                 mismatches.forEach(mm => {
                     const pr = document.createElement('tr');
                     pr.dataset.ref = mm.ref || '';
-                    pr.innerHTML = `<td class="highlight-ref">${mm.ref||''}</td><td>${dayObj.date||''}</td><td>${Number(mm.partner_principal||0).toLocaleString()}</td><td>${Number(mm.partner_commission||0).toLocaleString()}</td>`;
+                    pr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
+                    pr.dataset.amount = String(Number(mm.partner_principal || 0));
+                    pr.dataset.commission = String(Number(mm.partner_commission || 0));
+                    pr.dataset.currency = 'PHP';
+                    pr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td class="highlight-ref">${mm.ref||''}</td><td>${Number(mm.partner_principal||0).toLocaleString()}</td><td>${formatOptionalTwoDecimalAmount(mm.partner_commission)}</td>`;
                     pr.classList.add('mismatch-row');
+                    appendDateSeparatorIfNeeded(partnersBody, dayObj.date || '', partnerDateState, 4);
                     partnersBody.appendChild(pr);
 
                     const wr = document.createElement('tr');
                     wr.dataset.ref = mm.ref || '';
-                    wr.innerHTML = `<td class="highlight-ref">${mm.ref||''}</td><td>${dayObj.date||''}</td><td>${Number(mm.web_amount||0).toLocaleString()}</td><td>${Number(mm.web_ctp||0).toLocaleString()}</td>`;
+                    wr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
+                    wr.dataset.amount = String(Number(mm.web_amount || 0));
+                    wr.dataset.currency = getKpxWebCurrency(mm, 'PHP');
+                    wr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td>${escapeHtml(getKpxWebKptn(mm))}</td><td class="highlight-ref">${escapeHtml(mm.ref||'')}</td><td>${Number(mm.web_amount||0).toLocaleString()}</td><td>${escapeHtml(getKpxWebCurrency(mm, ''))}</td>`;
                     // mark web row as mismatch (color-only) so Web Data shows red for this row
                     wr.classList.add('row-mismatch');
+                    appendDateSeparatorIfNeeded(webBody, dayObj.date || '', webDateState, 5);
                     webBody.appendChild(wr);
                     rowNo++;
                 });
@@ -2897,9 +4453,15 @@ try {
                 // missing web refs -> partner-only rows
                 missingWeb.forEach(ref => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${ref}</td><td>${dayObj.date||''}</td><td></td><td></td>`;
+                    tr.dataset.ref = ref || '';
+                    tr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
+                    tr.dataset.amount = '0';
+                    tr.dataset.commission = '0';
+                    tr.dataset.currency = 'PHP';
+                    tr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td class="highlight-ref">${ref}</td><td></td><td></td>`;
                     // mark duplicates if present
                     if(duplicates.find(d=>d.ref===ref && d.type==='partner')) tr.classList.add('dup-row');
+                    appendDateSeparatorIfNeeded(partnersBody, dayObj.date || '', partnerDateState, 4);
                     partnersBody.appendChild(tr);
                     rowNo++;
                 });
@@ -2907,8 +4469,13 @@ try {
                 // missing partner refs -> web-only rows (mark as mismatch on web side)
                 missingPartner.forEach(ref => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${ref}</td><td>${dayObj.date||''}</td><td></td><td></td>`;
+                    tr.dataset.ref = ref || '';
+                    tr.dataset.isoDate = normalizeIsoDate(dayObj.date || '');
+                    tr.dataset.amount = '0';
+                    tr.dataset.currency = 'PHP';
+                    tr.innerHTML = `<td>${formatDateMMDDYYYY(dayObj.date||'')}</td><td></td><td>${escapeHtml(ref)}</td><td></td><td></td>`;
                     tr.classList.add('row-mismatch');
+                    appendDateSeparatorIfNeeded(webBody, dayObj.date || '', webDateState, 5);
                     webBody.appendChild(tr);
                     rowNo++;
                 });
@@ -2929,38 +4496,51 @@ try {
                 const webCountEl = modal.querySelector('[data-role="webCount"]');
                 const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');
                 const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
-                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
+                const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"], [data-role="partnersPrincipal"]');
                 const partnersPrincipalUsdEl = modal.querySelector('[data-role="partnersPrincipalUsd"]');
-                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
+                const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"], [data-role="webPrincipal"]');
                 const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
-                const pCount = partnersBody.querySelectorAll('tr:not(.dup-sep)').length || 0;
-                const wCount = webBody.querySelectorAll('tr:not(.dup-sep)').length || 0;
-                                let pPhp = 0, pUsd = 0;
-                                Array.from(partnersBody.querySelectorAll('tr:not(.dup-sep)')).forEach(tr => {
+                const pCount = partnersBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])').length || 0;
+                const wCount = webBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])').length || 0;
+                const visibleDuplicateCount = partnersBody.querySelectorAll('tr.dup-row:not([data-role="date-separator"])').length || (Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0);
+                setReconSummary(
+                    modal,
+                    Number(dayObj.matchedCount || dayObj.vol || 0),
+                    Number(dayObj.unmatchedCount || 0),
+                    visibleDuplicateCount
+                );
+                                let pPhp = 0, pUsd = 0, pCommission = 0;
+                                Array.from(partnersBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])')).forEach(tr => {
                                     const raw = tr.dataset.amount !== undefined ? tr.dataset.amount : (((tr.cells[2] && tr.cells[2].textContent) || '').replace(/,/g, ''));
                                     const val = Number(raw);
-                                    const cur = (tr.dataset.currency || (tr.cells[3] && tr.cells[3].textContent) || '').toString().trim().toUpperCase();
+                                    const commission = Number(tr.dataset.commission !== undefined ? tr.dataset.commission : (((tr.cells[3] && tr.cells[3].textContent) || '').replace(/,/g, '')));
+                                    const cur = (tr.dataset.currency || 'PHP').toString().trim().toUpperCase();
                                     if(!Number.isFinite(val)) return;
                                     if(cur.indexOf('PHP') !== -1){ pPhp += Math.abs(val); }
                                     else if(cur.indexOf('USD') !== -1){ pUsd += Math.abs(val); }
+                                    if(Number.isFinite(commission)) pCommission += Math.abs(commission);
                                 });
                                 let wPhp = 0, wUsd = 0;
-                                Array.from(webBody.querySelectorAll('tr:not(.dup-sep)')).forEach(tr => {
-                                    const raw = tr.dataset.amount !== undefined ? tr.dataset.amount : (((tr.cells[2] && tr.cells[2].textContent) || '').replace(/,/g, ''));
+                                Array.from(webBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])')).forEach(tr => {
+                                    const raw = tr.dataset.amount !== undefined ? tr.dataset.amount : (((tr.cells[3] && tr.cells[3].textContent) || '').replace(/,/g, ''));
                                     const val = Number(raw);
-                                    const cur = (tr.dataset.currency || (tr.cells[3] && tr.cells[3].textContent) || '').toString().trim().toUpperCase();
+                                    const cur = (tr.dataset.currency || (tr.cells[4] && tr.cells[4].textContent) || 'PHP').toString().trim().toUpperCase();
                                     if(!Number.isFinite(val)) return;
-                                    if(cur.indexOf('PHP') !== -1){ wPhp += val; }
-                                    else if(cur.indexOf('USD') !== -1){ wUsd += val; }
+                                    if(cur.indexOf('PHP') !== -1){ wPhp += Math.abs(val); }
+                                    else if(cur.indexOf('USD') !== -1){ wUsd += Math.abs(val); }
                                 });
                 if(partnersCountEl) partnersCountEl.textContent = '(' + (pCount).toLocaleString() + ')';
                 if(webCountEl) webCountEl.textContent = '(' + (wCount).toLocaleString() + ')';
                 if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
                 if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
-                if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = 'Principal PHP: ' + pPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.textContent = 'Principal USD: ' + pUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = 'Principal PHP: ' + wPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
-                if(webPrincipalUsdEl) webPrincipalUsdEl.textContent = 'Principal USD: ' + wUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if(partnersPrincipalPhpEl) {
+                    partnersPrincipalPhpEl.innerHTML = formatPrincipalSummary(pPhp, pUsd)
+                        + '<span class="mbtc-summary-gap" aria-hidden="true"></span>Commission: PHP: '
+                        + pCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+                if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
+                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
             }catch(e){console.warn('Error updating counts', e);} 
 
             // wire search/filter within modal
@@ -2971,26 +4551,47 @@ try {
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
                 // partners: match Part Id / Reference (second column or .highlight-ref)
                 Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
+                    if(tr.getAttribute('data-role') === 'date-separator') return;
                     const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[0]?.textContent || '').toLowerCase();
                     let show = true;
                     if(q && !ref.includes(q)) show = false;
-                    if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
-                    if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
+                    if(filter === 'matched'){ show = show && tr.classList.contains('matched-row'); }
+                    else if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
+                    else if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
                     tr.style.display = show ? '' : 'none';
                 });
                 // web: match CCREF (second column) or fallback to .highlight-ref where present
                 Array.from(webBody.querySelectorAll('tr')).forEach(tr => {
-                    const ccref = (tr.cells[0]?.textContent || tr.querySelector('.highlight-ref')?.textContent || '').toLowerCase();
+                    if(tr.getAttribute('data-role') === 'date-separator') return;
+                    const ccref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[2]?.textContent || '').toLowerCase();
                     let show = true;
                     if(q && !ccref.includes(q)) show = false;
-                    if(filter === 'mismatch'){ show = show && tr.classList.contains('mismatch-row'); }
-                    if(filter === 'duplicates'){ show = show && tr.classList.contains('dup-row'); }
+                    if(filter === 'matched'){ show = show && tr.classList.contains('row-match'); }
+                    else if(filter === 'mismatch'){ show = show && (tr.classList.contains('mismatch-row') || tr.classList.contains('row-mismatch')); }
+                    else if(filter === 'duplicates'){ show = show && (tr.classList.contains('dup-row') || tr.classList.contains('row-duplicate')); }
                     tr.style.display = show ? '' : 'none';
                 });
+                updateVisibleReconDateSeparators(partnersBody);
+                updateVisibleReconDateSeparators(webBody);
             }
             if(searchEl && !searchEl._listener){ searchEl.addEventListener('input', modalRenderRows); searchEl._listener = true; }
             if(filterEl && !filterEl._listener){ filterEl.addEventListener('change', modalRenderRows); filterEl._listener = true; }
             modalRenderRows();
+
+            if(lockedDateSet.size){
+                Array.from(partnersBody.querySelectorAll('tr.matched-row')).forEach((tr) => {
+                    if(tr.getAttribute('data-role') === 'date-separator') return;
+                    const rowDate = normalizeIsoDate((tr.dataset && tr.dataset.isoDate) || dayObj.date || '');
+                    if(!lockedDateSet.has(rowDate)) return;
+                    tr.classList.add('locked-row');
+                    tr.classList.add('is-locked-row');
+                });
+                const lockBtn = modal.querySelector('#mbtcLockAllMatchedBtn');
+                if(lockBtn){
+                    lockBtn.disabled = false;
+                    lockBtn.textContent = 'UNLOCK MATCHED TRANSACTIONS';
+                }
+            }
 
             // close handler (generic for all recon modals)
             const closeBtn = modal.querySelector('[data-action^="close-"], [class$="recon-modal__close"]');
@@ -3007,6 +4608,7 @@ try {
             modal.addEventListener('click', function(ev){ if(ev.target === modal) closeModal(); });
             // close on Escape
             document.addEventListener('keydown', function keyHandler(ev){ if(ev.key === 'Escape'){ closeModal(); document.removeEventListener('keydown', keyHandler); } });
+            modal.dataset.lockReady = String(Date.now());
             } finally {
                 if(loadingEl) loadingEl.style.display = 'none';
             }
@@ -3105,7 +4707,7 @@ try {
                 }catch(e){ console.warn('Failed to append per-day WORLD INTERNATIONAL COMMUNICATIONS sheets', e); }
 
                 // Sheet 2: Cover PH summary — prefer cached server data if available
-                const daysData = window._lastMbtcDays || [];
+                const daysData = getCachedReconDaysForCurrentPartner();
                 const coverRows = [];
                 // fallback: build from DOM day cards if _lastMbtcDays not present
                 if(!daysData || !daysData.length){
@@ -3431,12 +5033,45 @@ try {
             });
         }
 
+        if(lockedDatesBtn){
+            lockedDatesBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                openLockedDatesModal();
+            });
+        }
+
+        if(lockedDatesModal){
+            lockedDatesModal.addEventListener('click', function(e){
+                const closeTarget = e.target.closest && e.target.closest('[data-action="close-locked-dates"]');
+                if(closeTarget || e.target === lockedDatesModal){
+                    closeLockedDatesModal();
+                    return;
+                }
+                const viewTarget = e.target.closest && e.target.closest('[data-action="view-locked-date-details"]');
+                if(viewTarget){
+                    e.preventDefault();
+                    viewLockedDateDetails(viewTarget.closest('tr'));
+                    return;
+                }
+                const unlockTarget = e.target.closest && e.target.closest('[data-action="unlock-locked-date"]');
+                if(unlockTarget){
+                    e.preventDefault();
+                    unlockLockedDate(unlockTarget.closest('tr'));
+                }
+            });
+            document.addEventListener('keydown', function(e){
+                if(e.key === 'Escape' && lockedDatesModal.classList.contains('is-open')){
+                    closeLockedDatesModal();
+                }
+            });
+        }
+
         // View Cover PH button: opens modal and populates Partner/Web tables (frontend-only)
         const viewCoverBtn = document.getElementById('hsViewCoverPH');
         if(viewCoverBtn){
                 viewCoverBtn.addEventListener('click', function(e){
                     e.preventDefault();
-                    const days = window._lastMbtcDays || [];
+                    const days = getCachedReconDaysForCurrentPartner();
                     const companyName = (company && company.value) ? String(company.value).toUpperCase() : '';
                     const modalId = isWorldInternationalCommunications(companyName) ? 'wicCoverPhModal' : 'mbtcCoverPhModal';
                     const modalRoot = document.getElementById(modalId);
@@ -3677,6 +5312,8 @@ include __DIR__ . '/../../../modals/wic-view/wic-recon-view-modal.php';
 include __DIR__ . '/../../../modals/moneygram-view/moneygram-recon-view-modal.php';
 // include RCBC recon modal so it's available when user clicks a day card
 include __DIR__ . '/../../../modals/rcbc-view/rcbc-recon-view-modal.php';
+// include SKYBRIDGE PAYMENT INC. recon modal so it's available when user clicks a day card
+include __DIR__ . '/../../../modals/skybridgepaymentinc-view/skybridgepaymentinc-recon-view-modal.php';
 // include BDO recon modal so it's available when user clicks a day card
 include __DIR__ . '/../../../modals/bdo-view/bdo-recon-view-modal.php';
 ?>

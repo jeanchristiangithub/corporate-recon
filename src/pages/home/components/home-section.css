@@ -213,6 +213,167 @@
     margin-left: 6px;
 }
 
+.locked-dates-btn {
+    background: #fff;
+    color: #dc3545;
+    border: 1px solid rgba(220,53,69,0.55);
+    box-shadow: none;
+}
+
+.locked-dates-btn:hover {
+    background: #fff5f5;
+    border-color: #dc3545;
+}
+
+.locked-dates-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15,23,42,0.45);
+}
+
+.locked-dates-modal.is-open {
+    display: flex;
+}
+
+.locked-dates-modal__panel {
+    width: min(760px, 96vw);
+    max-height: min(620px, 88vh);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(15,23,42,0.28);
+    overflow: hidden;
+}
+
+.locked-dates-modal__header,
+.locked-dates-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(15,23,42,0.08);
+}
+
+.locked-dates-modal__footer {
+    justify-content: flex-end;
+    border-top: 1px solid rgba(15,23,42,0.08);
+    border-bottom: 0;
+}
+
+.locked-dates-modal__header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.locked-dates-modal__body {
+    padding: 16px 18px;
+    overflow: auto;
+}
+
+.locked-dates-modal__message {
+    margin: 14px 18px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.locked-dates-modal__message.is-success {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.locked-dates-modal__message.is-error {
+    background: #fff1f2;
+    color: #be123c;
+}
+
+.locked-dates-empty,
+.locked-dates-loading {
+    color: #64748b;
+    font-size: 0.92rem;
+    text-align: center;
+    padding: 18px;
+}
+
+.locked-dates-table-wrap {
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.locked-dates-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.locked-dates-table th,
+.locked-dates-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(15,23,42,0.07);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.locked-dates-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.locked-dates-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.locked-dates-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: #fff1f2;
+    color: #be123c;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.locked-dates-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.locked-dates-action-btn {
+    height: 30px;
+    padding: 5px 11px;
+    color: #dc3545;
+    background: #fff;
+    border: 1px solid rgba(220,53,69,0.55);
+    box-shadow: none;
+}
+
+.locked-dates-action-btn:hover {
+    background: #fff5f5;
+    border-color: #dc3545;
+}
+
+.locked-dates-view {
+    min-width: 58px;
+}
+
 /* ─── Summary cards ───────────────────────────────────────────────── */
 .summary {
     display: flex;

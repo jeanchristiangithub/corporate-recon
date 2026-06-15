@@ -7,9 +7,10 @@ $csrfInput = csrfField();
 
 <div id="addUserModal" class="add-user-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="addUserModalTitle">
     <div class="add-user-modal__card">
-        <button type="button" class="add-user-modal__close" aria-label="Close" data-close-add-user>&times;</button>
-
-        <h2 id="addUserModalTitle">Add User</h2>
+        <div class="add-user-modal__header">
+            <h2 id="addUserModalTitle">Add User</h2>
+            <button type="button" class="add-user-modal__close" aria-label="Exit Add User modal" title="Exit" data-close-add-user>&times;</button>
+        </div>
 
         <form method="post" action="../../config/add-user-handler.php" class="add-user-form">
             <?= $csrfInput ?>
@@ -109,29 +110,6 @@ document.addEventListener('click', function(e){
         return;
     }
 
-    // Click outside the modal card should close the modal
-    const overlay = document.getElementById('addUserModal');
-    if (overlay && overlay.classList.contains('is-open')) {
-        const card = overlay.querySelector('.add-user-modal__card');
-        // If the click target is the overlay itself (the backdrop), close
-        if (e.target === overlay) {
-            overlay.classList.remove('is-open');
-            return;
-        }
-        // Or if click is outside the card (and not on the open button), close
-        if (card && !card.contains(e.target)) {
-            overlay.classList.remove('is-open');
-            return;
-        }
-    }
-});
-
-// Close modal with Escape key
-document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' || e.key === 'Esc') {
-        const m = document.getElementById('addUserModal');
-        if (m && m.classList.contains('is-open')) m.classList.remove('is-open');
-    }
 });
 
 // Password field is revealed and readonly by design.

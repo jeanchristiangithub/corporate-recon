@@ -1,10 +1,58 @@
 <?php
+require_once __DIR__ . '/../../../config/db.php';
+
+$partners = [];
+$partnerIds = [];
+try {
+    $pdo = masterDataConnection();
+    $stmt = $pdo->query("SELECT partner_name, partner_id FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $row) {
+        $name = trim((string)($row['partner_name'] ?? ''));
+        if ($name === '') continue;
+        if (!in_array($name, $partners, true)) $partners[] = $name;
+        if (!array_key_exists($name, $partnerIds)) {
+            $partnerIds[$name] = (string)($row['partner_id'] ?? '');
+        }
+    }
+} catch (Throwable $e) {
+    $partners = [];
+    $partnerIds = [];
+}
 ?>
 <section id="maintenanceSection" class="maintenance-section" aria-label="Maintenance Upload Center" style="display:none; padding:1rem">
     <div class="maintenance-inner">
-        <div class="maintenance-card">
+        <div class="maintenance-selector">
+            <label class="maintenance-filter"><span>Corporate Partner</span>
+                <div class="maintenance-autocomplete">
+                    <input id="maintenanceCompany" placeholder="Select corporate partner" autocomplete="off">
+                    <ul class="maintenance-autocomplete-list" id="maintenanceCompanySuggestions" role="listbox" hidden></ul>
+                    <datalist id="maintenanceCompanyList">
+                        <?php foreach ($partners as $partner): ?>
+                            <option value="<?= htmlspecialchars((string)$partner, ENT_QUOTES, 'UTF-8') ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
+                </div>
+            </label>
+            <label class="maintenance-filter maintenance-filter--id"><span>Partner ID</span>
+                <input id="maintenancePartnerId" type="text" maxlength="4" placeholder="ID">
+            </label>
+            <div class="maintenance-duration" aria-label="Date duration">
+                <div class="maintenance-duration__field">
+                    <label for="maintenanceStartDate" class="maintenance-duration__label">Start date <span aria-hidden="true">*</span></label>
+                    <input id="maintenanceStartDate" name="start_date" type="date" class="maintenance-duration__input" aria-label="Start date">
+                </div>
+                <span class="maintenance-duration__sep" aria-hidden="true">-</span>
+                <div class="maintenance-duration__field">
+                    <label for="maintenanceEndDate" class="maintenance-duration__label">End date <span aria-hidden="true">*</span></label>
+                    <input id="maintenanceEndDate" name="end_date" type="date" class="maintenance-duration__input" aria-label="End date">
+                </div>
+            </div>
+        </div>
+
+        <div class="maintenance-card" id="moneygramLegacyMaintenanceCard" hidden>
             <div class="maintenance-head">
-                <h2 class="maintenance-title">Legacy ID Maintenance</h2>
+                <h2 class="maintenance-title">Legacy ID for MONEYGRAM</h2>
                 <p class="maintenance-description">For update and synchronization of legacy IDs.</p>
             </div>
 
@@ -15,7 +63,7 @@
                     <div style="text-align:center;margin-top:18px;">
                         <button id="legacySyncBtn" type="button" class="material-btn material-btn--primary" style="min-width:220px;padding:12px 20px;font-size:16px;">Run Legacy ID Sync</button>
                     </div>
-                    <p class="maintenance-sync__note" style="text-align:center;margin-top:10px;color:var(--muted);font-size:13px;">Updates only blank or different values. Matches by <code>branch_id</code>. Uses a safe transaction.</p>
+                    <p class="maintenance-sync__note" style="text-align:center;margin-top:10px;color:var(--muted);font-size:13px;"></p>
                 </div>
             </div>
         </div>
@@ -70,10 +118,44 @@
     .mg-toast.show{display:block;opacity:1}
     .mg-toast.success{background:linear-gradient(90deg,#10b981,#059669)}
     .mg-toast.error{background:linear-gradient(90deg,#ef4444,#dc2626)}
+    .maintenance-selector{max-width:980px;margin:12px auto 18px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+    .maintenance-filter{display:flex;flex-direction:column;gap:6px;font-weight:700;color:#111827}
+    .maintenance-filter span{font-size:13px}
+    .maintenance-filter input{padding:8px;border-radius:6px;border:1px solid #e6eef6;box-sizing:border-box;background:#fff;color:#111}
+    .maintenance-filter .maintenance-autocomplete input{min-width:60ch;width:min(100%,72ch)}
+    .maintenance-filter--id input{min-width:6ch;width:6ch;text-align:center;background:#fff !important}
+    #maintenancePartnerId,
+    #maintenancePartnerId:hover,
+    #maintenancePartnerId:focus,
+    #maintenancePartnerId:active,
+    #maintenancePartnerId:disabled,
+    #maintenancePartnerId:-webkit-autofill{
+        background:#fff !important;
+        background-color:#fff !important;
+        -webkit-box-shadow:0 0 0 1000px #fff inset !important;
+        box-shadow:0 0 0 1000px #fff inset !important;
+    }
+    .maintenance-duration{display:flex;align-items:flex-end;gap:.5rem;flex-wrap:wrap}
+    .maintenance-duration__field{display:flex;flex-direction:column;gap:0.25rem}
+    .maintenance-duration__label{font-size:.75rem;color:#6b7280;white-space:nowrap;font-weight:700}
+    .maintenance-duration__label span{color:#dc2626;margin-left:4px}
+    .maintenance-duration__input{padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:12ch;box-sizing:border-box;font-size:.95rem;color:#111}
+    .maintenance-duration__sep{color:#6b7280;font-weight:600;margin-bottom:8px}
+    .maintenance-autocomplete{position:relative}
+    .maintenance-autocomplete-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;margin:0;padding:4px 0;list-style:none;background:#fff;border:1px solid #e6eef6;border-radius:8px;box-shadow:0 12px 28px rgba(15,23,42,.12);max-height:220px;overflow:auto}
+    .maintenance-autocomplete-item{padding:8px 10px;cursor:pointer;font-weight:500}
+    .maintenance-autocomplete-item:hover,.maintenance-autocomplete-item.is-active{background:#f3f6fb}
     </style>
 
     <script>
     (function(){
+        const company = document.getElementById('maintenanceCompany');
+        const partnerIdInput = document.getElementById('maintenancePartnerId');
+        const startDateInput = document.getElementById('maintenanceStartDate');
+        const endDateInput = document.getElementById('maintenanceEndDate');
+        const partners = <?= json_encode($partners, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
+        const partnerIds = <?= json_encode($partnerIds, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
+        const moneygramCard = document.getElementById('moneygramLegacyMaintenanceCard');
         const section = document.getElementById('maintenanceSection');
         const fileInput = document.getElementById('maintenanceFiles');
         const dropzone = document.getElementById('maintenanceDropzone');
@@ -94,6 +176,138 @@
         let busy = false;
         let exportUrl = '';
         let exportName = '';
+
+        function isMoneygramPartner(value){
+            return String(value || '').trim().toUpperCase() === 'MONEYGRAM';
+        }
+
+        function updateMaintenanceCardVisibility(){
+            if(!moneygramCard || !company) return;
+            moneygramCard.hidden = !isMoneygramPartner(company.value);
+        }
+
+        function updatePartnerIdField(){
+            if(!partnerIdInput || !company) return;
+            const selected = String(company.value || '').trim();
+            let id = '';
+            if(selected){
+                const exactName = (partners || []).find(name => String(name || '').trim().toLowerCase() === selected.toLowerCase());
+                if(exactName && Object.prototype.hasOwnProperty.call(partnerIds, exactName)){
+                    id = partnerIds[exactName] || '';
+                }
+            }
+            partnerIdInput.value = id;
+            updateMaintenanceCardVisibility();
+        }
+
+        function findPartnerNameById(id){
+            const normalizedId = String(id || '').trim();
+            if(!normalizedId) return '';
+            return (partners || []).find(name => {
+                const partnerName = String(name || '').trim();
+                const partnerId = Object.prototype.hasOwnProperty.call(partnerIds, partnerName) ? String(partnerIds[partnerName] || '').trim() : '';
+                return partnerId !== '' && partnerId === normalizedId;
+            }) || '';
+        }
+
+        function updateCompanyFromPartnerId(){
+            if(!partnerIdInput || !company) return;
+            const partnerName = findPartnerNameById(partnerIdInput.value);
+            company.value = partnerName || '';
+            updateMaintenanceCardVisibility();
+        }
+
+        function syncEndDateFromStart(){
+            if(!startDateInput || !endDateInput) return;
+            endDateInput.value = startDateInput.value || '';
+        }
+
+        function attachPartnerAutocomplete(input, suggestions){
+            const container = input ? input.closest('.maintenance-autocomplete') : null;
+            const list = container ? container.querySelector('.maintenance-autocomplete-list') : null;
+            if(!input || !container || !list) return;
+
+            let activeIndex = -1;
+            function normalize(value){ return String(value || '').trim().toLowerCase(); }
+            function getMatches(value){
+                const query = normalize(value);
+                const options = Array.from(new Set((suggestions || []).map(item => String(item || '').trim()).filter(Boolean)));
+                if(!query) return options.slice(0, 8);
+                const startsWith = [];
+                const contains = [];
+                options.forEach(option => {
+                    const normalizedOption = normalize(option);
+                    if(normalizedOption.startsWith(query)) startsWith.push(option);
+                    else if(normalizedOption.includes(query)) contains.push(option);
+                });
+                return startsWith.concat(contains).slice(0, 8);
+            }
+            function closeSuggestions(){
+                list.hidden = true;
+                list.innerHTML = '';
+                activeIndex = -1;
+            }
+            function applyActiveItem(items){
+                items.forEach((item, index) => item.classList.toggle('is-active', index === activeIndex));
+            }
+            function selectSuggestion(value){
+                input.value = value;
+                closeSuggestions();
+                updatePartnerIdField();
+            }
+            function renderSuggestions(){
+                const matches = getMatches(input.value);
+                if(matches.length === 0){ closeSuggestions(); return; }
+                list.innerHTML = '';
+                matches.forEach((match, index) => {
+                    const item = document.createElement('li');
+                    item.className = 'maintenance-autocomplete-item';
+                    item.setAttribute('role', 'option');
+                    item.textContent = match;
+                    item.addEventListener('mousedown', function(event){
+                        event.preventDefault();
+                        selectSuggestion(match);
+                    });
+                    item.addEventListener('mouseenter', function(){
+                        activeIndex = index;
+                        applyActiveItem(Array.from(list.children));
+                    });
+                    list.appendChild(item);
+                });
+                activeIndex = -1;
+                list.hidden = false;
+            }
+            input.addEventListener('input', function(){ renderSuggestions(); updatePartnerIdField(); });
+            input.addEventListener('focus', renderSuggestions);
+            input.addEventListener('keydown', function(event){
+                const items = Array.from(list.querySelectorAll('.maintenance-autocomplete-item'));
+                if(list.hidden || items.length === 0) return;
+                if(event.key === 'ArrowDown'){
+                    event.preventDefault();
+                    activeIndex = (activeIndex + 1) % items.length;
+                    applyActiveItem(items);
+                } else if(event.key === 'ArrowUp'){
+                    event.preventDefault();
+                    activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+                    applyActiveItem(items);
+                } else if(event.key === 'Enter'){
+                    if(activeIndex >= 0 && activeIndex < items.length){
+                        event.preventDefault();
+                        selectSuggestion(items[activeIndex].textContent || '');
+                    }
+                } else if(event.key === 'Escape'){
+                    closeSuggestions();
+                }
+            });
+            document.addEventListener('click', function(event){
+                if(!container.contains(event.target)) closeSuggestions();
+            });
+        }
+
+        attachPartnerAutocomplete(company, partners);
+        if(partnerIdInput) partnerIdInput.addEventListener('input', updateCompanyFromPartnerId);
+        if(startDateInput) startDateInput.addEventListener('change', syncEndDateFromStart);
+        updateMaintenanceCardVisibility();
 
         function formatSize(bytes){
             const size = Number(bytes || 0);
@@ -129,6 +343,32 @@
             mgToast.className = 'mg-toast show ' + (type === 'success' ? 'success' : 'error');
             mgToast.setAttribute('aria-hidden', 'false');
             setTimeout(() => { if(mgToast) mgToast.classList.remove('show'); mgToast.setAttribute('aria-hidden', 'true'); }, 4000);
+        }
+
+        function showRequiredDurationAlert(){
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                window.Swal.fire({
+                    icon: 'warning',
+                    title: 'Duration date required',
+                    text: 'Please select the start date and end date before running the legacy ID sync.',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+            showToast('error', 'Duration date is required.');
+        }
+
+        function showInvalidDurationAlert(){
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                window.Swal.fire({
+                    icon: 'warning',
+                    text: 'Start Date cannot be greater than End Date.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+            showToast('error', 'Start Date cannot be greater than End Date.');
         }
 
         function showConfirmModal(){
@@ -253,13 +493,29 @@
         const legacyBtn = document.getElementById('legacySyncBtn');
         async function runLegacySync(){
             if(!legacyBtn) return;
+            if(!startDateInput || !endDateInput || !startDateInput.value || !endDateInput.value){
+                showRequiredDurationAlert();
+                return;
+            }
+            if(startDateInput.value > endDateInput.value){
+                showInvalidDurationAlert();
+                return;
+            }
             const confirmed = await showConfirmModal();
             if(!confirmed) return;
             legacyBtn.disabled = true;
             const orig = legacyBtn.textContent;
             legacyBtn.textContent = 'Updating...';
             try{
-                const res = await fetch('../../controllers/maintenance/update_legacyid_moneygram.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({}) });
+                const res = await fetch('../../controllers/maintenance/update_legacyid_moneygram.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type':'application/json' },
+                    body: JSON.stringify({
+                        start_date: startDateInput.value,
+                        end_date: endDateInput.value
+                    })
+                });
                 const json = await res.json().catch(()=>null);
                 if(!res.ok || !json || !json.success){
                     const msg = (json && json.error) ? json.error : 'Update failed.';

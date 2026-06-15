@@ -18,6 +18,7 @@ try {
     $area = isset($_GET['area']) ? trim((string)$_GET['area']) : '';
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
+    $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
 
     // Treat 'ALL' (case-insensitive) as empty / no-filter
     if (strcasecmp($mainzone, 'ALL') === 0) $mainzone = '';
@@ -137,6 +138,11 @@ try {
         $params[] = '%' . strtolower($branch_id) . '%';
     }
 
+    if (in_array($currency, ['PHP', 'USD'], true) && isset($availableColumns['currency'])) {
+        $whereSql .= ' AND UPPER(TRIM(currency)) = ?';
+        $params[] = $currency;
+    }
+
     // Compute currency totals for the fully-built WHERE clause (use same params)
     try {
         $totalsSelect = ''
@@ -179,6 +185,10 @@ try {
     
     // Order by chosen date column descending (newest first). Select both date_claimed and date_send when available.
     $selectCols = 'id, partner_id, partnerName, `no`, control_series_no, kptn, ccref_no, currency, amount, ctc, ctp, sender_name, sender_country, beneficiary_receiver, receiver_kyc, receiver_phone, operator, branch, remote_operator, remote_branch, created_at';
+    if (isset($availableColumns['branch_id'])) {
+        $selectCols = 'branch_id, ' . $selectCols;
+    }
+
     // When reporting SENDOUT, include `charge` column if present so frontend can display it.
     if (strtolower($type) === 'sendout' && isset($availableColumns['charge'])) {
         // append charge so it's available in result rows
@@ -216,6 +226,7 @@ try {
         'type' => $type,
         'date_column' => $dateColumn,
         'date_label' => $dateLabel,
+        'currency_filter' => $currency,
         'rows' => $rows,
         'php_total' => $php_total,
         'usd_total' => $usd_total,

@@ -14,6 +14,16 @@ try{
         exit;
     }
 
+    $partnerNameInput = isset($_GET['partnerName']) ? trim((string)$_GET['partnerName']) : '';
+    $partnerNameUpper = strtoupper($partnerNameInput);
+    $rcbcAliases = ['RCBC'];
+    if($partnerNameUpper === '' || in_array($partnerNameUpper, $rcbcAliases, true)){
+        $partnerNameList = $rcbcAliases;
+    } else {
+        $partnerNameList = [$partnerNameUpper];
+    }
+    $partnerInPlaceholders = implode(',', array_fill(0, count($partnerNameList), '?'));
+
     $daysInMonth = (int)date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
     $pdo = fileRecDbConnection();
 
@@ -35,13 +45,20 @@ try{
 
     // Support both simplified and legacy partner schemas.
     $sqlsPart = [
+        'SELECT ref_no AS tx, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS partner_amount, SUM(COALESCE(commission,0)) AS partner_commission FROM rcbc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY ref_no',
+        'SELECT ref_no AS tx, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS partner_amount, SUM(COALESCE(in_php,0)) AS partner_commission FROM rcbc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY ref_no',
+        'SELECT ref_no AS tx, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS partner_amount, SUM(COALESCE(in_php,0)) AS partner_commission FROM rcbc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ? GROUP BY ref_no',
         'SELECT transaction_id AS tx, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS partner_amount, 0 AS partner_commission FROM rcbc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY transaction_id',
         'SELECT reference_no AS tx, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS partner_amount, SUM(COALESCE(in_php,0)) AS partner_commission FROM rcbc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY reference_no',
         'SELECT reference_no AS tx, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS partner_amount, SUM(COALESCE(in_php,0)) AS partner_commission FROM rcbc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ? GROUP BY reference_no',
     ];
 
     $sqlsWeb = [
-        'SELECT ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM rcbc_web_data WHERE DATE(date_claimed) = ? OR date_claimed LIKE ? GROUP BY ccref_no',
+        "SELECT ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partnerName IN ($partnerInPlaceholders) GROUP BY ccref_no",
+        "SELECT cc_ref AS ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partnerName IN ($partnerInPlaceholders) GROUP BY cc_ref",
+        "SELECT ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM ml_web_data WHERE (DATE(date) = ? OR date LIKE ?) AND partnerName IN ($partnerInPlaceholders) GROUP BY ccref_no",
+        "SELECT ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partner_name IN ($partnerInPlaceholders) GROUP BY ccref_no",
+        "SELECT cc_ref AS ccref_no, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS web_amount, SUM(COALESCE(ctp,0)) AS web_ctp FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partner_name IN ($partnerInPlaceholders) GROUP BY cc_ref",
     ];
 
     $detail = isset($_GET['detail']) ? (int)$_GET['detail'] : 0;
@@ -63,7 +80,7 @@ try{
             $partnersByRef[$key] = $p;
         }
 
-        $webs = $tryQuery($sqlsWeb, [$dt, $likeParam]);
+        $webs = $tryQuery($sqlsWeb, array_merge([$dt, $likeParam], $partnerNameList));
         $webByRef = [];
         foreach($webs as $w){
             $rawRef = isset($w['ccref_no']) ? (string)$w['ccref_no'] : '';
@@ -186,15 +203,17 @@ try{
                 'SELECT * FROM rcbc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ?',
             ];
             $fullWebSqls = [
-                'SELECT * FROM rcbc_web_data WHERE DATE(date_claimed) = ? OR date_claimed LIKE ?',
+                "SELECT * FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partnerName IN ($partnerInPlaceholders)",
+                "SELECT * FROM ml_web_data WHERE (DATE(date) = ? OR date LIKE ?) AND partnerName IN ($partnerInPlaceholders)",
+                "SELECT * FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partner_name IN ($partnerInPlaceholders)",
             ];
 
             $fullParts = $tryQuery($fullPartSqls, [$dt, $likeParam]);
-            $fullWebs = $tryQuery($fullWebSqls, [$dt, $likeParam]);
+            $fullWebs = $tryQuery($fullWebSqls, array_merge([$dt, $likeParam], $partnerNameList));
 
             $partsMap = [];
             foreach($fullParts as $p){
-                $rawRef = isset($p['transaction_id']) ? (string)$p['transaction_id'] : (isset($p['reference_no']) ? (string)$p['reference_no'] : '');
+                $rawRef = isset($p['ref_no']) ? (string)$p['ref_no'] : (isset($p['transaction_id']) ? (string)$p['transaction_id'] : (isset($p['reference_no']) ? (string)$p['reference_no'] : ''));
                 $key = trim($rawRef);
                 if(function_exists('mb_strtoupper')) $key = mb_strtoupper($key); else $key = strtoupper($key);
                 if($key === '') continue;
@@ -203,7 +222,7 @@ try{
 
             $websMap = [];
             foreach($fullWebs as $w){
-                $rawRef = isset($w['ccref_no']) ? (string)$w['ccref_no'] : '';
+                $rawRef = isset($w['ccref_no']) ? (string)$w['ccref_no'] : (isset($w['cc_ref']) ? (string)$w['cc_ref'] : '');
                 $key = trim($rawRef);
                 if(function_exists('mb_strtoupper')) $key = mb_strtoupper($key); else $key = strtoupper($key);
                 if($key === '') continue;
@@ -220,13 +239,13 @@ try{
                 for($i=0;$i<$max;$i++){
                     $p = $pEntries[$i] ?? null;
                     $w = $wEntries[$i] ?? null;
-                    $rawRef = $p['reference_no'] ?? ($p['transaction_id'] ?? ($w['ccref_no'] ?? $key));
+                    $rawRef = $p['ref_no'] ?? ($p['reference_no'] ?? ($p['transaction_id'] ?? ($w['ccref_no'] ?? ($w['cc_ref'] ?? $key))));
                     $row = ['ref' => $rawRef];
 
                     if($p){
                         foreach($p as $col => $val){ $row['partner_'.$col] = $val; }
                         $row['partner_principal'] = isset($p['amount']) ? (float)$p['amount'] : (isset($p['php']) ? (float)$p['php'] : 0.0);
-                        $row['partner_commission'] = isset($p['in_php']) ? (float)$p['in_php'] : 0.0;
+                        $row['partner_commission'] = isset($p['commission']) ? (float)$p['commission'] : (isset($p['in_php']) ? (float)$p['in_php'] : 0.0);
                     } else {
                         $row['partner_principal'] = 0.0;
                         $row['partner_commission'] = 0.0;

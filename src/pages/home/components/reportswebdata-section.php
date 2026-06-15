@@ -1,5 +1,19 @@
 <?php
 // Reports UI: Web data transactions (filtered by corporate partner)
+// Loads partner list from master file (UI-only)
+require_once __DIR__ . '/../../../config/db.php';
+
+$partners = [];
+try {
+	$pdo = masterDataConnection();
+	$stmt = $pdo->query("SELECT DISTINCT partner_name FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
+	$rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+	if (is_array($rows) && count($rows) > 0) {
+		$partners = $rows;
+	}
+} catch (Throwable $e) {
+	$partners = [];
+}
 ?>
 <div class="reports-webdata-content">
 	<style>
@@ -63,6 +77,128 @@
 			gap: 0.5rem;
 			align-items: center;
 		}
+
+		.reports-webdata-content .txn-view-btn {
+			border: 1px solid #dc3545;
+			background: #fff;
+			color: #dc3545;
+			border-radius: 999px;
+			padding: 2px 10px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			line-height: 1.35;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		.reports-webdata-content .txn-view-btn:hover {
+			background: #dc3545;
+			color: #fff;
+		}
+
+		.txn-detail-modal {
+			position: fixed;
+			inset: 0;
+			z-index: 12000;
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.txn-detail-modal__overlay {
+			position: absolute;
+			inset: 0;
+			background: rgba(15, 23, 42, 0.48);
+		}
+
+		.txn-detail-modal__dialog {
+			position: relative;
+			width: min(780px, 94vw);
+			max-height: 88vh;
+			display: flex;
+			flex-direction: column;
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+			overflow: hidden;
+		}
+
+		.txn-detail-modal__head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 14px 18px;
+			border-top: 4px solid #dc3545;
+			border-bottom: 1px solid #e5e7eb;
+		}
+
+		.txn-detail-modal__head h4 {
+			margin: 0;
+			color: #1f2937;
+			font-size: 1rem;
+			font-weight: 700;
+		}
+
+		.txn-detail-modal__body {
+			padding: 16px 18px;
+			overflow: auto;
+		}
+
+		.txn-detail-grid {
+			margin: 0;
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px 14px;
+		}
+
+		.txn-detail-item {
+			min-width: 0;
+			padding: 8px 10px;
+			border: 1px solid #e5e7eb;
+			border-radius: 6px;
+			background: #f8fafc;
+		}
+
+		.txn-detail-item dt {
+			margin: 0 0 4px;
+			color: #6b7280;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+
+		.txn-detail-item dd {
+			margin: 0;
+			color: #1f2937;
+			font-size: 0.86rem;
+			overflow-wrap: anywhere;
+		}
+
+		.txn-detail-close {
+			border: 1px solid #e5e7eb;
+			background: #fff;
+			color: #374151;
+			border-radius: 999px;
+			padding: 8px 18px;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+		}
+
+		.txn-detail-close:hover,
+		.txn-detail-close:focus-visible {
+			background: #dc3545;
+			border-color: #dc3545;
+			color: #fff;
+			box-shadow: 0 8px 18px rgba(220, 53, 69, 0.22);
+			outline: none;
+		}
+
+		.reports-webdata-content .rwd-summary-badges { display:inline-flex; gap:10px; align-items:center; flex-wrap:wrap; margin-left:10px; }
+		.reports-webdata-content .rwd-summary-label { color:#1f2937; font-weight:800; font-size:0.95rem; }
+		.reports-webdata-content .rwd-summary-badge { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; font-weight:700; font-size:0.9rem; line-height:1; box-shadow:0 2px 6px rgba(2,6,23,0.06); }
+		.reports-webdata-content .rwd-summary-badge--php { background:#ecfdf5; color:#065f46; }
+		.reports-webdata-content .rwd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
 	<style>
@@ -170,22 +306,34 @@
 					<h4 id="rwdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
 					<p id="rwdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
 				</div>
-				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
+				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+					<label for="rwdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
+						<select id="rwdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
+							<option value="">ALL</option>
+							<option value="PHP">PHP</option>
+							<option value="USD">USD</option>
+						</select>
+					</label>
+					<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
+				</div>
 			</div>
 			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
 				<table id="rwdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
 					<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
 						<tr>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
 							<th id="rwdDateHeader" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
+							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch ID</th>
+							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
+							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">KPTN</th>
 							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
 							<th style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
+							<th id="rwdThCharge" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Charge</th>
+							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
 							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
 							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
 							<th id="rwdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+							<th style="padding:0.5rem;text-align:center;color:#6b7280;font-weight:600;white-space:nowrap">Details</th>
 						</tr>
 					</thead>
 					<tbody id="rwdResultsBody">
@@ -202,6 +350,17 @@
 		</div>
 	</div>
 
+	<div id="rwdTxnDetailModal" class="txn-detail-modal" aria-hidden="true">
+		<div class="txn-detail-modal__overlay" data-action="close-rwd-detail"></div>
+		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="KPX Web Transaction Details">
+			<div class="txn-detail-modal__head">
+				<h4>KPX Web Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rwd-detail">Close</button>
+			</div>
+			<div class="txn-detail-modal__body" data-role="rwdTxnDetailBody">Loading...</div>
+		</div>
+	</div>
+
 	<script>
 	(function(){
 		const form = document.getElementById('reportsWebdataForm');
@@ -211,16 +370,125 @@
 		const resultsTitle = document.getElementById('rwdResultsTitle');
 		const resultsSummary = document.getElementById('rwdResultsSummary');
 		const resultsBody = document.getElementById('rwdResultsBody');
+		const resultsWrap = document.querySelector('#rwdResults .rwd-results-table-wrap');
 		const dateHeader = document.getElementById('rwdDateHeader');
 		const operatorHeader = document.getElementById('rwdThOperator');
+		const chargeHeader = document.getElementById('rwdThCharge');
 		const exportBtn = document.getElementById('rwdExportBtn');
+		const currencyFilter = document.getElementById('rwdCurrencyFilter');
 		const pagination = document.getElementById('rwdPagination');
 		const paginationInfo = document.getElementById('rwdPaginationInfo');
 		const prevBtn = document.getElementById('rwdPrevBtn');
 		const nextBtn = document.getElementById('rwdNextBtn');
 		const PAGE_SIZE = 10000;
+		const VIRTUAL_ROW_HEIGHT = 48;
+		const VIRTUAL_BUFFER_ROWS = 12;
 		let currentFilters = null;
 		let lastReportData = null;
+		let virtualWebRows = [];
+		let virtualWebIsSendout = false;
+		const partners = <?= json_encode($partners) ?>;
+
+		// Local partner autocomplete mirrors Partner Data Reports.
+		function attachPartnerAutocomplete(inputEl, suggestions){
+			const container = inputEl ? inputEl.closest('.autocomplete-field') : null;
+			const list = container ? container.querySelector('.autocomplete-list') : null;
+			if(!inputEl || !container || !list) return;
+
+			let activeIndex = -1;
+
+			function normalize(value){
+				return String(value || '').trim().toLowerCase();
+			}
+
+			function getMatches(value){
+				const query = normalize(value);
+				const options = Array.from(new Set((suggestions || []).map(item => String(item || '').trim()).filter(Boolean)));
+				if(!query) return options.slice(0, 8);
+
+				const startsWith = [];
+				const contains = [];
+				options.forEach(option => {
+					const normalizedOption = normalize(option);
+					if(normalizedOption.startsWith(query)) startsWith.push(option);
+					else if(normalizedOption.includes(query)) contains.push(option);
+				});
+
+				return startsWith.concat(contains).slice(0, 8);
+			}
+
+			function closeSuggestions(){
+				list.hidden = true;
+				list.innerHTML = '';
+				activeIndex = -1;
+			}
+
+			function applyActiveItem(items){
+				items.forEach((item, index) => item.classList.toggle('is-active', index === activeIndex));
+			}
+
+			function selectSuggestion(value){
+				inputEl.value = value;
+				inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+				closeSuggestions();
+				inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+
+			function renderSuggestions(){
+				const matches = getMatches(inputEl.value);
+				if(matches.length === 0){
+					closeSuggestions();
+					return;
+				}
+
+				list.innerHTML = '';
+				matches.forEach((match, index) => {
+					const item = document.createElement('li');
+					item.className = 'autocomplete-item';
+					item.setAttribute('role', 'option');
+					item.textContent = match;
+					item.addEventListener('mousedown', function(event){
+						event.preventDefault();
+						selectSuggestion(match);
+					});
+					item.addEventListener('mouseenter', function(){
+						activeIndex = index;
+						applyActiveItem(Array.from(list.children));
+					});
+					list.appendChild(item);
+				});
+				activeIndex = -1;
+				list.hidden = false;
+			}
+
+			inputEl.addEventListener('input', renderSuggestions);
+			inputEl.addEventListener('focus', renderSuggestions);
+			inputEl.addEventListener('keydown', function(event){
+				const items = Array.from(list.querySelectorAll('.autocomplete-item'));
+				if(list.hidden || items.length === 0) return;
+
+				if(event.key === 'ArrowDown'){
+					event.preventDefault();
+					activeIndex = (activeIndex + 1) % items.length;
+					applyActiveItem(items);
+				} else if(event.key === 'ArrowUp'){
+					event.preventDefault();
+					activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+					applyActiveItem(items);
+				} else if(event.key === 'Enter'){
+					if(activeIndex >= 0 && activeIndex < items.length){
+						event.preventDefault();
+						selectSuggestion(items[activeIndex].textContent || '');
+					}
+				} else if(event.key === 'Escape'){
+					closeSuggestions();
+				}
+			});
+
+			document.addEventListener('click', function(event){
+				if(!container.contains(event.target)) closeSuggestions();
+			});
+		}
 
 		// Reusable live autocomplete for all fields
 		function attachRemoteAutocomplete(inputEl, fetchSuggestions, opts){
@@ -258,8 +526,8 @@
 			function applyActive(items){ items.forEach((it,i)=> it.classList.toggle('is-active', i===activeIndex)); }
 			function selectValue(v){
 				inputEl.value = (v === null || typeof v === 'undefined') ? '' : String(v);
-				closeSuggestions();
 				inputEl.dispatchEvent(new Event('input',{bubbles:true}));
+				closeSuggestions();
 				inputEl.dispatchEvent(new Event('change',{bubbles:true}));
 			}
 
@@ -344,15 +612,6 @@
 			return values;
 		}
 
-		async function fetchPartnerSuggestions(q){
-			const params = new URLSearchParams({ q: String(q || '') });
-			const res = await fetch(`${getAppBasePath()}/src/controllers/masterdata/corpo-partner-values.php?${params.toString()}`);
-			if(!res.ok) return [];
-			const obj = await res.json();
-			if(obj && obj.success && Array.isArray(obj.values)) return obj.values;
-			return [];
-		}
-
 		async function fetchBranchProfileSuggestions(column, q){
 			const params = new URLSearchParams({ column, q: String(q || '') });
 			const deps = getActiveDependencyFilters();
@@ -367,7 +626,7 @@
 			return [];
 		}
 
-		attachRemoteAutocomplete(input, fetchPartnerSuggestions);
+		attachPartnerAutocomplete(input, partners);
 		attachRemoteAutocomplete(document.getElementById('rwdMainzone'), q => fetchBranchProfileSuggestions('mainzone', q), { prependAllOption: true });
 		attachRemoteAutocomplete(document.getElementById('rwdZone'), q => fetchBranchProfileSuggestions('zone', q), { prependAllOption: true });
 		attachRemoteAutocomplete(document.getElementById('rwdRegion'), q => fetchBranchProfileSuggestions('region', q), { prependAllOption: true });
@@ -488,7 +747,7 @@
 					const li = document.createElement('li');
 					li.className = 'autocomplete-item';
 					li.textContent = it;
-					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
+					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); list.hidden = true; list.innerHTML = ''; inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
 					list.appendChild(li);
 				});
 				list.hidden = true;
@@ -735,7 +994,7 @@
 					const li = document.createElement('li');
 					li.className = 'autocomplete-item';
 					li.textContent = it;
-					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
+					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); list.hidden = true; list.innerHTML = ''; inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
 					list.appendChild(li);
 				});
 				// populate but keep hidden — do not auto-open
@@ -799,6 +1058,7 @@
 					resultsBody.innerHTML = '';
 					if(resultsDiv){ resultsDiv.style.display = 'none'; if(resultsDiv.dataset) resultsDiv.dataset.reportData = ''; }
 					if(pagination) pagination.style.display = 'none';
+					virtualWebRows = [];
 					lastReportData = null;
 					currentFilters = null;
 				} catch(e) { console.warn('Error hiding results after clearing filters', e); }
@@ -831,10 +1091,88 @@
 			return parts.length > 0 ? `/${parts[0]}` : '';
 		}
 
+		function escapeHtml(value) {
+			return String(value === null || value === undefined ? '' : value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function formatDetailDateValue(value) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+			if (!match) return raw;
+			return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
+		}
+
+		function renderDetailGrid(data) {
+			const entries = Object.entries(data || {});
+			if (!entries.length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			return '<dl class="txn-detail-grid">' + entries.map(([key, value]) => {
+				return '<div class="txn-detail-item"><dt>' + escapeHtml(key) + '</dt><dd>' + escapeHtml(formatDetailDateValue(value)) + '</dd></div>';
+			}).join('') + '</dl>';
+		}
+
+		function closeWebDetailModal() {
+			const modal = document.getElementById('rwdTxnDetailModal');
+			if (!modal) return;
+			modal.style.display = 'none';
+			modal.setAttribute('aria-hidden', 'true');
+		}
+
+		async function openWebDetailModal(id) {
+			const modal = document.getElementById('rwdTxnDetailModal');
+			const body = modal ? modal.querySelector('[data-role="rwdTxnDetailBody"]') : null;
+			if (!modal || !body || !id) return;
+			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
+			modal.style.display = 'flex';
+			modal.setAttribute('aria-hidden', 'false');
+			try {
+				const res = await fetch(`${getAppBasePath()}/src/controllers/recon/moneygram-web-transaction-details.php?id=${encodeURIComponent(id)}`, { method: 'GET' });
+				const json = await res.json();
+				if (!res.ok || !(json && json.success && json.data)) {
+					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+					return;
+				}
+				body.innerHTML = renderDetailGrid(json.data);
+			} catch (err) {
+				console.error('KPX Web detail error', err);
+				body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			}
+		}
+
+		document.querySelectorAll('[data-action="close-rwd-detail"]').forEach(btn => {
+			btn.addEventListener('click', closeWebDetailModal);
+		});
+
 			// --- Date validation: require both Start and End date before enabling filters/View ---
 			const startDateEl = document.getElementById('rwdStartDate');
 			const endDateEl = document.getElementById('rwdEndDate');
 			const filterIds = ['rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
+
+			function showDurationAlert(message){
+				if(window.Swal){
+					return Swal.fire({
+						text: String(message || ''),
+						icon: 'warning',
+						confirmButtonText: 'OK',
+						confirmButtonColor: '#dc3545',
+						heightAuto: false
+					});
+				}
+				alert(message);
+				return Promise.resolve();
+			}
+
+			function syncEndDateToStartDate(){
+				if(startDateEl && endDateEl && startDateEl.value){
+					endDateEl.value = startDateEl.value;
+				}
+				updateDateValidationState();
+			}
 
 			function setFiltersEnabled(enabled){
 				filterIds.forEach(id => {
@@ -848,7 +1186,7 @@
 
 			function showDateRequiredMessage(e){
 				e && e.preventDefault && e.preventDefault();
-				alert('Please select Start Date and End Date first.');
+				showDurationAlert('Please select Start Date and End Date first.');
 			}
 
 			function updateDateValidationState(){
@@ -862,7 +1200,7 @@
 			setFiltersEnabled(false);
 
 			// Wire date input events
-			if(startDateEl){ startDateEl.addEventListener('change', updateDateValidationState); startDateEl.addEventListener('input', updateDateValidationState); }
+			if(startDateEl){ startDateEl.addEventListener('change', syncEndDateToStartDate); startDateEl.addEventListener('input', syncEndDateToStartDate); }
 			if(endDateEl){ endDateEl.addEventListener('change', updateDateValidationState); endDateEl.addEventListener('input', updateDateValidationState); }
 
 			// Intercept clicks on autocomplete containers to show message when disabled
@@ -900,6 +1238,105 @@
 			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 		}
 
+		function createWebSpacerRow(height, colSpan) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = colSpan;
+			td.style.height = Math.max(0, height) + 'px';
+			td.style.padding = '0';
+			td.style.border = '0';
+			tr.appendChild(td);
+			return tr;
+		}
+
+		function createWebResultRow(row, visibleIndex, isSendout) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			const cells = [
+				formatDate(row['report_date']),
+				row['branch'] || '',
+				row['branch_id'] || '',
+				row['control_series_no'] || '',
+				row['kptn'] || '',
+				row['ccref_no'] || '',
+				formatCurrency(row['amount'], row['currency']),
+				isSendout ? formatCurrency(row['charge'] || 0, row['currency']) : '',
+				row['currency'] || '',
+				row['sender_name'] || '',
+				row['beneficiary_receiver'] || '',
+				row['operator'] || '',
+				''
+			];
+
+			cells.forEach((cellValue, cellIdx) => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				if (cellIdx === 6 || (isSendout && cellIdx === 7)) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (!isSendout && cellIdx === 7) {
+					td.style.display = 'none';
+				}
+				if (cellIdx === 12) {
+					td.style.textAlign = 'center';
+					const id = row['id'] || '';
+					if (id) {
+						const btn = document.createElement('button');
+						btn.type = 'button';
+						btn.className = 'txn-view-btn';
+						btn.textContent = 'View';
+						btn.dataset.txnId = id;
+						td.appendChild(btn);
+					}
+				} else {
+					td.textContent = cellValue;
+				}
+				tr.appendChild(td);
+			});
+
+			return tr;
+		}
+
+		function renderVirtualWebRows() {
+			if (!resultsWrap) return;
+			const rows = virtualWebRows || [];
+			const colSpan = virtualWebIsSendout ? 13 : 12;
+			const scrollTop = resultsWrap.scrollTop || 0;
+			if (!rows.length) return;
+
+			const viewportHeight = resultsWrap.clientHeight || 480;
+			const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_BUFFER_ROWS);
+			const visibleCount = Math.ceil(viewportHeight / VIRTUAL_ROW_HEIGHT) + (VIRTUAL_BUFFER_ROWS * 2);
+			const endIndex = Math.min(rows.length, startIndex + visibleCount);
+			const fragment = document.createDocumentFragment();
+			const topHeight = startIndex * VIRTUAL_ROW_HEIGHT;
+			const bottomHeight = Math.max(0, (rows.length - endIndex) * VIRTUAL_ROW_HEIGHT);
+
+			if (topHeight > 0) fragment.appendChild(createWebSpacerRow(topHeight, colSpan));
+			for (let i = startIndex; i < endIndex; i++) {
+				fragment.appendChild(createWebResultRow(rows[i], i, virtualWebIsSendout));
+			}
+			if (bottomHeight > 0) fragment.appendChild(createWebSpacerRow(bottomHeight, colSpan));
+			resultsBody.replaceChildren(fragment);
+			if (resultsWrap.scrollTop !== scrollTop) resultsWrap.scrollTop = scrollTop;
+		}
+
+		if (resultsWrap) {
+			resultsWrap.addEventListener('scroll', function() {
+				window.requestAnimationFrame(renderVirtualWebRows);
+			});
+		}
+
+		resultsBody.addEventListener('click', function(event) {
+			const btn = event.target.closest ? event.target.closest('.txn-view-btn[data-txn-id]') : null;
+			if (!btn) return;
+			openWebDetailModal(btn.dataset.txnId);
+		});
+
 		async function fetchTransactions(page) {
 			if (!currentFilters) return;
 
@@ -920,6 +1357,7 @@
 					branch_name: currentFilters.branch_name || '',
 					branch_id: currentFilters.branch_id || '',
 					type: currentFilters.type || '',
+					currency: currentFilters.currency || '',
 					page: String(page),
 					per_page: String(PAGE_SIZE)
 				});
@@ -946,7 +1384,7 @@
 		async function runReport() {
 			// Validate corporate partner and dates before running
 			if (!input.value || input.value.trim() === '') {
-				alert('Please select a corporate partner to view transactions.');
+				await showDurationAlert('Please select a corporate partner to view transactions.');
 				input.focus();
 				return;
 			}
@@ -954,7 +1392,11 @@
 			const sd = String(document.getElementById('rwdStartDate').value || '').trim();
 			const ed = String(document.getElementById('rwdEndDate').value || '').trim();
 			if (!sd || !ed) {
-				alert('Please select Start Date and End Date first.');
+				await showDurationAlert('Please select Start Date and End Date first.');
+				return;
+			}
+			if (sd > ed) {
+				await showDurationAlert('Start Date cannot be greater than End Date.');
 				return;
 			}
 
@@ -968,8 +1410,9 @@
 			const branch_name = document.getElementById('rwdBranchName').value || '';
 			const branch_id = document.getElementById('rwdBranchId').value || '';
             const type = document.getElementById('rwdType') ? (document.getElementById('rwdType').value || '') : '';
+            const currency = currencyFilter ? (currencyFilter.value || '') : '';
 
-			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, type };
+			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, type, currency };
 			await fetchTransactions(1);
 		}
 
@@ -984,13 +1427,22 @@
 			await runReport();
 		});
 
+		if (currencyFilter) {
+			currencyFilter.addEventListener('change', function() {
+				if (!currentFilters) return;
+				currentFilters.currency = currencyFilter.value || '';
+				fetchTransactions(1);
+			});
+		}
+
 		// Display results in table
 		function displayResults(data) {
 			const activeDateLabel = String(data.date_label || 'Date Claimed');
 			if(dateHeader) dateHeader.textContent = activeDateLabel;
 			// Toggle Operator header to Charge for SENDOUT reports
 			const isSendout = String((data.type || '')).toLowerCase() === 'sendout';
-			if(operatorHeader) operatorHeader.textContent = isSendout ? 'Charge' : 'Operator';
+			if(operatorHeader) operatorHeader.textContent = 'Operator';
+			if(chargeHeader) chargeHeader.style.display = isSendout ? '' : 'none';
 			resultsTitle.textContent = `${data.partner} — ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}`;
 
 			let dateRange = '';
@@ -1012,11 +1464,20 @@
 			const chargeBadge = `<span class="badge charge">Charge Total: ₱${formatCurrency(chargeTotal, 'PHP')}</span>`;
 			resultsSummary.innerHTML = `${dateRange} <span class="currency-summary">${phpBadge} ${usdBadge}${isSendout ? ' ' + chargeBadge : ''}</span>`;
 
+			const principalPhpTotal = Math.abs(Number(data.php_total || 0));
+			const principalUsdTotal = Math.abs(Number(data.usd_total || 0));
+			const principalChargeTotal = Math.abs(Number(data.charge_total || 0));
+			const chargeSummary = isSendout ? `<span class="rwd-summary-label">Charge:</span><span class="rwd-summary-badge rwd-summary-badge--php">PHP: ${formatCurrency(principalChargeTotal, 'PHP')}</span>` : '';
+			resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rwd-summary-badges"><span class="rwd-summary-label">Principal:</span><span class="rwd-summary-badge rwd-summary-badge--php">PHP: ${formatCurrency(principalPhpTotal, 'PHP')}</span><span class="rwd-summary-badge rwd-summary-badge--usd">USD: ${formatCurrency(principalUsdTotal, 'USD')}</span>${chargeSummary}</span>`;
+			resultsSummary.textContent = '';
+			resultsSummary.style.display = 'none';
+
 			// Clear table
 			resultsBody.innerHTML = '';
+			virtualWebRows = [];
 
 			if (!data.rows || data.rows.length === 0) {
-				resultsBody.innerHTML = '<tr><td colspan="10" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>';
+				resultsBody.innerHTML = `<tr><td colspan="${isSendout ? 13 : 12}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				// still display totals (will be 0.00 if none)
 				const phpTotalEmpty = Number(data.php_total || 0);
@@ -1030,41 +1491,10 @@
 				return;
 			}
 
-			// Populate table
-			data.rows.forEach((row, idx) => {
-				const tr = document.createElement('tr');
-				tr.style.borderBottom = '1px solid #f0f0f0';
-				if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-
-				const isSendoutRow = isSendout;
-				const operatorCellValue = isSendoutRow ? formatCurrency(row['charge'] || 0, row['currency']) : (row['operator'] || '');
-				const cells = [
-					row['no'] || '',
-					row['control_series_no'] || '',
-					formatDate(row['report_date']),
-					row['ccref_no'] || '',
-					row['currency'] || '',
-					formatCurrency(row['amount'], row['currency']),
-					row['sender_name'] || '',
-					row['beneficiary_receiver'] || '',
-					operatorCellValue,
-					row['branch'] || ''
-				];
-
-				cells.forEach((cellValue, cellIdx) => {
-					const td = document.createElement('td');
-					td.style.padding = '0.75rem';
-					td.style.color = '#1f2937';
-					if (cellIdx === 5) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					td.textContent = cellValue;
-					tr.appendChild(td);
-				});
-
-				resultsBody.appendChild(tr);
-			});
+			virtualWebRows = data.rows || [];
+			virtualWebIsSendout = isSendout;
+			if (resultsWrap) resultsWrap.scrollTop = 0;
+			renderVirtualWebRows();
 
 			resultsDiv.style.display = 'block';
 
@@ -1079,8 +1509,6 @@
 			nextBtn.disabled = page >= totalPages;
 			pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 
-			// Store data for export
-			resultsDiv.dataset.reportData = JSON.stringify(data);
 		}
 
 		prevBtn.addEventListener('click', function() {
@@ -1112,6 +1540,16 @@
 				const area = (document.getElementById('rwdArea') || {}).value || '';
 				const branch_name = (document.getElementById('rwdBranchName') || {}).value || '';
 				const branch_id = (document.getElementById('rwdBranchId') || {}).value || '';
+				const currency = currencyFilter ? (currencyFilter.value || '') : '';
+
+				if (!startDate || !endDate) {
+					await showDurationAlert('Please select Start Date and End Date first.');
+					return;
+				}
+				if (startDate > endDate) {
+					await showDurationAlert('Start Date cannot be greater than End Date.');
+					return;
+				}
 
 				const params = new URLSearchParams({
 					partner: partner,
@@ -1123,15 +1561,17 @@
 					region: region || '',
 					area: area || '',
 					branch_name: branch_name || '',
-					branch_id: branch_id || ''
+					branch_id: branch_id || '',
+					currency: currency || ''
 				});
 
 				// Build filename on client side (sanitization on server too)
 				function sanitizeFilename(s) { return (s || '').replace(/[\\/:*?"<>|]+/g, '_'); }
 				const partnerPart = (partner || '').replace(/\s+/g, '_');
 				const typePart = (type || '') === '' ? 'ALL' : type.toUpperCase();
+				const currencyPart = currency || 'ALL';
 				const branchPart = branch_name ? sanitizeFilename(branch_name) : '';
-				const filenameParts = [partnerPart, `${startDate}_to_${endDate}`, typePart];
+				const filenameParts = [partnerPart, `${startDate}_to_${endDate}`, typePart, currencyPart];
 				if (branchPart) filenameParts.push(branchPart);
 				const filename = filenameParts.join('_') + '.xlsx';
 
@@ -1182,7 +1622,7 @@
 		// Compute and set max height for the records table wrapper so only records scroll.
 		function setRecordsScrollHeight(){
 			try{
-				const wrap = document.querySelector('.rwd-results-table-wrap');
+				const wrap = document.querySelector('#rwdResults .rwd-results-table-wrap');
 				if(!wrap) return;
 				const rect = wrap.getBoundingClientRect();
 				const topOffset = rect.top; // distance from viewport top to wrapper top
@@ -1200,10 +1640,9 @@
 		}
 
 		window.addEventListener('resize', setRecordsScrollHeight);
-		window.addEventListener('scroll', setRecordsScrollHeight);
 		// Recompute whenever results are displayed
 		const origDisplayResults = displayResults;
-		displayResults = function(data){ origDisplayResults(data); setTimeout(setRecordsScrollHeight,50); };
+		displayResults = function(data){ origDisplayResults(data); setTimeout(function(){ setRecordsScrollHeight(); renderVirtualWebRows(); },50); };
 
 		// Initial compute in case layout is pre-populated
 		setTimeout(setRecordsScrollHeight,200);

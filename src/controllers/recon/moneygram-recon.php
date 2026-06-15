@@ -3,6 +3,7 @@
 // Returns per-day recon summary for MONEYGRAM (used by the UI)
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/daycard-locks-common.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -57,7 +58,8 @@ try{
         $cursor->modify('+1 day');
     }
 
-    $pdo = fileRecDbConnection();
+    $pdo = reconDaycardLocksDb();
+
     $tryQuery = function(array $sqls, array $params) use ($pdo){
         foreach($sqls as $sql){
             try{
@@ -75,6 +77,7 @@ try{
     };
 
     $detail = isset($_GET['detail']) ? (int)$_GET['detail'] : 0;
+    $rangeDetail = isset($_GET['range_detail']) ? (int)$_GET['range_detail'] : 0;
     $reqDay = isset($_GET['day']) ? (int)$_GET['day'] : 0;
     $reqDate = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
     if($reqDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $reqDate)){
@@ -128,6 +131,12 @@ try{
 
     $partnerRowsRaw = $tryQuery($sqlRangePart, [$startDate, $endDate]);
     $webRowsRaw = $tryQuery($sqlRangeWeb, array_merge([$expandedStartDate, $expandedEndDate], $partnerNameList));
+    $webRowsRaw = array_values(array_filter($webRowsRaw, function($row) use ($partnerNameList, $normalizeKey){
+        $rowPartner = $row['partnerName'] ?? ($row['partner_name'] ?? ($row['corporate_partner'] ?? ($row['corporatePartner'] ?? '')));
+        $rowPartnerKey = $normalizeKey($rowPartner);
+        if($rowPartnerKey === '') return true;
+        return in_array($rowPartnerKey, $partnerNameList, true);
+    }));
 
     $partnerRows = [];
     foreach($partnerRowsRaw as $index => $row){
@@ -143,9 +152,9 @@ try{
             'date' => $dateOnly,
             'ref' => $ref,
             'raw_ref' => $rawRef,
-            'amount' => isset($row['base_tran_amt']) ? (float)$row['base_tran_amt'] : (isset($row['total_tran_amt']) ? (float)$row['total_tran_amt'] : (isset($row['partner_principal']) ? (float)$row['partner_principal'] : 0.0)),
-            'commission' => isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0)),
-            'currency' => $normalizeCurrency($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? '')))),
+            'amount' => isset($row['base_amt']) ? abs((float)$row['base_amt']) : 0.0,
+            'commission' => isset($row['comm_amt']) ? (float)$row['comm_amt'] : (isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0))),
+            'currency' => $normalizeCurrency($row['settlement_currency'] ?? ($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? ''))))),
             'raw' => $row,
         ];
     }
@@ -164,6 +173,7 @@ try{
             'date' => $dateOnly,
             'ref' => $ref,
             'raw_ref' => $rawRef,
+            'kptn' => (string)($row['kptn'] ?? ''),
             'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
             'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
             'currency' => $normalizeCurrency($row['currency'] ?? ''),
@@ -360,7 +370,7 @@ try{
             'duplicates' => $duplicate_refs,
         ];
 
-        if($detail && (($reqDate !== '' && $reqDate === $dt) || ($reqDate === '' && $reqDay && $reqDay === $d))){
+        if($detail && ($rangeDetail || (($reqDate !== '' && $reqDate === $dt) || ($reqDate === '' && $reqDay && $reqDay === $d)))){
             $rows = [];
             foreach($dayPairs as $pair){
                 $partner = $pair['partner'] ?? null;
@@ -383,9 +393,11 @@ try{
                     foreach(($web['raw'] ?? []) as $col => $val){
                         $row['web_'.$col] = $val;
                     }
+                    $row['web_kptn'] = (string)($web['kptn'] ?? '');
                     $row['web_amount'] = (float)$web['amount'];
                     $row['web_ctp'] = (float)$web['ctp'];
                 } else {
+                    $row['web_kptn'] = '';
                     $row['web_amount'] = 0.0;
                     $row['web_ctp'] = 0.0;
                 }

@@ -230,22 +230,45 @@ try{
         if($rr > 1 && count($tmpH) < $best && $best >= 3) break;
     }
 
-    $cellVal = function(int $colIdx, int $rowIdx) use ($sheet): string {
+    $normalizeHeader = static function($header): string {
+        return strtolower(trim(preg_replace('/\s+/', ' ', str_replace(['_', '-'], ' ', (string)$header))));
+    };
+
+    $isDateHeader = static function($header) use ($normalizeHeader): bool {
+        $h = $normalizeHeader($header);
+        return $h === 'date'
+            || $h === 'tran date'
+            || $h === 'transaction date'
+            || $h === 'upload date'
+            || $h === 'fx date'
+            || $h === 'fx date trn'
+            || strpos($h, ' date') !== false
+            || strpos($h, 'date ') !== false;
+    };
+
+    $isTimeHeader = static function($header) use ($normalizeHeader): bool {
+        $h = $normalizeHeader($header);
+        return $h === 'time'
+            || $h === 'tran time'
+            || $h === 'transaction time'
+            || strpos($h, ' time') !== false
+            || strpos($h, 'time ') !== false;
+    };
+
+    $cellVal = function(int $colIdx, int $rowIdx, $headerLabel = '') use ($sheet, $isDateHeader, $isTimeHeader): string {
         $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
         $cell = $sheet->getCell($letter . $rowIdx);
         $val = $cell->getValue();
         if($val === null || $val === '') return '';
         if(is_numeric($val)){
             $fval = (float)$val;
-            if($fval >= 1){
+            if($isDateHeader($headerLabel) && $fval >= 1){
                 try{
-                    if(\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)){
-                        $dt = ExcelDate::excelToDateTimeObject($fval);
-                        return $dt->format('Y-m-d H:i:s');
-                    }
+                    $dt = ExcelDate::excelToDateTimeObject($fval);
+                    return $dt->format('Y-m-d H:i:s');
                 }catch(Throwable $e){}
             }
-            if($fval > 0 && $fval < 1){
+            if($isTimeHeader($headerLabel) && $fval > 0 && $fval < 1){
                 $totalSec = (int)round($fval * 86400);
                 return sprintf('%02d:%02d:%02d', intdiv($totalSec, 3600), intdiv($totalSec % 3600, 60), $totalSec % 60);
             }
@@ -281,11 +304,11 @@ try{
         }
         $emptyStreak = 0;
 
-        if($anchorColIdx !== null && trim($cellVal($anchorColIdx, $r)) === '') continue;
+        if($anchorColIdx !== null && trim($cellVal($anchorColIdx, $r, $headers[$anchorColIdx] ?? '')) === '') continue;
 
         $item = [];
         foreach($headers as $colIdx => $headerLabel){
-            $item[$headerLabel] = $cellVal($colIdx, $r);
+            $item[$headerLabel] = $cellVal($colIdx, $r, $headerLabel);
         }
 
         if($foundDateStr === ''){

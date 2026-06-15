@@ -349,6 +349,7 @@ function reconDaycardLocksPartnerKey(string $partner): string
         'moneygram' => ['MONEYGRAM'],
         'wic' => ['WIC', 'WORLDCOM INTERNATIONAL COMMUNICATIONS', 'WORLD INTERNATIONAL COMMUNICATIONS'],
         'rcbc' => ['RCBC', 'RIZAL COMMERCIAL BANKING CORPORATION'],
+        'skybridgepaymentinc' => ['SKYBRIDGE', 'SKYBRIDGEPAYMENTINC', 'SKYBRIDGE PAYMENT INC.', 'SKYBRIDGEPAYMENTINC CORPORATE'],
     ];
 
     foreach ($aliases as $key => $values) {
@@ -449,6 +450,26 @@ function reconDaycardLocksFetchDaySummary(PDO $pdo, string $partner, string $dat
             $webRows = $tryQuery([
                 'SELECT ccref_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(ctp,0)) AS commission FROM ml_web_data WHERE DATE(date_claimed) = ? OR date_claimed LIKE ? GROUP BY ccref_no',
             ], [$date, $likeDate]);
+            break;
+
+        case 'skybridgepaymentinc':
+            $partnerRows = $tryQuery([
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, 0 AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(trans_date) = ? OR trans_date LIKE ? GROUP BY control_no',
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, 0 AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(withdraw_time) = ? OR withdraw_time LIKE ? GROUP BY control_no',
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(commission,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY control_no',
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(commission,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ? GROUP BY control_no',
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS principal, SUM(COALESCE(in_php,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY control_no',
+                'SELECT control_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS principal, SUM(COALESCE(in_php,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ? GROUP BY control_no',
+                'SELECT reference_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS principal, SUM(COALESCE(in_php,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY reference_no',
+                'SELECT reference_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(`php`,0)) AS principal, SUM(COALESCE(in_php,0)) AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(cover_date) = ? OR cover_date LIKE ? GROUP BY reference_no',
+                'SELECT transaction_id AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, 0 AS commission FROM skybridgepaymentinc_partner_data WHERE DATE(`date`) = ? OR `date` LIKE ? GROUP BY transaction_id',
+            ], [$date, $likeDate]);
+            $webRows = $tryQuery([
+                'SELECT ccref_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(ctp,0)) AS commission FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partnerName IN (?,?,?,?) GROUP BY ccref_no',
+                'SELECT cc_ref AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(ctp,0)) AS commission FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partnerName IN (?,?,?,?) GROUP BY cc_ref',
+                'SELECT ccref_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(ctp,0)) AS commission FROM ml_web_data WHERE (DATE(date) = ? OR date LIKE ?) AND partnerName IN (?,?,?,?) GROUP BY ccref_no',
+                'SELECT ccref_no AS ref, COUNT(*) AS cnt, SUM(COALESCE(amount,0)) AS principal, SUM(COALESCE(ctp,0)) AS commission FROM ml_web_data WHERE (DATE(date_claimed) = ? OR date_claimed LIKE ?) AND partner_name IN (?,?,?,?) GROUP BY ccref_no',
+            ], [$date, $likeDate, 'SKYBRIDGE', 'SKYBRIDGEPAYMENTINC', 'SKYBRIDGE PAYMENT INC.', 'SKYBRIDGEPAYMENTINC CORPORATE']);
             break;
 
         default:
