@@ -2,7 +2,7 @@
 // wic-coverph-view-modal.php
 // Simple frontend modal for viewing Cover PH summary (Partner / Web)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/wic-view/wic-coverph-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/wic-view/wic-coverph-view-modal.css">
 <div id="wicCoverPhModal" class="wic-coverph-modal" style="display:none;">
     <div class="wic-coverph-modal__box">
     <button type="button" class="wic-coverph-modal__export" data-action="export-coverph" aria-label="Export">Export</button>
@@ -291,7 +291,7 @@
             const sel = getSelectedMonthYear();
             const partnerEl = document.getElementById('hsCompany');
             const selectedPartner = partnerEl && partnerEl.value ? String(partnerEl.value) : 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
-            const url = location.origin + '/autorecon/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(sel.month)+'&year='+encodeURIComponent(sel.year)+'&partnerName='+encodeURIComponent(selectedPartner);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(sel.month)+'&year='+encodeURIComponent(sel.year)+'&partnerName='+encodeURIComponent(selectedPartner);
             const res = await fetch(url, {cache:'no-store'});
             if(!res.ok) throw new Error('Network response was not ok');
             const json = await res.json();

@@ -2,7 +2,7 @@
 // mbtc-coverph-view-modal.php
 // Simple frontend modal for viewing Cover PH summary (Partner / Web)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/mbtc-view/mbtc-coverph-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/mbtc-view/mbtc-coverph-view-modal.css">
 <div id="mbtcCoverPhModal" class="mbtc-coverph-modal" style="display:none;">
     <div class="mbtc-coverph-modal__box">
     <button type="button" class="mbtc-coverph-modal__export" data-action="export-coverph" aria-label="Export">Export</button>

@@ -708,7 +708,7 @@ try {
             const dates = collectPayloadDatesForLockCheck(payloads);
             if(!partnerName || !dates.length) return { blocked: false };
 
-            const endpoint = location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_dates.php';
+            const endpoint = window.autoreconBaseUrl + '/src/controllers/recon/check_locked_reconciliation_dates.php';
             const resRaw = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -824,7 +824,7 @@ try {
                     });
                     const pairs = Array.from(pairMap.values());
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-insert.php';
                     console.log('[pd] starting duplicate checks against', url);
                     // per-file duplicate check
                     const totalFiles = payloads.length || 0;
@@ -947,7 +947,7 @@ try {
                     });
                     const pairs = Array.from(pairMap.values());
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/wic/wic-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/wic/wic-insert.php';
                     // per-file duplicate check
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
@@ -1053,7 +1053,7 @@ try {
                         });
                     });
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/rcbc/rcbc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/rcbc/rcbc-insert.php';
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
@@ -1150,7 +1150,7 @@ try {
                 const payloads = getPendingProcessedList();
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
                 try{
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-insert.php';
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
@@ -1246,7 +1246,7 @@ try {
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
 
                 try{
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
                     const totalFiles = payloads.length || 0;
                     let hasMissingLegacyId = false;
                     let missingLegacyBranches = [];
@@ -1484,7 +1484,7 @@ try {
             // build endpoint based on selected company while keeping METROBANK HEAD OFFICE mapped to mbtc routes
             const companyKey = resolveCompanyKey(company.value);
             if(!companyKey) return { success:false, error:'No company selected' };
-            const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + companyKey + '/' + companyKey + '-partnerdata.php';
+            const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + companyKey + '/' + companyKey + '-partnerdata.php';
             const password = options && typeof options.password === 'string' ? options.password : '';
             const fd = new FormData(); fd.append('file', file); fd.append('filename', file.name); fd.append('company', company.value || ''); fd.append('password', password);
             try{
@@ -1661,11 +1661,11 @@ try {
 
         function getViewerUrl(){
             const selectedCompany = company && company.value ? company.value : '';
-            if(isRcbc(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/rcbc/rcbc-viewer.php';
-            if(isWorldcomInternationalCommunications(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/wic/wic-viewer.php';
-            if(isSkybridgePaymentInc(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-viewer.php';
-            if(isMoneygram(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/moneygram/moneygram-viewer.php';
-            return location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
+            if(isRcbc(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/rcbc/rcbc-viewer.php';
+            if(isWorldcomInternationalCommunications(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/wic/wic-viewer.php';
+            if(isSkybridgePaymentInc(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-viewer.php';
+            if(isMoneygram(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-viewer.php';
+            return window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
         }
 
         async function openViewer(payload){ try{ const url = getViewerUrl(); const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: buildViewerPayload(payload) }) }); const html = await res.text(); showModal(html); }catch(e){ console.error(e); await showAlert('Failed to open viewer'); } }

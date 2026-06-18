@@ -2,7 +2,7 @@
 // WORLD INTERNATIONAL COMMUNICATIONS Reconciliation View Modal
 // Displays per-day partner vs web rows (reference, principal, commission, date)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/moneygram-view/moneygram-recon-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/moneygram-view/moneygram-recon-view-modal.css">
 
 <div class="moneygram-recon-modal" id="moneygramReconViewModal" style="display:none;" role="dialog" aria-modal="true" aria-label="WORLD INTERNATIONAL COMMUNICATIONS Reconciliation Details">
     <div class="moneygram-recon-modal__panel">
@@ -390,7 +390,7 @@ window.showSuccessToast = function(message, timeout){
         const date = modal.dataset.reconDate || '';
         if(!partner || !date) return;
         try{
-            const url = location.origin + '/autorecon/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(partner) + '&date=' + encodeURIComponent(date);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(partner) + '&date=' + encodeURIComponent(date);
             const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
             if(!res || !res.ok) return;
             const json = await res.json();
@@ -429,7 +429,7 @@ window.showSuccessToast = function(message, timeout){
         const dates = collectMatchedDates();
         if(!partner || !dates.length) return;
         try{
-            const url = location.origin + '/autorecon/src/controllers/recon/get_active_locked_dates.php';
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_active_locked_dates.php';
             const res = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -479,8 +479,8 @@ window.showSuccessToast = function(message, timeout){
             const date = modal.dataset.reconDate || '';
             try{
                 lockBtn.disabled = true; lockBtn.textContent = (mode === 'lock' ? 'Locking…' : 'Unlocking…');
-                const endpoint = (mode === 'lock') ? '/autorecon/src/controllers/recon/lock_matched_rows.php' : '/autorecon/src/controllers/recon/unlock_matched_rows.php';
-                const res = await fetch(location.origin + endpoint, {
+                const endpoint = (mode === 'lock') ? window.autoreconBaseUrl + '/src/controllers/recon/lock_matched_rows.php' : window.autoreconBaseUrl + '/src/controllers/recon/unlock_matched_rows.php';
+                const res = await fetch(endpoint, {
                     method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ partner: partner, date: date, refs: refs, dates: dates })
                 });

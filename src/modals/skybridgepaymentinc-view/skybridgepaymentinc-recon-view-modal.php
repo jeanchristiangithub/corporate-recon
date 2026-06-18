@@ -2,7 +2,7 @@
 // SKYBRIDGE PAYMENT INC. Reconciliation View Modal
 // Displays per-day partner vs KPX web rows.
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/skybridgepaymentinc-view/skybridgepaymentinc-recon-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/skybridgepaymentinc-view/skybridgepaymentinc-recon-view-modal.css">
 
 <div class="moneygram-recon-modal skybridgepaymentinc-recon-modal" id="skybridgepaymentincReconViewModal" style="display:none;" role="dialog" aria-modal="true" aria-label="SKYBRIDGE PAYMENT INC. Reconciliation Details">
     <div class="moneygram-recon-modal__panel skybridgepaymentinc-recon-modal__panel">

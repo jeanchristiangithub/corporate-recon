@@ -1,4 +1,4 @@
-@import url("/autorecon/src/modals/moneygram-view/moneygram-recon-view-modal.css");
+@import url("../moneygram-view/moneygram-recon-view-modal.css");
 
 .skybridgepaymentinc-recon-modal .skybridgepaymentinc-table--partners .moneygram-col-date {
     width: 24%;

@@ -2,7 +2,7 @@
 // WORLD INTERNATIONAL COMMUNICATIONS Recon View Modal
 // Displays per-day partner vs web rows (reference, principal, commission, date)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/wic-view/wic-recon-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/wic-view/wic-recon-view-modal.css">
 
 <div class="wic-recon-modal" id="wicReconViewModal" style="display:none;" role="dialog" aria-modal="true" aria-label="WORLD INTERNATIONAL COMMUNICATIONS Recon Details">
     <div class="wic-recon-modal__panel">
@@ -225,7 +225,7 @@
         const date = modal.dataset.reconDate || '';
         if(!partner || !date) return;
         try{
-            const url = location.origin + '/autorecon/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(partner) + '&date=' + encodeURIComponent(date);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(partner) + '&date=' + encodeURIComponent(date);
             const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
             if(!res || !res.ok) return;
             const json = await res.json();
@@ -244,7 +244,7 @@
             return;
         }
         try{
-            const res = await fetch(location.origin + '/autorecon/src/controllers/recon/get_active_locked_dates.php', {
+            const res = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/get_active_locked_dates.php', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json'},
@@ -283,11 +283,11 @@
 
             const partner = modal.dataset.partnerName || '';
             const date = modal.dataset.reconDate || dates[0] || '';
-            const endpoint = mode === 'lock' ? '/autorecon/src/controllers/recon/lock_matched_rows.php' : '/autorecon/src/controllers/recon/unlock_matched_rows.php';
+            const endpoint = mode === 'lock' ? window.autoreconBaseUrl + '/src/controllers/recon/lock_matched_rows.php' : window.autoreconBaseUrl + '/src/controllers/recon/unlock_matched_rows.php';
             try{
                 lockBtn.disabled = true;
                 lockBtn.textContent = mode === 'lock' ? 'Locking...' : 'Unlocking...';
-                const res = await fetch(location.origin + endpoint, {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {'Content-Type':'application/json'},

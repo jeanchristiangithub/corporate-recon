@@ -372,7 +372,7 @@ try {
         async function fetchDayCardLocks(startDate, endDate){
             const partner = getSelectedPartnerLockKey();
             if(!partner || !startDate || !endDate) return;
-            const url = location.origin + '/autorecon/src/controllers/recon/get_daycard_locks.php?partner=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_daycard_locks.php?partner=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
                 if(!res || !res.ok) return;
@@ -398,10 +398,10 @@ try {
 
         async function persistDayCardLock(action, partner, date){
             const endpoint = action === 'unlock'
-                ? '/autorecon/src/controllers/recon/unlock_daycard.php'
-                : '/autorecon/src/controllers/recon/lock_daycard.php';
+                ? window.autoreconBaseUrl + '/src/controllers/recon/unlock_daycard.php'
+                : window.autoreconBaseUrl + '/src/controllers/recon/lock_daycard.php';
             try{
-                const res = await fetch(location.origin + endpoint, {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
@@ -510,7 +510,7 @@ try {
             lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
             if(lockedDatesEmpty) lockedDatesEmpty.hidden = true;
             const selectedPartner = (company && company.value) ? String(company.value).trim() : '';
-            const url = location.origin + '/autorecon/src/controllers/recon/get_locked_reconciliation_dates.php' + (selectedPartner ? ('?partnername=' + encodeURIComponent(selectedPartner)) : '');
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_locked_reconciliation_dates.php' + (selectedPartner ? ('?partnername=' + encodeURIComponent(selectedPartner)) : '');
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
                 const json = await res.json();
@@ -630,7 +630,7 @@ try {
             const btn = rowEl.querySelector('[data-action="view-locked-date-details"]');
             if(btn){ btn.disabled = true; btn.textContent = 'Loading...'; }
             try{
-                const url = location.origin + '/autorecon/src/controllers/recon/get_locked_reconciliation_details.php'
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/get_locked_reconciliation_details.php'
                     + '?partnername=' + encodeURIComponent(partner)
                     + '&transaction_date=' + encodeURIComponent(transactionDate);
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
@@ -676,7 +676,7 @@ try {
             const btn = rowEl.querySelector('[data-action="unlock-locked-date"]');
             if(btn){ btn.disabled = true; btn.textContent = 'Unlocking...'; }
             try{
-                const res = await fetch(location.origin + '/autorecon/src/controllers/recon/unlock_reconciliation_date.php', {
+                const res = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/unlock_reconciliation_date.php', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
@@ -742,7 +742,7 @@ try {
         }
 
         async function fetchMoneygramRangeAggregate(partnerName, startDate, endDate){
-            const url = location.origin + '/autorecon/src/controllers/recon/moneygram-recon.php?start_date=' + encodeURIComponent(startDate || '') + '&end_date=' + encodeURIComponent(endDate || '') + '&partnerName=' + encodeURIComponent(partnerName || '') + '&detail=1&range_detail=1';
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/moneygram-recon.php?start_date=' + encodeURIComponent(startDate || '') + '&end_date=' + encodeURIComponent(endDate || '') + '&partnerName=' + encodeURIComponent(partnerName || '') + '&detail=1&range_detail=1';
             const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
             if(!resp || !resp.ok){
                 throw new Error('recon_fetch_failed');
@@ -824,7 +824,7 @@ try {
                 const day = Number(parts[2] || 0);
                 if(!year || !month || !day) continue;
 
-                const url = location.origin + '/autorecon/src/controllers/recon/wic-recon.php?month='
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php?month='
                     + encodeURIComponent(month)
                     + '&year=' + encodeURIComponent(year)
                     + '&day=' + encodeURIComponent(day)
@@ -882,7 +882,7 @@ try {
 
             const dates = eachIsoDateInRange(startDate, endDate);
             for(const dateValue of dates){
-                const url = location.origin + '/autorecon/src/controllers/recon/mbtc-recon.php?start_date='
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/mbtc-recon.php?start_date='
                     + encodeURIComponent(dateValue)
                     + '&end_date=' + encodeURIComponent(dateValue)
                     + '&date=' + encodeURIComponent(dateValue)
@@ -956,7 +956,7 @@ try {
 
             const dates = eachIsoDateInRange(startDate, endDate);
             for(const dateValue of dates){
-                const url = location.origin + '/autorecon/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='
                     + encodeURIComponent(dateValue)
                     + '&end_date=' + encodeURIComponent(dateValue)
                     + '&date=' + encodeURIComponent(dateValue)
@@ -1007,7 +1007,7 @@ try {
 
         async function fetchLockedRangeDates(partnerName, startDate, endDate){
             try{
-                const resp = await fetch(location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_range.php', {
+                const resp = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/check_locked_reconciliation_range.php', {
                     method: 'POST',
                     credentials: 'same-origin',
                     cache: 'no-store',
@@ -1639,7 +1639,7 @@ try {
                 detailModal.style.display = 'flex';
 
                 try{
-                    const res = await fetch(location.origin + '/autorecon/src/controllers/recon/moneygram-partner-transaction-details.php?id=' + encodeURIComponent(partnerId), {
+                    const res = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/moneygram-partner-transaction-details.php?id=' + encodeURIComponent(partnerId), {
                         method: 'GET',
                         credentials: 'same-origin'
                     });
@@ -2373,7 +2373,7 @@ try {
             _mbtcReconController = new AbortController();
             const signal = _mbtcReconController.signal;
 
-            const url = location.origin + '/autorecon/src/controllers/recon/mbtc-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || 'METROBANK HEAD OFFICE');
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/mbtc-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || 'METROBANK HEAD OFFICE');
             let data = null;
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
@@ -2437,7 +2437,7 @@ try {
             _mbtcReconController = new AbortController();
             const signal = _mbtcReconController.signal;
 
-            const url = location.origin + '/autorecon/src/controllers/recon/moneygram-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || 'MONEYGRAM');
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/moneygram-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || 'MONEYGRAM');
             let data = null;
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
@@ -2493,7 +2493,7 @@ try {
             _mbtcReconController = new AbortController();
             const signal = _mbtcReconController.signal;
 
-            const url = location.origin + '/autorecon/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || SKYBRIDGE_PARTNER_NAME);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/skybridgepaymentinc-recon.php?start_date='+encodeURIComponent(startDate || '')+'&end_date='+encodeURIComponent(endDate || '')+'&partnerName='+encodeURIComponent(companyName || SKYBRIDGE_PARTNER_NAME);
             let data = null;
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
@@ -2545,7 +2545,7 @@ try {
             _wicReconController = new AbortController();
             const signal = _wicReconController.signal;
 
-            const url = location.origin + '/autorecon/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(m)+'&year='+encodeURIComponent(y)+'&partnerName='+encodeURIComponent(companyName || 'WORLDCOM INTERNATIONAL COMMUNICATIONS');
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(m)+'&year='+encodeURIComponent(y)+'&partnerName='+encodeURIComponent(companyName || 'WORLDCOM INTERNATIONAL COMMUNICATIONS');
             let data = null;
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
@@ -2602,7 +2602,7 @@ try {
             _wicReconController = new AbortController();
             const signal = _wicReconController.signal;
 
-            const url = location.origin + '/autorecon/src/controllers/recon/rcbc-recon.php?month='+encodeURIComponent(m)+'&year='+encodeURIComponent(y);
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/rcbc-recon.php?month='+encodeURIComponent(m)+'&year='+encodeURIComponent(y);
             let data = null;
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', signal });
@@ -2828,7 +2828,7 @@ try {
             if(!isWorldInternationalCommunications(companyName)) return false;
                 const mVal = (month && month.value) ? month.value : '';
                 const yVal = (year && year.value) ? year.value : '';
-                const url = location.origin + '/autorecon/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(mVal)+'&year='+encodeURIComponent(yVal)+'&day='+encodeURIComponent(dayNum)+'&detail=1'+'&partnerName='+encodeURIComponent(companyName || 'WORLDCOM INTERNATIONAL COMMUNICATIONS');
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php?month='+encodeURIComponent(mVal)+'&year='+encodeURIComponent(yVal)+'&day='+encodeURIComponent(dayNum)+'&detail=1'+'&partnerName='+encodeURIComponent(companyName || 'WORLDCOM INTERNATIONAL COMMUNICATIONS');
                 const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
                 if(!resp || !resp.ok) return false;
                 const json = await resp.json();
@@ -3080,11 +3080,11 @@ try {
                         icon: 'question'
                     });
                     if(!ok) return;
-                    const endpoint = mode === 'lock' ? '/autorecon/src/controllers/recon/lock_matched_rows.php' : '/autorecon/src/controllers/recon/unlock_matched_rows.php';
+                    const endpoint = mode === 'lock' ? window.autoreconBaseUrl + '/src/controllers/recon/lock_matched_rows.php' : window.autoreconBaseUrl + '/src/controllers/recon/unlock_matched_rows.php';
                     lockBtn.disabled = true;
                     lockBtn.textContent = mode === 'lock' ? 'Locking...' : 'Unlocking...';
                     try{
-                        const res = await fetch(location.origin + endpoint, {
+                        const res = await fetch(endpoint, {
                             method: 'POST',
                             credentials: 'same-origin',
                             headers: { 'Content-Type': 'application/json' },
@@ -3113,7 +3113,7 @@ try {
                     const dates = matchedDates();
                     if(!refs.length || !dates.length) return;
                     try{
-                        const rowLockUrl = location.origin + '/autorecon/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(modal.dataset.partnerName || SKYBRIDGE_PARTNER_NAME) + '&date=' + encodeURIComponent(modal.dataset.reconDate || '');
+                        const rowLockUrl = window.autoreconBaseUrl + '/src/controllers/recon/get_row_locks.php?partner=' + encodeURIComponent(modal.dataset.partnerName || SKYBRIDGE_PARTNER_NAME) + '&date=' + encodeURIComponent(modal.dataset.reconDate || '');
                         const rowLockRes = await fetch(rowLockUrl, { method: 'GET', credentials: 'same-origin' });
                         if(rowLockRes && rowLockRes.ok){
                             const rowLockJson = await rowLockRes.json();
@@ -3128,7 +3128,7 @@ try {
                             }
                         }
 
-                        const activeRes = await fetch(location.origin + '/autorecon/src/controllers/recon/get_active_locked_dates.php', {
+                        const activeRes = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/get_active_locked_dates.php', {
                             method: 'POST',
                             credentials: 'same-origin',
                             headers: { 'Content-Type': 'application/json' },
@@ -3196,8 +3196,8 @@ try {
                     const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : (isSkybridgePaymentInc(companyName) ? 'skybridgepaymentinc-recon.php' : 'mbtc-recon.php'))));
                     const selectedDate = (dayObj && dayObj.date) ? String(dayObj.date) : (card.getAttribute('data-date') || '');
                     const url = (isMetrobankHeadOffice(companyName) || isMoneygram(companyName) || isSkybridgePaymentInc(companyName))
-                        ? (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
-                        : (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
+                        ? (window.autoreconBaseUrl + '/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
+                        : (window.autoreconBaseUrl + '/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(d) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
                     try{
                         const resp = await fetch(url, { method: 'GET', credentials: 'same-origin' });
                         if(resp.ok){
@@ -3978,8 +3978,8 @@ try {
                     const reconFile = isWorldInternationalCommunications(companyName) ? 'wic-recon.php' : (isMetrobankHeadOffice(companyName) ? 'mbtc-recon.php' : (isMoneygram(companyName) ? 'moneygram-recon.php' : (isRcbc(companyName) ? 'rcbc-recon.php' : (isSkybridgePaymentInc(companyName) ? 'skybridgepaymentinc-recon.php' : 'mbtc-recon.php'))));
                     const selectedDate = (dayObj && dayObj.date) ? String(dayObj.date) : '';
                     const url = (isMetrobankHeadOffice(companyName) || isSkybridgePaymentInc(companyName))
-                        ? (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
-                        : (location.origin + '/autorecon/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
+                        ? (window.autoreconBaseUrl + '/src/controllers/recon/' + reconFile + '?start_date=' + encodeURIComponent(range.startDate || '') + '&end_date=' + encodeURIComponent(range.endDate || '') + '&date=' + encodeURIComponent(selectedDate || '') + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''))
+                        : (window.autoreconBaseUrl + '/src/controllers/recon/' + reconFile + '?month=' + encodeURIComponent(mVal) + '&year=' + encodeURIComponent(yVal) + '&day=' + encodeURIComponent(dayNum) + '&detail=1' + '&partnerName=' + encodeURIComponent(companyName || ''));
                     try{
                         const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
                         if(res && res.ok){
@@ -4065,17 +4065,17 @@ try {
                 let viewerUrl = '';
                 const companyName = (company && company.value) ? String(company.value) : '';
                 if(isMetrobankHeadOffice(companyName)){
-                    viewerUrl = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
+                    viewerUrl = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
                 } else if(companyName){
                     // try partner-specific viewer path, fallback to the mbtc viewer if not found
-                    const candidate = location.origin + '/autorecon/src/controllers/excelcontrol/' + encodeURIComponent(companyName.toLowerCase().replace(/\s+/g,'-')) + '/viewer.php';
+                    const candidate = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + encodeURIComponent(companyName.toLowerCase().replace(/\s+/g,'-')) + '/viewer.php';
                     try{
                         const head = await fetch(candidate, { method: 'HEAD', credentials: 'same-origin' });
                         if(head && head.ok) viewerUrl = candidate;
-                        else viewerUrl = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
-                    }catch(e){ viewerUrl = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php'; }
+                        else viewerUrl = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
+                    }catch(e){ viewerUrl = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php'; }
                 } else {
-                    viewerUrl = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
+                    viewerUrl = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
                 }
 
                 try{
@@ -4838,7 +4838,7 @@ try {
                         try{
                             const selM = (month && month.value) ? month.value : '';
                             const selY = (year && year.value) ? year.value : '';
-                            const baseUrl = location.origin + '/autorecon/src/controllers/recon/wic-recon.php';
+                            const baseUrl = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php';
                             const selectedPartner = (company && company.value) ? String(company.value) : 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
                             const listRes = await fetch(baseUrl + '?month='+encodeURIComponent(selM)+'&year='+encodeURIComponent(selY)+'&partnerName='+encodeURIComponent(selectedPartner), {cache:'no-store'});
                             if(!listRes.ok) return [];
@@ -5297,7 +5297,7 @@ try {
 </section>
 <?php
 // Shared recon-close styles (standardize CLOSE button) for all recon view modals
-echo '<link rel="stylesheet" href="/autorecon/src/modals/recon-view/recon-close.css">';
+echo '<link rel="stylesheet" href="' . htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') . '/src/modals/recon-view/recon-close.css">';
 // Include MBTC recon modal so it's available when user clicks a day card
 include __DIR__ . '/../../../modals/mbtc-view/mbtc-recon-view-modal.php';
 // include new Cover PH modals
