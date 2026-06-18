@@ -2,7 +2,7 @@
 // wic-usd-view-modal.php
 // Minimal frontend modal for viewing WORLD INTERNATIONAL COMMUNICATIONS USD summary (Partner / Web)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/wic-view/wic-usd-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/wic-view/wic-usd-view-modal.css">
 <div id="wicUsdModal" class="wic-usd-modal" style="display:none;">
     <div class="wic-usd-modal__box">
         <button type="button" class="wic-usd-modal__export" data-action="export-usd" aria-label="Export">Export</button>
@@ -368,7 +368,7 @@
     async function fetchUsdFromApi(){
         try{
             const sel = getSelectedMonthYear();
-            const baseUrl = location.origin + '/autorecon/src/controllers/recon/wic-recon.php';
+            const baseUrl = window.autoreconBaseUrl + '/src/controllers/recon/wic-recon.php';
             const partnerEl = document.getElementById('hsCompany');
             const selectedPartner = partnerEl && partnerEl.value ? String(partnerEl.value) : 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
             // initial fetch to obtain days and daysInMonth

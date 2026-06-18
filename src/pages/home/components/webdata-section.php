@@ -795,7 +795,7 @@ try {
             const dates = collectPayloadDatesForLockCheck(payloads);
             if(!partnerName || !dates.length) return { blocked: false };
 
-            const endpoint = location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_dates.php';
+            const endpoint = window.autoreconBaseUrl + '/src/controllers/recon/check_locked_reconciliation_dates.php';
             const resRaw = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -913,7 +913,7 @@ try {
                 progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                 try{
                     // Use unified ml-web-data endpoint for all partners
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/ml-web-data-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/ml-web-data-insert.php';
                     const allDuplicates = [];
                     const sendoutDuplicates = [];
                     for(let i=0;i<totalFiles;i++){
@@ -1156,7 +1156,7 @@ try {
             // use absolute path from site root to avoid 404 when page is in subfolder
             const endpointDir = resolveWebCompanyKey(company.value);
             if(!endpointDir) return { success:false, error:'Unsupported company selected' };
-            const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-webdata.php';
+            const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-webdata.php';
             const fd = new FormData();
             fd.append('file', file);
             fd.append('filename', file.name);
@@ -1247,7 +1247,7 @@ try {
                 refreshState();
                 // clear server-side recent payloads to avoid duplicate restored cards in recon section
                 try{
-                    await fetch(location.origin + '/autorecon/src/controllers/excelcontrol/clear-recent.php', { method: 'POST' });
+                    await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/clear-recent.php', { method: 'POST' });
                     const recon = document.getElementById('reconCards'); if(recon) recon.innerHTML = '';
                 }catch(e){ if(!isUploadAbortError(e)) console.warn('Failed to clear server recent payloads', e); }
             }catch(err){
@@ -1352,7 +1352,7 @@ try {
             try{
                 const endpointDir = resolveWebCompanyKey(company.value);
                 if(!endpointDir){ await showAlert('Unsupported company selected.'); return; }
-                const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-viewer.php';
+                const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-viewer.php';
                 const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({data: payload})});
                 const html = await res.text();
                 showModal(html);

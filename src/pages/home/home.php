@@ -10,6 +10,9 @@ bootSecureSession();
 requireAuth();
 requireAdminRoleOrShowConstruction();
 
+$appBasePath = autoreconBasePath();
+$appBaseUrl = $appBasePath === '' ? '' : $appBasePath;
+
 $constructionMessage = $_SESSION['construction_modal'] ?? '';
 unset($_SESSION['construction_modal']);
 
@@ -24,7 +27,7 @@ if ($currentUserId !== '') {
     foreach (['jpg', 'jpeg', 'png', 'webp', 'gif'] as $photoExtension) {
         $profilePhotoPath = $profilePhotoDir . '/' . $currentUserId . '.' . $photoExtension;
         if (is_file($profilePhotoPath)) {
-            $profilePhotoUrl = '../../../uploads/profile-photos/' . rawurlencode($currentUserId . '.' . $photoExtension) . '?v=' . filemtime($profilePhotoPath);
+            $profilePhotoUrl = $appBaseUrl . '/uploads/profile-photos/' . rawurlencode($currentUserId . '.' . $photoExtension) . '?v=' . filemtime($profilePhotoPath);
             break;
         }
     }
@@ -41,19 +44,25 @@ if ($currentUserId !== '') {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <link rel="stylesheet" href="./home.css">
-    <link rel="stylesheet" href="./components/header.css">
-    <link rel="stylesheet" href="./components/recon-section.css">
-    <link rel="stylesheet" href="./components/sidebar.css">
-    <link rel="stylesheet" href="./components/webdata-section.css">
-    <link rel="stylesheet" href="./components/home-section.css">
-    <link rel="stylesheet" href="./components/partnerdata-section.css">
-    <link rel="stylesheet" href="./components/maintenance-section.css">
-    <link rel="stylesheet" href="../../modals/comparisonresult/view-result-modal.css">
-    <link rel="stylesheet" href="../../modals/debug/error-debug-modal.css">
-        <link rel="icon" type="image/png" href="../../assets/12.png">
-    <link rel="shortcut icon" type="image/png" href="../../assets/12.png">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/home.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/header.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/sidebar.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/home-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/debug/error-debug-modal.css">
+        <link rel="icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
+    <link rel="shortcut icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.autoreconBaseUrl = <?= json_encode($appBaseUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+        window.autoreconUrl = function (path) {
+            return window.autoreconBaseUrl + '/' + String(path || '').replace(/^\/+/, '');
+        };
+    </script>
     <style>.swal2-container{z-index:200500!important}</style>
 
 </head>
@@ -67,7 +76,7 @@ if ($currentUserId !== '') {
         </svg>
     </button>
     <div class="sidebar-user" role="region" aria-label="User">
-        <form class="sidebar-avatar-form" action="../../config/profile-photo-handler.php" method="post" enctype="multipart/form-data" data-profile-photo-url="<?= htmlspecialchars($profilePhotoUrl, ENT_QUOTES, 'UTF-8') ?>">
+        <form class="sidebar-avatar-form" action="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/config/profile-photo-handler.php" method="post" enctype="multipart/form-data" data-profile-photo-url="<?= htmlspecialchars($profilePhotoUrl, ENT_QUOTES, 'UTF-8') ?>">
             <?= csrfField() ?>
             <button type="button" class="avatar" title="Profile photo options" aria-label="Profile photo options" aria-expanded="false">
                 <?php if ($profilePhotoUrl !== ''): ?>
@@ -171,7 +180,7 @@ if ($currentUserId !== '') {
                     </ul>
                 </li>
             <?php endif; ?>
-            <li class="logout"><a href="../../config/logout-handler.php" class="home-logout">
+            <li class="logout"><a href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/config/logout-handler.php" class="home-logout">
                 <span class="icon material-icons" aria-hidden="true">logout</span>
                 <span class="label">Logout</span>
             </a></li>
@@ -219,7 +228,7 @@ if ($currentUserId !== '') {
     <div class="construction-modal is-open" role="dialog" aria-modal="true" aria-label="Role notice">
         <div class="construction-modal__card">
             <p><?= htmlspecialchars($constructionMessage, ENT_QUOTES, 'UTF-8') ?></p>
-            <a href="../../config/logout-handler.php" class="material-btn material-btn--primary">Okay</a>
+            <a href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/config/logout-handler.php" class="material-btn material-btn--primary">Okay</a>
         </div>
     </div>
 <?php endif; ?>

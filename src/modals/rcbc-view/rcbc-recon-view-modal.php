@@ -2,7 +2,7 @@
 // RCBC Recon View Modal
 // Displays per-day partner vs web rows (reference, principal, commission, date)
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/rcbc-view/rcbc-recon-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/rcbc-view/rcbc-recon-view-modal.css">
 
 <div class="rcbc-recon-modal" id="rcbcReconViewModal" style="display:none;" role="dialog" aria-modal="true" aria-label="RCBC Recon Details">
     <div class="rcbc-recon-modal__panel">

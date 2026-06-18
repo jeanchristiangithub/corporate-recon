@@ -3,7 +3,7 @@
 // Shared fetch/processing modals for data uploads. Expects $modalPrefix (e.g. 'mbtc' or 'pd') to be set.
 if(!isset($modalPrefix)) $modalPrefix = '';
 $prefix = $modalPrefix;
-$cssPath = '/autorecon/src/modals/data-modals/fetch-modal.css';
+$cssPath = ($appBaseUrl ?? '') . '/src/modals/data-modals/fetch-modal.css';
 ?>
 <link rel="stylesheet" href="<?= $cssPath ?>">
 
