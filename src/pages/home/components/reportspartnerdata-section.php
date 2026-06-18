@@ -144,6 +144,25 @@ try {
 		.rpd-summary-badge--php { background:#ecfdf5; color:#065f46; }
 		.rpd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
 
+		.reports-webdata-content .rwd-results-header {
+			gap: 1rem;
+			align-items: flex-start !important;
+		}
+
+		.reports-webdata-content .rwd-results-header > div:first-child {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+
+		.reports-webdata-content .rwd-results-header > div:last-child {
+			flex: 0 0 auto;
+			flex-wrap: nowrap !important;
+		}
+
+		.reports-webdata-content #rpdExportBtn {
+			white-space: nowrap;
+		}
+
 		.reports-webdata-content .txn-view-btn {
 			border: 1px solid #dc3545;
 			background: #fff;

@@ -132,6 +132,10 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">groups</span>
                             <span class="label">Partner Data Report</span>
                         </a></li>
+                        <li><a href="#" id="navSummaryReport" data-show="summaryReportSection">
+                            <span class="icon material-icons" aria-hidden="true">summarize</span>
+                            <span class="label">Summary Report</span>
+                        </a></li>
                     </ul>
                 </li>
 
@@ -191,6 +195,10 @@ if ($currentUserId !== '') {
 
     <section id="reportsPartnerDataSection" class="reports-partnerdata-section" aria-label="Partner Data Report" style="display:none; padding:1rem">
         <?php include __DIR__ . '/components/reportspartnerdata-section.php'; ?>
+    </section>
+
+    <section id="summaryReportSection" class="summary-report-section" aria-label="Summary Report" style="display:none; padding:1rem">
+        <?php include __DIR__ . '/components/summaryreport-section.php'; ?>
     </section>
 
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
@@ -337,6 +345,7 @@ if ($currentUserId !== '') {
                 users: 'usersSection',
                 webdata: 'webdataSection',
                 partnerdata: 'partnerdataSection',
+                summaryreport: 'summaryReportSection',
                 maintenance: 'maintenanceSection',
                 recon: 'reconSection'
             };
@@ -357,7 +366,7 @@ if ($currentUserId !== '') {
     }catch(e){}
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navPartnerData','navReportsWebData','navReportsPartnerData','navReconTool','navMaintenance'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconTool','navMaintenance'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
