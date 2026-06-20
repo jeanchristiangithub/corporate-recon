@@ -142,6 +142,15 @@ $partnerInputChars = min($partnerInputChars, 90);
             cursor: wait;
         }
 
+        .summary-report-content .summary-button--export {
+            border-color: #198754;
+            background: #198754;
+        }
+
+        .summary-report-content .summary-button--export:disabled {
+            cursor: not-allowed;
+        }
+
         .summary-report-content .mg-cover {
             display: none;
             margin-top: .75rem;
@@ -246,6 +255,8 @@ $partnerInputChars = min($partnerInputChars, 90);
             display: none;
             gap: .35rem;
             margin: .75rem 0 -.25rem;
+            align-items: center;
+            width: 100%;
         }
 
         .summary-report-content .wic-cover-tabs.is-visible,
@@ -272,6 +283,41 @@ $partnerInputChars = min($partnerInputChars, 90);
             border-bottom-color: #eaf0f7;
         }
 
+        .summary-report-content .summary-export-spacer {
+            flex: 1 1 auto;
+        }
+
+        .summary-report-content .summary-download-section {
+            display: none;
+            margin: .75rem 0 0;
+            justify-content: flex-end;
+        }
+
+        .summary-report-content .summary-export-host {
+            display: none;
+            margin: .75rem 0 -.25rem;
+            justify-content: flex-end;
+        }
+
+        .summary-report-content .summary-export-host.is-visible {
+            display: flex;
+        }
+
+        .summary-report-content .summary-download-section.is-visible {
+            display: flex;
+        }
+
+        .summary-report-content .summary-download-link {
+            color: #198754;
+            font-size: .86rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .summary-report-content .summary-download-link:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 560px) {
             .summary-report-content .summary-form {
                 grid-template-columns: 1fr;
@@ -282,6 +328,10 @@ $partnerInputChars = min($partnerInputChars, 90);
             .summary-report-content .summary-button {
                 width: 100%;
                 min-width: 0;
+            }
+
+            .summary-report-content .summary-export-spacer {
+                display: none;
             }
         }
     </style>
@@ -315,12 +365,23 @@ $partnerInputChars = min($partnerInputChars, 90);
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="payout" data-moneygram-currency="usd" role="tab" aria-selected="false">Payout USD</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="php" role="tab" aria-selected="false">Sendout PHP</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="usd" role="tab" aria-selected="false">Sendout USD</button>
+        <span class="summary-export-spacer" aria-hidden="true"></span>
+        <button id="summaryExportExcel" class="summary-button summary-button--export" type="button" disabled>Export to Excel</button>
+    </div>
+    <div>
+        
+    </div>
+
+    <div id="summaryDownloadSection" class="summary-download-section" aria-live="polite">
+        <a id="summaryDownloadLink" class="summary-download-link" href="#" download hidden>Download Excel file</a>
     </div>
 
     <div id="wicCoverTabs" class="wic-cover-tabs" role="tablist" aria-label="WorldCom cover currency">
         <button class="wic-cover-tab is-active" type="button" data-wic-currency="php" role="tab" aria-selected="true">WIC PHP</button>
         <button class="wic-cover-tab" type="button" data-wic-currency="usd" role="tab" aria-selected="false">WIC USD</button>
     </div>
+
+    <div id="summaryExportHost" class="summary-export-host"></div>
 
     <div id="moneygramCover" class="mg-cover" aria-live="polite">
         <div class="mg-cover__wrap">
@@ -338,6 +399,10 @@ $partnerInputChars = min($partnerInputChars, 90);
     const partnerEl = document.getElementById('summaryPartner');
     const monthEl = document.getElementById('summaryMonth');
     const submitEl = document.getElementById('summarySubmit');
+    const exportExcelEl = document.getElementById('summaryExportExcel');
+    const downloadSectionEl = document.getElementById('summaryDownloadSection');
+    const downloadLinkEl = document.getElementById('summaryDownloadLink');
+    const exportHostEl = document.getElementById('summaryExportHost');
     const moneygramCover = document.getElementById('moneygramCover');
     const moneygramCoverBody = document.getElementById('moneygramCoverBody');
     const moneygramCoverMessage = document.getElementById('moneygramCoverMessage');
@@ -351,6 +416,8 @@ $partnerInputChars = min($partnerInputChars, 90);
     let currentMoneygramCurrency = 'php';
     let currentWicData = null;
     let currentWicCurrency = 'php';
+    let currentReportTitle = 'Summary Report';
+    let currentDownloadUrl = '';
 
     if (!form || !partnerEl || !monthEl) return;
 
@@ -717,8 +784,11 @@ $partnerInputChars = min($partnerInputChars, 90);
         }
 
         moneygramCover.classList.add('is-visible');
+        placeExportButton(moneygramCoverTabs);
+        setExportReady(true);
         showMoneygramTabs(true);
         setActiveMoneygramTab(selectedCover, selectedCurrency);
+        currentReportTitle = `${selectedCover === 'sendout' ? 'MoneyGram Sendout' : 'MoneyGram Payout'} ${selectedCurrency.toUpperCase()}`;
         moneygramCoverMessage.classList.remove('is-visible');
         moneygramCoverMessage.textContent = '';
     }
@@ -814,6 +884,9 @@ $partnerInputChars = min($partnerInputChars, 90);
         ].join('');
 
         moneygramCover.classList.add('is-visible');
+        placeExportButton(exportHostEl);
+        setExportReady(true);
+        currentReportTitle = 'Metrobank Head Office';
         moneygramCoverMessage.classList.remove('is-visible');
         moneygramCoverMessage.textContent = '';
     }
@@ -897,9 +970,12 @@ $partnerInputChars = min($partnerInputChars, 90);
         ].join('');
 
         moneygramCover.classList.add('is-visible');
+        placeExportButton(wicCoverTabs);
+        setExportReady(true);
         showMoneygramTabs(false);
         showWicTabs(true);
         setActiveWicTab(selectedCurrency);
+        currentReportTitle = `WIC ${selectedCurrency.toUpperCase()}`;
         moneygramCoverMessage.classList.remove('is-visible');
         moneygramCoverMessage.textContent = '';
     }
@@ -913,6 +989,8 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         if (!isMoneygram && !isMbtc && !isWic) {
             moneygramCover.classList.remove('is-visible');
+            setExportReady(false);
+            placeExportButton(null);
             showMoneygramTabs(false);
             showWicTabs(false);
             currentMoneygramData = null;
@@ -927,6 +1005,9 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         setLoading(true);
         moneygramCover.classList.remove('is-visible');
+        setExportReady(false);
+        placeExportButton(null);
+        clearDownloadSection();
         showMoneygramTabs(false);
         showWicTabs(false);
         moneygramCoverMessage.textContent = `Loading ${isMoneygram ? 'MoneyGram' : (isMbtc ? 'Metrobank Head Office' : 'WorldCom International Communications')} cover format...`;
@@ -961,6 +1042,8 @@ $partnerInputChars = min($partnerInputChars, 90);
             }
         } catch (error) {
             moneygramCover.classList.remove('is-visible');
+            setExportReady(false);
+            placeExportButton(null);
             showMoneygramTabs(false);
             showWicTabs(false);
             currentMoneygramData = null;
@@ -979,10 +1062,134 @@ $partnerInputChars = min($partnerInputChars, 90);
         }
     }
 
+    function setExportReady(isReady) {
+        if (exportExcelEl) {
+            exportExcelEl.disabled = !isReady;
+        }
+    }
+
+    function placeExportButton(container) {
+        if (exportHostEl) {
+            exportHostEl.classList.toggle('is-visible', container === exportHostEl);
+        }
+        if (!exportExcelEl) return;
+        if (!container) {
+            exportExcelEl.disabled = true;
+            return;
+        }
+        if (container === moneygramCoverTabs || container === wicCoverTabs) {
+            let spacer = container.querySelector('.summary-export-spacer');
+            if (!spacer) {
+                spacer = document.createElement('span');
+                spacer.className = 'summary-export-spacer';
+                spacer.setAttribute('aria-hidden', 'true');
+                container.appendChild(spacer);
+            }
+        }
+        container.appendChild(exportExcelEl);
+    }
+
+    function clearDownloadSection() {
+        if (currentDownloadUrl) {
+            URL.revokeObjectURL(currentDownloadUrl);
+            currentDownloadUrl = '';
+        }
+        if (downloadLinkEl) {
+            downloadLinkEl.href = '#';
+            downloadLinkEl.hidden = true;
+        }
+        if (downloadSectionEl) {
+            downloadSectionEl.classList.remove('is-visible');
+        }
+    }
+
+    function getFilenameFromDisposition(disposition) {
+        const selectedKey = normalizePartner(partnerEl.value);
+        const prefix = selectedKey === 'MONEYGRAM'
+            ? 'MONEYGRAM'
+            : ((selectedKey === 'MBTC' || selectedKey === 'METROBANKHEADOFFICE') ? 'MBTC' : 'WIC');
+        const fallback = `${prefix}_SUMMARY_REPORT_${monthEl.value || 'report'}.xlsx`;
+        const match = String(disposition || '').match(/filename="?([^"]+)"?/i);
+        return match && match[1] ? match[1] : fallback;
+    }
+
+    function summaryExportEndpoint(selectedKey) {
+        if (selectedKey === 'MONEYGRAM') {
+            return '../../modals/generate/summary-report/excel/moneygram-cover/moneygram-excel-format.php';
+        }
+        if (selectedKey === 'MBTC' || selectedKey === 'METROBANKHEADOFFICE') {
+            return '../../modals/generate/summary-report/excel/mbtc-cover/mbtc-excel-format.php';
+        }
+        if (selectedKey === 'WIC' || selectedKey === 'WORLDCOMINTERNATIONALCOMMUNICATIONS') {
+            return '../../modals/generate/summary-report/excel/wic-cover/wic-excel-format.php';
+        }
+        return '';
+    }
+
+    async function exportCurrentReportToExcel() {
+        const selectedKey = normalizePartner(partnerEl.value);
+        const endpoint = summaryExportEndpoint(selectedKey);
+        if (!endpoint) {
+            moneygramCoverMessage.textContent = 'Excel export is available for MoneyGram, Metrobank Head Office, and WorldCom International Communications.';
+            moneygramCoverMessage.classList.add('is-visible');
+            return;
+        }
+
+        if (!moneygramCover || !moneygramCover.classList.contains('is-visible') || !moneygramCoverBody || !moneygramCoverBody.children.length) {
+            moneygramCoverMessage.textContent = 'Please view a report before exporting.';
+            moneygramCoverMessage.classList.add('is-visible');
+            setExportReady(false);
+            return;
+        }
+
+        clearDownloadSection();
+        exportExcelEl.disabled = true;
+        exportExcelEl.textContent = 'Preparing...';
+
+        try {
+            const params = new URLSearchParams({ month: monthEl.value });
+            const response = await fetch(`${endpoint}?${params.toString()}`, {
+                credentials: 'same-origin'
+            });
+            if (!response.ok) {
+                let message = 'Unable to prepare Excel file.';
+                try {
+                    const errorData = await response.json();
+                    if (errorData && errorData.error) message = errorData.error;
+                } catch (_) {}
+                throw new Error(message);
+            }
+
+            const blob = await response.blob();
+            currentDownloadUrl = URL.createObjectURL(blob);
+            const filename = getFilenameFromDisposition(response.headers.get('Content-Disposition'));
+            if (downloadLinkEl) {
+                downloadLinkEl.href = currentDownloadUrl;
+                downloadLinkEl.download = filename;
+                downloadLinkEl.hidden = false;
+                downloadLinkEl.click();
+            }
+            if (downloadSectionEl) {
+                downloadSectionEl.classList.add('is-visible');
+            }
+        } catch (error) {
+            clearDownloadSection();
+            moneygramCoverMessage.textContent = String(error.message || error);
+            moneygramCoverMessage.classList.add('is-visible');
+        } finally {
+            exportExcelEl.textContent = 'Export to Excel';
+            setExportReady(true);
+        }
+    }
+
     form.addEventListener('submit', function(event){
         event.preventDefault();
         loadSummaryReport();
     });
+
+    if (exportExcelEl) {
+        exportExcelEl.addEventListener('click', exportCurrentReportToExcel);
+    }
 
     moneygramCoverTabButtons.forEach(button => {
         button.addEventListener('click', function(){
