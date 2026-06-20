@@ -1249,7 +1249,9 @@ try {
                     const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
                     const totalFiles = payloads.length || 0;
                     let hasMissingLegacyId = false;
+                    let hasNewMoneygramBranch = false;
                     let missingLegacyBranches = [];
+                    let newMoneygramBranches = [];
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     await waitForNextFrame();
                     progressBar.style.width = '0%';
@@ -1330,6 +1332,10 @@ try {
                         hasMissingLegacyId = true;
                         missingLegacyBranches = legacyCheck.missing_branches || [];
                     }
+                    if(legacyCheck && legacyCheck.has_new_branch === true){
+                        hasNewMoneygramBranch = true;
+                        newMoneygramBranches = legacyCheck.new_branches || [];
+                    }
 
                     let totalInserted = 0;
                     progressBar.style.width = '75%';
@@ -1366,6 +1372,9 @@ try {
                     refreshState();
                     throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
+                    if(hasNewMoneygramBranch){
+                        await showMoneygramNewBranchNotice(newMoneygramBranches);
+                    }
                     if(hasMissingLegacyId){
                         await showMoneygramLegacyIdNotice(missingLegacyBranches);
                     }
@@ -1794,6 +1803,42 @@ try {
                     await window.Swal.fire({
                         title: 'Branches with unregistered Legacy ID',
                         html: buildMissingMoneygramBranchListHtml(missingBranches),
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#DC3545',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        allowEnterKey: false,
+                        showCloseButton: false,
+                        width: 640,
+                        didOpen: setSwalZIndex
+                    });
+                }
+                return;
+            }
+            return showAlert(message, 'Notice');
+        }
+        async function showMoneygramNewBranchNotice(newBranches){
+            const message = 'New branch detected, Contact Administrator.';
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                const setSwalZIndex = function(){
+                    const container = document.querySelector('.swal2-container');
+                    if(container) container.style.zIndex = '12020';
+                };
+                const result = await window.Swal.fire({
+                    title: 'Notice',
+                    text: message,
+                    confirmButtonText: 'View',
+                    confirmButtonColor: '#DC3545',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    allowEnterKey: false,
+                    showCloseButton: false,
+                    didOpen: setSwalZIndex
+                });
+                if(result && result.isConfirmed){
+                    await window.Swal.fire({
+                        title: 'New branches not found in master data',
+                        html: buildMissingMoneygramBranchListHtml(newBranches),
                         confirmButtonText: 'OK',
                         confirmButtonColor: '#DC3545',
                         allowOutsideClick: false,

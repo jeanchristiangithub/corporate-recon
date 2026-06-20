@@ -59,6 +59,18 @@ function numeric_sql_expr(string $column): string
     return 'ABS(CAST(REPLACE(REPLACE(REPLACE(COALESCE(' . $quoted . ', 0), ",", ""), "₱", ""), "$", "") AS DECIMAL(18, 2)))';
 }
 
+function moneygram_transaction_type_prefix(string $type): string
+{
+    $normalized = strtolower(trim($type));
+    if ($normalized === 'payout' || $normalized === 'rec' || $normalized === 'receive') {
+        return 'REC';
+    }
+    if ($normalized === 'sendout' || $normalized === 'send' || $normalized === 'sen') {
+        return 'SEN';
+    }
+    return '';
+}
+
 function build_partner_totals(PDO $pdo, string $table, string $whereSql, array $params, array $existing): array
 {
     $zeroTotals = [
@@ -262,11 +274,19 @@ try {
         }
     }
 
-    $typeFilter = isset($_GET['tran_type']) ? trim((string)$_GET['tran_type']) : '';
+    $typeFilter = isset($_GET['type']) ? trim((string)$_GET['type']) : (isset($_GET['tran_type']) ? trim((string)$_GET['tran_type']) : '');
     if ($typeFilter !== '') {
         if (isset($existing['tran_type'])) {
-            $whereParts[] = 'tran_type = ?';
-            $params[] = $typeFilter;
+            if ($table === 'moneygram_partner_data') {
+                $moneygramTypePrefix = moneygram_transaction_type_prefix($typeFilter);
+                if ($moneygramTypePrefix !== '') {
+                    $whereParts[] = 'UPPER(TRIM(tran_type)) LIKE ?';
+                    $params[] = $moneygramTypePrefix . '%';
+                }
+            } else {
+                $whereParts[] = 'tran_type = ?';
+                $params[] = $typeFilter;
+            }
         }
     }
 
