@@ -306,6 +306,14 @@ try {
 			</div>
 
 			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
+					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
+					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
+						<option value="">ALL</option>
+						<option value="payout">PAYOUT</option>
+						<option value="sendout">SENDOUT</option>
+					</select>
+				</label>
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
 				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
 			</div>
@@ -396,6 +404,7 @@ try {
 		const resultsWrap = document.querySelector('#rpdResults .rwd-results-table-wrap');
 		const exportBtn = document.getElementById('rpdExportBtn');
 		const hideBtn = document.getElementById('rpdHideBtn');
+		const typeFilter = document.getElementById('rpdType');
 		const currencyFilter = document.getElementById('rpdCurrencyFilter');
 		const pagination = document.getElementById('rpdPagination');
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
@@ -724,6 +733,7 @@ try {
 					partner: currentFilters.partner,
 					start_date: currentFilters.startDate,
 					end_date: currentFilters.endDate,
+					type: currentFilters.type || '',
 					settlement_currency: currentFilters.currency || '',
 					page: String(page),
 					per_page: String(PAGE_SIZE)
@@ -773,7 +783,7 @@ try {
 				return;
 			}
 
-			currentFilters = { partner: partnerVal, startDate, endDate, currency: currencyFilter ? currencyFilter.value : '' };
+			currentFilters = { partner: partnerVal, startDate, endDate, type: typeFilter ? typeFilter.value : '', currency: currencyFilter ? currencyFilter.value : '' };
 			await fetchTransactions(1);
 		}
 
@@ -792,6 +802,14 @@ try {
 			currencyFilter.addEventListener('change', function() {
 				if (!currentFilters) return;
 				currentFilters.currency = currencyFilter.value || '';
+				fetchTransactions(1);
+			});
+		}
+
+		if (typeFilter) {
+			typeFilter.addEventListener('change', function() {
+				if (!currentFilters) return;
+				currentFilters.type = typeFilter.value || '';
 				fetchTransactions(1);
 			});
 		}
@@ -1200,7 +1218,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 
 			// Moneygram: request server-side Excel export including Legacy ID
 			if(csvIsMoneygram){
-				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', settlement_currency: currencyFilter ? currencyFilter.value : '' });
+				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '' });
 				const url = `${getAppBasePath()}/src/controllers/excelcontrol/partner-data-export.php?${params.toString()}`;
 				exportBtn.disabled = true;
 				exportBtn.textContent = 'Preparing...';

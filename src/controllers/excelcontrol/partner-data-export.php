@@ -43,6 +43,18 @@ function moneygram_export_float($value): float
     return (float)$value;
 }
 
+function moneygram_export_transaction_type_prefix(string $type): string
+{
+    $normalized = strtolower(trim($type));
+    if ($normalized === 'payout' || $normalized === 'rec' || $normalized === 'receive') {
+        return 'REC';
+    }
+    if ($normalized === 'sendout' || $normalized === 'send' || $normalized === 'sen') {
+        return 'SEN';
+    }
+    return '';
+}
+
 try {
     $partner = isset($_GET['partner']) ? trim((string)$_GET['partner']) : '';
     $start_date = isset($_GET['start_date']) ? trim((string)$_GET['start_date']) : '';
@@ -85,7 +97,7 @@ try {
     $branchFilter = isset($_GET['branch']) ? trim((string)$_GET['branch']) : '';
     $legacyFilter = isset($_GET['legacy_id']) ? trim((string)$_GET['legacy_id']) : '';
     $agentFilter = isset($_GET['agent_name']) ? trim((string)$_GET['agent_name']) : '';
-    $typeFilter = isset($_GET['tran_type']) ? trim((string)$_GET['tran_type']) : '';
+    $typeFilter = isset($_GET['type']) ? trim((string)$_GET['type']) : (isset($_GET['tran_type']) ? trim((string)$_GET['tran_type']) : '');
 
     $whereParts = [];
     $paramsExec = [];
@@ -117,8 +129,11 @@ try {
         $paramsExec[] = '%' . strtolower($agentFilter) . '%';
     }
     if ($typeFilter !== '' && isset($existing['tran_type'])) {
-        $whereParts[] = 'tran_type = ?';
-        $paramsExec[] = $typeFilter;
+        $moneygramTypePrefix = moneygram_export_transaction_type_prefix($typeFilter);
+        if ($moneygramTypePrefix !== '') {
+            $whereParts[] = 'UPPER(TRIM(tran_type)) LIKE ?';
+            $paramsExec[] = $moneygramTypePrefix . '%';
+        }
     }
     if (in_array($currencyFilter, ['PHP', 'USD'], true) && isset($existing['settlement_currency'])) {
         $whereParts[] = 'UPPER(TRIM(settlement_currency)) = ?';
@@ -149,7 +164,9 @@ try {
 
     $filePartner = preg_replace('/\s+/', '_', strtoupper($partner));
     $fileCurrency = in_array($currencyFilter, ['PHP', 'USD'], true) ? '_' . $currencyFilter : '';
-    $filename = sprintf('%s%s_%s_to_%s.xlsx', $filePartner, $fileCurrency, $start_date, $end_date);
+    $fileTypePrefix = moneygram_export_transaction_type_prefix($typeFilter);
+    $fileType = $fileTypePrefix === 'REC' ? '_PAYOUT' : ($fileTypePrefix === 'SEN' ? '_SENDOUT' : '');
+    $filename = sprintf('%s%s%s_%s_to_%s.xlsx', $filePartner, $fileCurrency, $fileType, $start_date, $end_date);
     $filename = preg_replace('#[\\\\/:*?"<>|]+#', '_', $filename);
 
     $spreadsheet = new Spreadsheet();
@@ -159,11 +176,12 @@ try {
     $sheet->setCellValue('A1', 'Partner: ' . strtoupper($partner));
     $sheet->setCellValue('A2', 'Date Duration: ' . $start_date . ' to ' . $end_date);
     $sheet->setCellValue('A3', 'Currency: ' . (in_array($currencyFilter, ['PHP', 'USD'], true) ? $currencyFilter : 'ALL'));
-    $sheet->setCellValue('A4', 'Volume: ' . number_format(count($rows)) . ' transactions');
-    $sheet->setCellValue('A5', 'Principal: PHP: ' . number_format(abs((float)($totRow['php_total'] ?? 0)), 2, '.', ',') . ' USD: ' . number_format(abs((float)($totRow['usd_total'] ?? 0)), 2, '.', ','));
-    $sheet->setCellValue('A6', 'Commission: PHP: ' . number_format(abs((float)($totRow['php_commission_total'] ?? 0)), 2, '.', ',') . ' USD: ' . number_format(abs((float)($totRow['usd_commission_total'] ?? 0)), 2, '.', ','));
+    $sheet->setCellValue('A4', 'Transaction Type: ' . ($fileTypePrefix === 'REC' ? 'PAYOUT' : ($fileTypePrefix === 'SEN' ? 'SENDOUT' : 'ALL')));
+    $sheet->setCellValue('A5', 'Volume: ' . number_format(count($rows)) . ' transactions');
+    $sheet->setCellValue('A6', 'Principal: PHP: ' . number_format(abs((float)($totRow['php_total'] ?? 0)), 2, '.', ',') . ' USD: ' . number_format(abs((float)($totRow['usd_total'] ?? 0)), 2, '.', ','));
+    $sheet->setCellValue('A7', 'Commission: PHP: ' . number_format(abs((float)($totRow['php_commission_total'] ?? 0)), 2, '.', ',') . ' USD: ' . number_format(abs((float)($totRow['usd_commission_total'] ?? 0)), 2, '.', ','));
 
-    $headerRow = 8;
+    $headerRow = 9;
     $headers = ['Tran Date', 'Agent Name', 'Legacy ID', 'Account Number', 'Reference ID', 'Product', 'Tran Type', 'Tran Fx Rate', 'Fx Rev Share Amt', 'Base Amt', 'Comm Amt', 'Settlement Currency', 'Orig Cntry', 'Rcv Cntry'];
     $col = 'A';
     foreach ($headers as $h) {

@@ -210,8 +210,11 @@ class MoneygramInsert {
             return [
                 'success' => true,
                 'has_missing_legacy' => false,
+                'has_new_branch' => false,
                 'missing_branch_ids' => [],
                 'missing_branches' => [],
+                'new_branch_ids' => [],
+                'new_branches' => [],
                 'checked_branch_ids' => [],
             ];
         }
@@ -236,12 +239,23 @@ class MoneygramInsert {
 
         $missing = [];
         $missingBranches = [];
+        $newBranchIds = [];
+        $newBranches = [];
         foreach ($branchIdList as $branchId) {
-            if (!array_key_exists($branchId, $profileByBranchId) || $profileByBranchId[$branchId]['legacyid_moneygram'] === '') {
+            if (!array_key_exists($branchId, $profileByBranchId)) {
+                $newBranchIds[] = $branchId;
+                $newBranches[] = [
+                    'branch_id' => $branchId,
+                    'branch_name' => '',
+                ];
+                continue;
+            }
+
+            if ($profileByBranchId[$branchId]['legacyid_moneygram'] === '') {
                 $missing[] = $branchId;
                 $missingBranches[] = [
                     'branch_id' => $branchId,
-                    'branch_name' => $profileByBranchId[$branchId]['branch_name'] ?? '',
+                    'branch_name' => $profileByBranchId[$branchId]['branch_name'],
                 ];
             }
         }
@@ -249,8 +263,11 @@ class MoneygramInsert {
         return [
             'success' => true,
             'has_missing_legacy' => !empty($missing),
+            'has_new_branch' => !empty($newBranchIds),
             'missing_branch_ids' => $missing,
             'missing_branches' => $missingBranches,
+            'new_branch_ids' => $newBranchIds,
+            'new_branches' => $newBranches,
             'checked_branch_ids' => $branchIdList,
         ];
     }
