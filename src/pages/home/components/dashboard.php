@@ -1,6 +1,10 @@
 <?php
 // dashboard fragment: basic account banner and two overview cards
 require_once __DIR__ . '/../../../controllers/usercontroller.php';
+require_once __DIR__ . '/../../../config/db.php';
+
+$isDashboardAdmin = isset($_SESSION['user']['role'])
+	&& strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0;
 
 $lastLoginDisplay = '—';
 try {
@@ -26,6 +30,153 @@ try {
 } catch (Throwable $e) {
 	// fallback: keep placeholder
 }
+
+$unmappedBranches = [];
+$unmappedBranchLookupAvailable = true;
+try {
+	$filePdo = fileRecDbConnection();
+	$webDataColumns = $filePdo->query('SHOW COLUMNS FROM ml_web_data')->fetchAll(PDO::FETCH_COLUMN);
+	$webDataColumns = array_map('strtolower', array_map('strval', $webDataColumns));
+
+	if (!in_array('branch_id', $webDataColumns, true)) {
+		$unmappedBranchLookupAvailable = false;
+	} else {
+		$partnerColumn = in_array('partnername', $webDataColumns, true) ? '`partnerName`' : "''";
+		$createdColumn = in_array('created_at', $webDataColumns, true) ? '`created_at`' : 'NULL';
+		$sql = 'SELECT TRIM(`branch_id`) AS branch_id, ' . $partnerColumn . ' AS partner_name, '
+			. 'MIN(' . $createdColumn . ') AS first_detected, MAX(' . $createdColumn . ') AS last_detected, COUNT(*) AS transaction_count '
+			. 'FROM `ml_web_data` WHERE `branch_id` IS NOT NULL AND TRIM(`branch_id`) <> \'\' '
+			. 'GROUP BY TRIM(`branch_id`), ' . $partnerColumn . ' ORDER BY MAX(' . $createdColumn . ') DESC';
+		$candidates = $filePdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+		// MoneyGram's "new branch" warning is raised from Partner Data. Include those
+		// records even when a matching KPX Web Data row has not been uploaded yet.
+		try {
+			$moneygramColumns = $filePdo->query('SHOW COLUMNS FROM moneygram_partner_data')->fetchAll(PDO::FETCH_COLUMN);
+			$moneygramColumns = array_map('strtolower', array_map('strval', $moneygramColumns));
+			if (in_array('branch_id', $moneygramColumns, true)) {
+				$moneygramCreatedColumn = in_array('created_at', $moneygramColumns, true) ? '`created_at`' : 'NULL';
+				$moneygramSql = "SELECT TRIM(`branch_id`) AS branch_id, 'MONEYGRAM' AS partner_name, "
+					. 'MIN(' . $moneygramCreatedColumn . ') AS first_detected, MAX(' . $moneygramCreatedColumn . ') AS last_detected, COUNT(*) AS transaction_count '
+					. 'FROM `moneygram_partner_data` WHERE `branch_id` IS NOT NULL AND TRIM(`branch_id`) <> \'\' '
+					. 'GROUP BY TRIM(`branch_id`) ORDER BY MAX(' . $moneygramCreatedColumn . ') DESC';
+				$candidates = array_merge($candidates, $filePdo->query($moneygramSql)->fetchAll(PDO::FETCH_ASSOC));
+			}
+		} catch (Throwable $ignored) {
+			// The consolidated KPX source remains usable when MoneyGram data is unavailable.
+		}
+
+		$mergedCandidates = [];
+		foreach ($candidates as $candidate) {
+			$branchId = trim((string) ($candidate['branch_id'] ?? ''));
+			$partnerName = trim((string) ($candidate['partner_name'] ?? ''));
+			$key = $branchId . '|' . strtoupper($partnerName);
+			if ($branchId === '') continue;
+			if (!isset($mergedCandidates[$key])) {
+				$mergedCandidates[$key] = $candidate;
+				continue;
+			}
+			$existing = $mergedCandidates[$key];
+			$firstDates = array_filter([$existing['first_detected'] ?? null, $candidate['first_detected'] ?? null]);
+			$lastDates = array_filter([$existing['last_detected'] ?? null, $candidate['last_detected'] ?? null]);
+			$existing['first_detected'] = $firstDates !== [] ? min($firstDates) : null;
+			$existing['last_detected'] = $lastDates !== [] ? max($lastDates) : null;
+			$existing['transaction_count'] = (int) ($existing['transaction_count'] ?? 0) + (int) ($candidate['transaction_count'] ?? 0);
+			$mergedCandidates[$key] = $existing;
+		}
+		$candidates = array_values($mergedCandidates);
+
+		$knownBranchIds = [];
+		$uniqueIds = array_values(array_unique(array_filter(array_map(static function (array $row): string {
+			return trim((string) ($row['branch_id'] ?? ''));
+		}, $candidates))));
+
+		if ($uniqueIds !== []) {
+			$masterPdo = masterDataConnection();
+			foreach (array_chunk($uniqueIds, 500) as $idChunk) {
+				$placeholders = implode(',', array_fill(0, count($idChunk), '?'));
+				$stmt = $masterPdo->prepare("SELECT TRIM(branch_id) FROM branch_profile WHERE TRIM(branch_id) IN ($placeholders)");
+				$stmt->execute($idChunk);
+				foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $knownId) {
+					$knownBranchIds[trim((string) $knownId)] = true;
+				}
+			}
+		}
+
+		foreach ($candidates as $candidate) {
+			$branchId = trim((string) ($candidate['branch_id'] ?? ''));
+			if ($branchId !== '' && !isset($knownBranchIds[$branchId])) {
+				$unmappedBranches[] = $candidate;
+			}
+		}
+	}
+} catch (Throwable $e) {
+	$unmappedBranchLookupAvailable = false;
+	$unmappedBranches = [];
+}
+
+$unmappedBranchIds = array_values(array_unique(array_map(static function (array $row): string {
+	return trim((string) ($row['branch_id'] ?? ''));
+}, $unmappedBranches)));
+$unmappedBranchCount = count($unmappedBranchIds);
+$unmappedTransactionCount = array_sum(array_map(static function (array $row): int {
+	return (int) ($row['transaction_count'] ?? 0);
+}, $unmappedBranches));
+
+$missingMoneygramLegacyBranches = [];
+$missingLegacyLookupAvailable = true;
+try {
+	$filePdo = fileRecDbConnection();
+	$moneygramColumns = $filePdo->query('SHOW COLUMNS FROM moneygram_partner_data')->fetchAll(PDO::FETCH_COLUMN);
+	$moneygramColumns = array_map('strtolower', array_map('strval', $moneygramColumns));
+	if (!in_array('branch_id', $moneygramColumns, true)) {
+		$missingLegacyLookupAvailable = false;
+	} else {
+		$createdColumn = in_array('created_at', $moneygramColumns, true) ? '`created_at`' : 'NULL';
+		$legacyColumn = in_array('legacy_id', $moneygramColumns, true)
+			? "MAX(NULLIF(TRIM(`legacy_id`), ''))"
+			: 'NULL';
+		$sql = 'SELECT TRIM(`branch_id`) AS branch_id, ' . $legacyColumn . ' AS detected_legacy_id, '
+			. 'MIN(' . $createdColumn . ') AS first_detected, MAX(' . $createdColumn . ') AS last_detected, COUNT(*) AS transaction_count '
+			. 'FROM `moneygram_partner_data` WHERE `branch_id` IS NOT NULL AND TRIM(`branch_id`) <> \'\' '
+			. 'GROUP BY TRIM(`branch_id`) ORDER BY MAX(' . $createdColumn . ') DESC';
+		$legacyCandidates = $filePdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+		$legacyCandidateIds = array_values(array_unique(array_filter(array_map(static function (array $row): string {
+			return trim((string) ($row['branch_id'] ?? ''));
+		}, $legacyCandidates))));
+		$profilesByBranchId = [];
+		if ($legacyCandidateIds !== []) {
+			$masterPdo = masterDataConnection();
+			foreach (array_chunk($legacyCandidateIds, 500) as $idChunk) {
+				$placeholders = implode(',', array_fill(0, count($idChunk), '?'));
+				$stmt = $masterPdo->prepare("SELECT TRIM(branch_id) AS branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE TRIM(branch_id) IN ($placeholders)");
+				$stmt->execute($idChunk);
+				foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $profile) {
+					$profilesByBranchId[trim((string) ($profile['branch_id'] ?? ''))] = $profile;
+				}
+			}
+		}
+
+		foreach ($legacyCandidates as $candidate) {
+			$branchId = trim((string) ($candidate['branch_id'] ?? ''));
+			$profile = $profilesByBranchId[$branchId] ?? null;
+			// A genuinely new branch belongs on the New Branch IDs card, not here.
+			if ($profile === null || trim((string) ($profile['legacyid_moneygram'] ?? '')) !== '') continue;
+			$candidate['branch_name'] = trim((string) ($profile['branch_name'] ?? ''));
+			$candidate['partner_name'] = 'MONEYGRAM';
+			$missingMoneygramLegacyBranches[] = $candidate;
+		}
+	}
+} catch (Throwable $e) {
+	$missingLegacyLookupAvailable = false;
+	$missingMoneygramLegacyBranches = [];
+}
+
+$missingMoneygramLegacyCount = count($missingMoneygramLegacyBranches);
+$missingMoneygramLegacyTransactionCount = array_sum(array_map(static function (array $row): int {
+	return (int) ($row['transaction_count'] ?? 0);
+}, $missingMoneygramLegacyBranches));
 
 $motivationalQuotes = [
 	'Small progress every day adds up to meaningful results.',
@@ -115,7 +266,139 @@ $quoteOfTheDay = $motivationalQuotes[array_rand($motivationalQuotes)];
 				<div class="sys-line">Last Login: <?= htmlspecialchars($lastLoginDisplay, ENT_QUOTES, 'UTF-8') ?></div>
 			</div>
 		</div>
+
+		<?php if ($isDashboardAdmin): ?>
+		<div class="card new-branches-card<?= $unmappedBranchCount > 0 ? ' has-unmapped-branches' : '' ?>">
+			<h3>New Branch IDs</h3>
+			<div class="card-body new-branches-summary">
+				<?php if (!$unmappedBranchLookupAvailable): ?>
+					<div class="new-branches-state is-unavailable">
+						<span class="material-icons" aria-hidden="true">cloud_off</span>
+						<span>Branch information is currently unavailable.</span>
+					</div>
+				<?php elseif ($unmappedBranchCount === 0): ?>
+					<div class="new-branches-state is-clear">
+						<span class="material-icons" aria-hidden="true">verified</span>
+						<span>All detected branch IDs are in master data.</span>
+					</div>
+				<?php else: ?>
+					<div class="new-branches-metric">
+						<strong><?= number_format($unmappedBranchCount) ?></strong>
+						<span>unmapped <?= $unmappedBranchCount === 1 ? 'branch' : 'branches' ?></span>
+					</div>
+					<p><?= number_format($unmappedTransactionCount) ?> affected <?= $unmappedTransactionCount === 1 ? 'transaction' : 'transactions' ?></p>
+					<button id="openUnmappedBranchesModal" type="button" class="new-branches-view-btn">
+						<span class="material-icons" aria-hidden="true">account_tree</span>
+						View branches
+					</button>
+				<?php endif; ?>
+			</div>
+		</div>
+
+		<div class="card legacy-ids-card<?= $missingMoneygramLegacyCount > 0 ? ' has-missing-legacy' : '' ?>">
+			<h3>Legacy IDs</h3>
+			<div class="card-body new-branches-summary">
+				<?php if (!$missingLegacyLookupAvailable): ?>
+					<div class="new-branches-state is-unavailable">
+						<span class="material-icons" aria-hidden="true">cloud_off</span>
+						<span>Legacy ID information is currently unavailable.</span>
+					</div>
+				<?php elseif ($missingMoneygramLegacyCount === 0): ?>
+					<div class="new-branches-state is-clear">
+						<span class="material-icons" aria-hidden="true">verified</span>
+						<span>All detected partner branches have registered Legacy IDs.</span>
+					</div>
+				<?php else: ?>
+					<div class="new-branches-metric legacy-ids-metric">
+						<strong><?= number_format($missingMoneygramLegacyCount) ?></strong>
+						<span>missing Legacy <?= $missingMoneygramLegacyCount === 1 ? 'ID' : 'IDs' ?></span>
+					</div>
+					<p><?= number_format($missingMoneygramLegacyTransactionCount) ?> affected <?= $missingMoneygramLegacyTransactionCount === 1 ? 'record' : 'records' ?></p>
+					<button id="openMissingLegacyModal" type="button" class="new-branches-view-btn legacy-ids-view-btn">
+						<span class="material-icons" aria-hidden="true">badge</span>
+						View Legacy IDs
+					</button>
+				<?php endif; ?>
+			</div>
+		</div>
+		<?php endif; ?>
 	</div>
+
+	<?php if ($isDashboardAdmin && $unmappedBranchCount > 0): ?>
+		<div id="unmappedBranchesModal" class="unmapped-branches-modal" role="dialog" aria-modal="true" aria-labelledby="unmappedBranchesModalTitle" aria-hidden="true">
+			<div class="unmapped-branches-modal__card">
+				<div class="unmapped-branches-modal__head">
+					<div>
+						<h2 id="unmappedBranchesModalTitle">New Branch IDs</h2>
+						<p>These IDs were detected in uploaded KPX or Partner Data but are not yet in the branch master data.</p>
+					</div>
+					<button type="button" class="unmapped-branches-modal__close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button>
+				</div>
+				<div class="unmapped-branches-modal__table-wrap">
+					<table class="unmapped-branches-table">
+						<thead><tr><th>Branch ID</th><th>Partner</th><th>First Detected</th><th>Last Detected</th><th>Transactions</th></tr></thead>
+						<tbody>
+						<?php foreach ($unmappedBranches as $branch): ?>
+							<tr>
+								<td><strong><?= htmlspecialchars((string) ($branch['branch_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong></td>
+								<td><?= htmlspecialchars((string) ($branch['partner_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></td>
+								<td><?= !empty($branch['first_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['first_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+								<td><?= !empty($branch['last_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['last_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+								<td><?= number_format((int) ($branch['transaction_count'] ?? 0)) ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+				<div class="unmapped-branches-modal__foot">
+					<span>Add these branch IDs to <code>branch_profile</code> to resolve them.</span>
+					<div class="unmapped-branches-modal__actions">
+						<button id="exportUnmappedBranches" type="button" class="new-branches-view-btn unmapped-branches-export-btn">
+							<span class="material-icons" aria-hidden="true">file_download</span>
+							Export
+						</button>
+						<button type="button" class="new-branches-view-btn unmapped-branches-modal__done">Done</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	<?php endif; ?>
+
+	<?php if ($isDashboardAdmin && $missingMoneygramLegacyCount > 0): ?>
+		<div id="missingLegacyModal" class="unmapped-branches-modal" role="dialog" aria-modal="true" aria-labelledby="missingLegacyModalTitle" aria-hidden="true">
+			<div class="unmapped-branches-modal__card">
+				<div class="unmapped-branches-modal__head">
+					<div>
+						<h2 id="missingLegacyModalTitle">Missing Legacy IDs</h2>
+						<p>These branches exist in master data but the Legacy ID for the listed corporate partner is blank.</p>
+					</div>
+					<button type="button" class="unmapped-branches-modal__close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button>
+				</div>
+				<div class="unmapped-branches-modal__table-wrap">
+					<table class="unmapped-branches-table legacy-ids-table">
+						<thead><tr><th>Branch ID</th><th>Branch Name</th><th>Corporate Partner</th><th>Detected Legacy ID</th><th>First Detected</th><th>Last Detected</th><th>Records</th></tr></thead>
+						<tbody>
+						<?php foreach ($missingMoneygramLegacyBranches as $branch): ?>
+							<tr>
+								<td><strong><?= htmlspecialchars((string) ($branch['branch_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong></td>
+								<td><?= htmlspecialchars((string) ($branch['branch_name'] ?: 'Unnamed branch'), ENT_QUOTES, 'UTF-8') ?></td>
+								<td><?= htmlspecialchars((string) ($branch['partner_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></td>
+								<td><?= trim((string) ($branch['detected_legacy_id'] ?? '')) !== '' ? htmlspecialchars((string) $branch['detected_legacy_id'], ENT_QUOTES, 'UTF-8') : '—' ?></td>
+								<td><?= !empty($branch['first_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['first_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+								<td><?= !empty($branch['last_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['last_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+								<td><?= number_format((int) ($branch['transaction_count'] ?? 0)) ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+				<div class="unmapped-branches-modal__foot">
+					<span>Register the corresponding corporate-partner Legacy ID to resolve these entries.</span>
+					<button type="button" class="new-branches-view-btn unmapped-branches-modal__done">Done</button>
+				</div>
+			</div>
+		</div>
+	<?php endif; ?>
 
 	<div class="quote-card" aria-label="Motivational quote">
 		<h3>Motivational Quotes</h3>
@@ -124,6 +407,118 @@ $quoteOfTheDay = $motivationalQuotes[array_rand($motivationalQuotes)];
 
 </section>
 <?php include __DIR__ . '/../../../modals/user/add-user-modal.php'; ?>
+
+<script>
+(function(){
+	const modal = document.getElementById('unmappedBranchesModal');
+	const openButton = document.getElementById('openUnmappedBranchesModal');
+	if (!modal || !openButton) return;
+	const closeButtons = modal.querySelectorAll('.unmapped-branches-modal__close, .unmapped-branches-modal__done');
+	const exportButton = document.getElementById('exportUnmappedBranches');
+
+	function openModal(){
+		modal.classList.add('is-open');
+		modal.setAttribute('aria-hidden', 'false');
+		document.body.classList.add('has-dashboard-modal');
+		const closeButton = modal.querySelector('.unmapped-branches-modal__close');
+		if (closeButton) closeButton.focus();
+	}
+	function closeModal(){
+		modal.classList.remove('is-open');
+		modal.setAttribute('aria-hidden', 'true');
+		document.body.classList.remove('has-dashboard-modal');
+		openButton.focus();
+	}
+
+	openButton.addEventListener('click', openModal);
+	closeButtons.forEach(button => button.addEventListener('click', closeModal));
+	if (exportButton) {
+		exportButton.addEventListener('click', async function(){
+			const table = modal.querySelector('.unmapped-branches-table');
+			if (!table) return;
+			const rows = Array.from(table.querySelectorAll('tbody tr')).map(function(row){
+				const cells = row.querySelectorAll('td');
+				return {
+					branch_id: String(cells[0] ? cells[0].textContent : '').trim(),
+					partner: String(cells[1] ? cells[1].textContent : '').trim(),
+					first_detected: String(cells[2] ? cells[2].textContent : '').trim(),
+					last_detected: String(cells[3] ? cells[3].textContent : '').trim(),
+					transactions: parseInt(String(cells[4] ? cells[4].textContent : '0').replace(/,/g, ''), 10) || 0
+				};
+			});
+			const originalHtml = exportButton.innerHTML;
+			exportButton.disabled = true;
+			exportButton.innerHTML = '<span class="material-icons" aria-hidden="true">hourglass_top</span>Exporting...';
+			try {
+				const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/unmapped-branches-export.php', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ rows: rows })
+				});
+				if (!response.ok) {
+					let message = 'Failed to export the Excel file.';
+					try { const error = await response.json(); if (error && error.error) message = error.error; } catch (e) {}
+					throw new Error(message);
+				}
+				const blob = await response.blob();
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement('a');
+				link.href = url;
+				link.download = 'new-branch-ids-' + new Date().toISOString().slice(0, 10) + '.xlsx';
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+				setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+			} catch (error) {
+				const message = error && error.message ? error.message : 'Failed to export the Excel file.';
+				if (window.Swal && typeof window.Swal.fire === 'function') {
+					window.Swal.fire({ icon: 'error', title: 'Export Failed', text: message, confirmButtonColor: '#dc3545' });
+				} else {
+					window.alert(message);
+				}
+			} finally {
+				exportButton.disabled = false;
+				exportButton.innerHTML = originalHtml;
+			}
+		});
+	}
+	modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+	document.addEventListener('keydown', event => {
+		if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+	});
+})();
+</script>
+
+<script>
+(function(){
+	const modal = document.getElementById('missingLegacyModal');
+	const openButton = document.getElementById('openMissingLegacyModal');
+	if (!modal || !openButton) return;
+	const closeButtons = modal.querySelectorAll('.unmapped-branches-modal__close, .unmapped-branches-modal__done');
+
+	function openModal(){
+		modal.classList.add('is-open');
+		modal.setAttribute('aria-hidden', 'false');
+		document.body.classList.add('has-dashboard-modal');
+		const closeButton = modal.querySelector('.unmapped-branches-modal__close');
+		if (closeButton) closeButton.focus();
+	}
+	function closeModal(){
+		modal.classList.remove('is-open');
+		modal.setAttribute('aria-hidden', 'true');
+		document.body.classList.remove('has-dashboard-modal');
+		openButton.focus();
+	}
+
+	openButton.addEventListener('click', openModal);
+	closeButtons.forEach(button => button.addEventListener('click', closeModal));
+	modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+	document.addEventListener('keydown', event => {
+		if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+	});
+})();
+</script>
 
 <script>
 (function(){
