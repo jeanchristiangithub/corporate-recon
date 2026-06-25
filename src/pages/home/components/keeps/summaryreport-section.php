@@ -189,37 +189,10 @@ $partnerInputChars = min($partnerInputChars, 90);
             background: #eaf0f7;
             font-weight: 700;
             text-align: center;
-            vertical-align: middle;
-        }
-
-        .summary-report-content .mg-cover tbody tr:nth-child(1) th {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-        }
-
-        .summary-report-content .mg-cover tbody tr:nth-child(2) th {
-            position: sticky;
-            top: 30px;
-            z-index: 4;
-        }
-
-        .summary-report-content .mg-cover tbody tr:nth-child(3) th {
-            position: sticky;
-            top: 60px;
-            z-index: 4;
         }
 
         .summary-report-content .mg-cover td:first-child,
-        .summary-report-content .mg-cover tbody tr:nth-child(1) th:first-child {
-            text-align: center;
-            position: sticky;
-            left: 0;
-            background: #eaf0f7;
-            z-index: 7;
-        }
-
-        .summary-report-content .mg-cover td:first-child {
+        .summary-report-content .mg-cover th:first-child {
             text-align: left;
             position: sticky;
             left: 0;
@@ -227,74 +200,39 @@ $partnerInputChars = min($partnerInputChars, 90);
             z-index: 2;
         }
 
-        .summary-report-content .mg-cover__heading {
-            display: none;
-            flex: 1 1 auto;
-            padding: .35rem 1rem;
+        .summary-report-content .mg-cover thead th:first-child {
+            background: #eaf0f7;
+            z-index: 3;
+        }
+
+        .summary-report-content .mg-cover__title-row td {
             background: #fff;
-            text-align: center;
-            min-width: 220px;
-        }
-
-        .summary-report-content .mg-cover__heading.is-visible {
-            display: block;
-        }
-
-        .summary-report-content .mg-cover__title {
-            margin: 0 0 .45rem;
-            color: #111827;
             font-size: .95rem;
             font-weight: 800;
+            text-align: left;
         }
 
-        .summary-report-content .mg-cover__currency {
-            color: #111827;
-            font-size: .78rem;
+        .summary-report-content .mg-cover__sub-row td {
+            background: #fff;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .summary-report-content .mg-cover__currency-row td {
+            background: #fff;
             font-weight: 800;
+            text-align: left;
+        }
+
+        .summary-report-content .mg-cover__title-row td:first-child,
+        .summary-report-content .mg-cover__sub-row td:first-child,
+        .summary-report-content .mg-cover__currency-row td:first-child {
+            position: static;
         }
 
         .summary-report-content .mg-cover__total td {
             background: #f8fafc;
             font-weight: 800;
-            position: sticky;
-            bottom: 0;
-            z-index: 4;
-        }
-
-        .summary-report-content .mg-cover__total td:first-child {
-            z-index: 6;
-        }
-
-        .summary-report-content .mg-cover tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):hover td {
-            filter: brightness(0.96);
-        }
-
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(2),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(-n+3),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(-n+12),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+2):nth-child(-n+13) {
-            background: #f3f5a9;
-        }
-
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(3),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(n+4):nth-child(-n+6),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+13):nth-child(-n+22),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+14):nth-child(-n+23) {
-            background: #d0e4ee;
-        }
-
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(4),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(7),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+23),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+24) {
-            background: #c1ebc0;
-        }
-
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(5),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(8),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+27),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+28) {
-            background: #c7caff;
         }
 
         .summary-report-content .mg-cover__message {
@@ -346,7 +284,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         }
 
         .summary-report-content .summary-export-spacer {
-            flex: 0 0 auto;
+            flex: 1 1 auto;
         }
 
         .summary-report-content .summary-download-section {
@@ -395,19 +333,13 @@ $partnerInputChars = min($partnerInputChars, 90);
             .summary-report-content .summary-export-spacer {
                 display: none;
             }
-
-            .summary-report-content .mg-cover__heading {
-                order: 2;
-                flex-basis: 100%;
-                min-width: 0;
-            }
         }
     </style>
 
     <div class="summary-heading">
         <div>
-            <h3>Reconciliation and Variance Summary Report</h3>
-            <!-- <p>Daily partner-vs-web reconciliation summary in the same cover-sheet format as the uploaded Excel files.</p> -->
+            <h3>Summary Report</h3>
+            <p>Daily partner-vs-web reconciliation summary in the same cover-sheet format as the uploaded Excel files.</p>
         </div>
     </div>
 
@@ -415,7 +347,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         <label for="summaryPartner" class="summary-field">
             Corporate Partner
             <div class="autocomplete-field">
-                <input id="summaryPartner" name="partner" class="summary-partner-input" placeholder="Select or Type here..." autocomplete="off">
+                <input id="summaryPartner" name="partner" class="summary-partner-input" placeholder="Search corporate partner" autocomplete="off">
                 <ul class="autocomplete-list" id="summaryPartnerSuggestions" role="listbox" hidden></ul>
             </div>
         </label>
@@ -423,7 +355,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             Month
             <input id="summaryMonth" class="summary-input" type="month">
         </label>
-        <button id="summarySubmit" class="summary-button" type="submit">Generate</button>
+        <button id="summarySubmit" class="summary-button" type="submit">View Report</button>
     </form>
 
     <div id="moneygramCoverMessage" class="mg-cover__message"></div>
@@ -433,10 +365,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="payout" data-moneygram-currency="usd" role="tab" aria-selected="false">Payout USD</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="php" role="tab" aria-selected="false">Sendout PHP</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="usd" role="tab" aria-selected="false">Sendout USD</button>
-        <div id="moneygramCoverHeading" class="mg-cover__heading">
-            <div id="moneygramCoverTitle" class="mg-cover__title"></div>
-            <div id="moneygramCoverCurrency" class="mg-cover__currency"></div>
-        </div>
         <span class="summary-export-spacer" aria-hidden="true"></span>
         <button id="summaryExportExcel" class="summary-button summary-button--export" type="button" disabled>Export to Excel</button>
     </div>
@@ -476,9 +404,6 @@ $partnerInputChars = min($partnerInputChars, 90);
     const downloadLinkEl = document.getElementById('summaryDownloadLink');
     const exportHostEl = document.getElementById('summaryExportHost');
     const moneygramCover = document.getElementById('moneygramCover');
-    const moneygramCoverHeading = document.getElementById('moneygramCoverHeading');
-    const moneygramCoverTitle = document.getElementById('moneygramCoverTitle');
-    const moneygramCoverCurrency = document.getElementById('moneygramCoverCurrency');
     const moneygramCoverBody = document.getElementById('moneygramCoverBody');
     const moneygramCoverMessage = document.getElementById('moneygramCoverMessage');
     const moneygramCoverTabs = document.getElementById('moneygramCoverTabs');
@@ -666,40 +591,23 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function groupHeaders(groups) {
-        return '<tr>' + groups.map(group => {
-            const colspan = group.span && group.span > 1 ? ` colspan="${group.span}"` : '';
-            const rowspan = group.rowspan && group.rowspan > 1 ? ` rowspan="${group.rowspan}"` : '';
-            return `<th${colspan}${rowspan}>${group.label}</th>`;
-        }).join('') + '</tr>';
+        return '<tr>' + groups.map(group => `<th colspan="${group.span}">${group.label}</th>`).join('') + '</tr>';
     }
 
     function columnHeaders(labels) {
         return '<tr>' + labels.map(label => `<th>${label}</th>`).join('') + '</tr>';
     }
 
-    function setCoverHeading(title, currency) {
-        if (!moneygramCoverHeading || !moneygramCoverTitle || !moneygramCoverCurrency) return;
-        const hasHeading = Boolean(title || currency);
-        moneygramCoverTitle.textContent = title || '';
-        moneygramCoverCurrency.textContent = currency || '';
-        moneygramCoverHeading.classList.toggle('is-visible', hasHeading);
-    }
-
-    function netPartnerRevShare(partner, cancelled) {
-        return Number((partner || {}).fx || 0) - Number((cancelled || {}).fx || 0);
-    }
-
     function payoutRow(row) {
         const partner = amountGroup(row, 'partner');
-        const cancelled = amountGroup(row, 'cancelled');
         const web = amountGroup(row, 'web');
         const netWeb = amountGroup(row, 'net_web');
         const variance = amountGroup(row, 'variance');
         return '<tr>'
             + td(fmtDate(row.date))
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(netPartnerRevShare(partner, cancelled))) + td(fmtMoney(partner.commission))
+            + td('') + td('') + td('') + td('')
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td('') + td('') + td('') + td('')
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
@@ -709,15 +617,14 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function payoutTotalRow(totals) {
         const partner = totals.partner || {};
-        const cancelled = totals.cancelled || {};
         const web = totals.web || {};
         const netWeb = totals.net_web || {};
         const variance = totals.variance || {};
         return '<tr class="mg-cover__total">'
             + td('Grand total')
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(netPartnerRevShare(partner, cancelled))) + td(fmtMoney(partner.commission))
+            + td('') + td('') + td('') + td('')
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td('') + td('') + td('') + td('')
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
@@ -747,7 +654,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtDate(row.date))
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
             + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
@@ -769,7 +676,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td('Grand total')
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
             + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
@@ -795,7 +702,6 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function renderMoneygramCover(data, cover, currency) {
-        moneygramCover.classList.add('is-moneygram');
         const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
         const selectedCover = cover === 'sendout' ? 'sendout' : 'payout';
         const reportsKey = selectedCover === 'sendout' ? 'sendout_reports' : 'currency_reports';
@@ -805,58 +711,47 @@ $partnerInputChars = min($partnerInputChars, 90);
         const rows = Array.isArray(selectedReport.rows) ? selectedReport.rows : [];
         const totals = selectedReport.totals || {};
         const reportStart = data.start_date || '';
-        const currencyLabel = 'Currency ' + selectedCurrency.toUpperCase();
-        const partnerLabel = String(partnerEl && partnerEl.value ? partnerEl.value : 'MONEYGRAM').trim() || 'MONEYGRAM';
+        const currencyLabel = selectedCurrency.toUpperCase() + ' Trxns';
         showWicTabs(false);
-        const payoutSections = [
-            { label: 'Date', span: 1, rowspan: 3 },
-            { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 10 },
-            { label: 'VARIANCE', span: 3 }
-        ];
         const payoutGroups = [
-            { label: partnerLabel, span: 4 },
-            { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 4 },
+            { label: '', span: 1 },
+            { label: 'MONEYGRAM', span: 4 },
+            { label: 'RRC', span: 4 },
+            { label: 'NET TRXNS(MONEYGRAM)', span: 3 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 3 },
-            { label: `${partnerLabel} DATA vs KPX DATA`, span: 3 }
+            { label: 'KPX NET', span: 3 },
+            { label: 'MONEYGRAM VS. KPX VARIANCE', span: 3 }
         ];
         const payoutLabels = [
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Comm',
-            'Volume', 'Principal', 'Comm'
-        ];
-        const sendoutSections = [
-            { label: 'Date', span: 1, rowspan: 3 },
-            { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 10 },
-            { label: 'VARIANCE', span: 4 },
-            { label: `${partnerLabel} SETTLEMENT`, span: 3, rowspan: 2 }
+            'Date', 'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'Commission',
+            'Count', 'Principal', 'CHARGE',
+            'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'Commission',
+            'Count', 'Principal', 'Commission'
         ];
         const sendoutGroups = [
-            { label: selectedCurrency === 'usd' ? 'GROSS' : partnerLabel, span: 4 },
+            { label: '', span: 1 },
+            { label: selectedCurrency === 'usd' ? 'GROSS' : 'MONEYGRAM', span: 4 },
             { label: 'REFUND', span: 4 },
-            { label: 'NET', span: 4 },
+            { label: 'NET TRXNS(MONEYGRAM)', span: 3 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 3 },
-            { label: `${partnerLabel} DATA vs KPX DATA`, span: 4 }
+            { label: 'KPX NET', span: 3 },
+            { label: 'MONEYGRAM VS. KPX VARIANCE', span: 4 },
+            { label: 'MONEYGRAM SETTLEMENT', span: 3 }
         ];
         const sendoutLabels = [
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Comm',
-            'Volume', 'Principal', 'Comm', 'fee',
-            'Volume', 'Amount', 'Variance'
+            'Date', 'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'Commission',
+            'Count', 'Principal', 'CHARGE',
+            'Count', 'Principal', 'FX', 'Commission',
+            'Count', 'Principal', 'Commission',
+            'Count', 'Principal', 'Commission', 'fee',
+            'Count', 'Amount', 'Variance'
         ];
 
         if (selectedCover === 'sendout') {
@@ -868,22 +763,24 @@ $partnerInputChars = min($partnerInputChars, 90);
                 if (payoutRowForDate && payoutRowForDate.date) payoutRowsByDate[payoutRowForDate.date] = payoutRowForDate;
             });
             moneygramCoverBody.innerHTML = [
-                groupHeaders(sendoutSections),
+                `<tr class="mg-cover__title-row">${tdSpan('Moneygram Sendout', 29)}</tr>`,
+                `<tr class="mg-cover__sub-row">${tdSpan(fmtNumericDate(reportStart), 29)}</tr>`,
+                `<tr class="mg-cover__currency-row">${tdSpan(currencyLabel, 29)}</tr>`,
                 groupHeaders(sendoutGroups),
                 columnHeaders(sendoutLabels),
                 rows.map(row => sendoutRow(row, payoutRowsByDate[row.date])).join(''),
                 sendoutTotalRow(totals, payoutReport.totals || {})
             ].join('');
-            setCoverHeading('Moneygram Sendout', currencyLabel);
         } else {
             moneygramCoverBody.innerHTML = [
-                groupHeaders(payoutSections),
+                `<tr class="mg-cover__title-row">${tdSpan('Moneygram Payout', 25)}</tr>`,
+                `<tr class="mg-cover__sub-row">${tdSpan(fmtNumericDate(reportStart), 25)}</tr>`,
+                `<tr class="mg-cover__currency-row">${tdSpan(currencyLabel, 25)}</tr>`,
                 groupHeaders(payoutGroups),
                 columnHeaders(payoutLabels),
                 rows.map(payoutRow).join(''),
                 payoutTotalRow(totals)
             ].join('');
-            setCoverHeading('Moneygram Payout', currencyLabel);
         }
 
         moneygramCover.classList.add('is-visible');
@@ -951,10 +848,8 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function renderMbtcCover(data) {
-        moneygramCover.classList.remove('is-moneygram');
         const rows = Array.isArray(data.rows) ? data.rows : [];
         const totals = data.totals || {};
-        setCoverHeading('', '');
         showMoneygramTabs(false);
         showWicTabs(false);
         const groups = [
@@ -1044,13 +939,11 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function renderWicCover(data, currency) {
-        moneygramCover.classList.remove('is-moneygram');
         const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
         const report = getWicCurrencyReport(data, selectedCurrency);
         const rows = Array.isArray(report.rows) ? report.rows : [];
         const totals = report.totals || {};
         const title = selectedCurrency === 'usd' ? 'WIC USD' : 'WIC PHP';
-        setCoverHeading('', '');
         const groups = [
             { label: '', span: 1 },
             { label: title, span: 2 },

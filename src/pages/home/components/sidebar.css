@@ -26,6 +26,11 @@
     overflow: hidden;
 }
 
+.app-sidebar.is-avatar-menu-open,
+.app-sidebar:has(.sidebar-avatar-form.is-menu-open) {
+    overflow: visible;
+}
+
 /* Subtle edge shimmer line */
 .app-sidebar::after {
     content: '';
@@ -50,7 +55,7 @@
 
 /* ─── Burger button ───────────────────────────────────────────────── */
 .sidebar-burger {
-    position: fixed;
+    position: absolute;
     left: 12px;
     top: 12px;
     width: 38px;
@@ -68,18 +73,38 @@
     transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.app-sidebar.is-open .sidebar-burger {
+    left: auto;
+    right: 10px;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: none;
+}
+
 .sidebar-burger:hover {
     background: #fff5f5;
     transform: scale(1.06);
     box-shadow: 0 4px 14px rgba(0,0,0,0.16);
 }
 
+.app-sidebar.is-open .sidebar-burger:hover {
+    background: rgba(255,255,255,0.16);
+    box-shadow: none;
+}
+
 .sidebar-burger:active {
     transform: scale(0.96);
 }
 
-.sidebar-burger svg {
+.sidebar-burger svg,
+.sidebar-burger .material-icons {
     display: block;
+}
+
+.sidebar-burger .material-icons {
+    font-size: 24px;
+    line-height: 1;
 }
 
 /* ─── Close button ────────────────────────────────────────────────── */
@@ -179,7 +204,7 @@
     border-radius: 8px;
     background: #fff;
     box-shadow: 0 12px 28px rgba(17,24,39,0.22);
-    z-index: 1260;
+    z-index: 1400;
 }
 
 .sidebar-avatar-form.is-menu-open .avatar-menu {

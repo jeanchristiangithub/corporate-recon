@@ -18,8 +18,10 @@
 
             <div class="moneygram-recon-modal__controls">
                 <label class="cmp-control-search"><input data-role="resultSearch" type="search" placeholder="Search"></label>
+                <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
                 <label class="cmp-control-filter">Show: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
                 <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
+                <button id="moneygramExportExcelBtn" class="moneygram-lock-all-btn" type="button">Export to Excel</button>
             </div>
 
         </div>
@@ -275,8 +277,44 @@ window.showSuccessToast = function(message, timeout){
     if(!modal) return;
 
     const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
+    const exportExcelBtn = modal.querySelector('#moneygramExportExcelBtn');
     const LOCK_LABEL = 'LOCK MATCHED TRANSACTIONS';
     const UNLOCK_LABEL = 'UNLOCK MATCHED TRANSACTIONS';
+
+    if(exportExcelBtn && exportExcelBtn.dataset.bound !== 'true'){
+        exportExcelBtn.dataset.bound = 'true';
+        exportExcelBtn.addEventListener('click', function(e){
+            e.preventDefault();
+            const startEl = document.getElementById('hsStartDate');
+            const endEl = document.getElementById('hsEndDate');
+            const companyEl = document.getElementById('hsCompany');
+            const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
+            const filterEl = modal.querySelector('[data-role="resultFilter"]');
+            const startDate = startEl ? String(startEl.value || '').trim() : '';
+            const endDate = endEl ? String(endEl.value || '').trim() : '';
+            const partnerName = companyEl && String(companyEl.value || '').trim() ? String(companyEl.value || '').trim() : 'MONEYGRAM';
+            const currency = currencyEl ? String(currencyEl.value || 'all').trim() : 'all';
+            const filter = filterEl ? String(filterEl.value || 'all').trim() : 'all';
+
+            if(!startDate || !endDate){
+                if(window.showAlertModal){
+                    window.showAlertModal('Please select start and end date before exporting.', { title: 'Missing Date', icon: 'warning' });
+                } else {
+                    alert('Please select start and end date before exporting.');
+                }
+                return;
+            }
+
+            const baseUrl = window.autoreconBaseUrl || '';
+            const url = baseUrl + '/src/modals/generate/recon-details-report/excel/moneygram-recon/moneygram-recon-format.php'
+                + '?start_date=' + encodeURIComponent(startDate)
+                + '&end_date=' + encodeURIComponent(endDate)
+                + '&partnerName=' + encodeURIComponent(partnerName)
+                + '&currency=' + encodeURIComponent(currency)
+                + '&filter=' + encodeURIComponent(filter);
+            window.location.href = url;
+        });
+    }
     
     // Setup warning modal button handlers ONCE (not repeatedly)
     const warningModal = document.getElementById('moneygramWarningModal');
@@ -323,6 +361,8 @@ window.showSuccessToast = function(message, timeout){
                     // Clear any search/filter state
                     const searchEl = modal.querySelector('[data-role="resultSearch"]');
                     if(searchEl) searchEl.value = '';
+                    const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
+                    if(currencyEl) currencyEl.value = 'all';
                     const filterEl = modal.querySelector('[data-role="resultFilter"]');
                     if(filterEl) filterEl.value = 'all';
                     

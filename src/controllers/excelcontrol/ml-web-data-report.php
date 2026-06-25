@@ -95,6 +95,8 @@ try {
     $php_total = 0.0;
     $usd_total = 0.0;
     $charge_total = 0.0;
+    $php_commission_total = 0.0;
+    $usd_commission_total = 0.0;
 
     // Apply transaction-type specific filters based on presence of date_send
     // PAYOUT: date_send IS NULL OR date_send = ''
@@ -149,6 +151,14 @@ try {
             . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "PHP" THEN COALESCE(amount,0) ELSE 0 END), 0) AS php_total, '
             . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "USD" THEN COALESCE(amount,0) ELSE 0 END), 0) AS usd_total';
 
+        if (isset($availableColumns['ctp'])) {
+            $totalsSelect .= ', '
+                . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "PHP" THEN COALESCE(ctp,0) ELSE 0 END), 0) AS php_commission_total, '
+                . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "USD" THEN COALESCE(ctp,0) ELSE 0 END), 0) AS usd_commission_total';
+        } else {
+            $totalsSelect .= ', 0 AS php_commission_total, 0 AS usd_commission_total';
+        }
+
         if (isset($availableColumns['charge'])) {
             // Sum charge treating blank strings as 0
             $totalsSelect .= ', COALESCE(SUM(CASE WHEN TRIM(COALESCE(charge, "")) = "" THEN 0 ELSE charge END), 0) AS charge_total';
@@ -160,6 +170,8 @@ try {
         $totRow = $totStmt->fetch(PDO::FETCH_ASSOC);
         $php_total = isset($totRow['php_total']) ? (float)$totRow['php_total'] : 0.0;
         $usd_total = isset($totRow['usd_total']) ? (float)$totRow['usd_total'] : 0.0;
+        $php_commission_total = isset($totRow['php_commission_total']) ? (float)$totRow['php_commission_total'] : 0.0;
+        $usd_commission_total = isset($totRow['usd_commission_total']) ? (float)$totRow['usd_commission_total'] : 0.0;
         if (isset($totRow['charge_total'])) {
             $charge_total = (float)$totRow['charge_total'];
         } else {
@@ -169,6 +181,8 @@ try {
         $php_total = 0.0;
         $usd_total = 0.0;
         $charge_total = 0.0;
+        $php_commission_total = 0.0;
+        $usd_commission_total = 0.0;
     }
 
     $countSql = 'SELECT COUNT(*)' . $whereSql;
@@ -230,7 +244,9 @@ try {
         'rows' => $rows,
         'php_total' => $php_total,
         'usd_total' => $usd_total,
-        'charge_total' => $charge_total
+        'charge_total' => $charge_total,
+        'php_commission_total' => $php_commission_total,
+        'usd_commission_total' => $usd_commission_total
     ]);
     exit;
 

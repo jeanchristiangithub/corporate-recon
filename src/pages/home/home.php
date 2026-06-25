@@ -46,10 +46,9 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/home.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/header.css">
-    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/sidebar.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
-    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/home-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
@@ -70,10 +69,8 @@ if ($currentUserId !== '') {
 <?php include __DIR__ . '/components/header.php'; ?>
 
 <aside id="appSidebar" class="app-sidebar" aria-hidden="true">
-    <button id="sidebarClose" class="sidebar-close" aria-label="Close sidebar">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+    <button id="sidebarBurger" class="sidebar-burger" type="button" aria-label="Toggle sidebar menu" aria-expanded="false" aria-controls="appSidebar">
+        <span class="material-icons" aria-hidden="true">menu</span>
     </button>
     <div class="sidebar-user" role="region" aria-label="User">
         <form class="sidebar-avatar-form" action="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/config/profile-photo-handler.php" method="post" enctype="multipart/form-data" data-profile-photo-url="<?= htmlspecialchars($profilePhotoUrl, ENT_QUOTES, 'UTF-8') ?>">
@@ -188,7 +185,7 @@ if ($currentUserId !== '') {
     </nav>
 </aside>
 <main class="home-main">
-    <?php include __DIR__ . '/components/home-section.php'; ?>
+    <?php include __DIR__ . '/components/recon-section.php'; ?>
 
     <section id="dashboardSection" class="dashboard-section" aria-label="Dashboard" style="display:none; padding:1rem">
         <?php include __DIR__ . '/components/dashboard.php'; ?>
@@ -213,7 +210,6 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
-    <?php include __DIR__ . '/components/recon-section.php'; ?>
 </main>
 
     <?php include __DIR__ . '/../../modals/comparisonresult/view-result-modal.php'; ?>
@@ -235,7 +231,7 @@ if ($currentUserId !== '') {
 <script>
 (function(){
     const sb = document.getElementById('appSidebar');
-    const closeBtn = document.getElementById('sidebarClose');
+    const burgerBtn = document.getElementById('sidebarBurger');
     const main = document.querySelector('main.home-main');
     const header = document.querySelector('.home-header');
     if (!sb) return;
@@ -243,6 +239,12 @@ if ($currentUserId !== '') {
     function openSidebar() {
         sb.classList.add('is-open');
         sb.setAttribute('aria-hidden', 'false');
+        if (burgerBtn) {
+            burgerBtn.setAttribute('aria-expanded', 'true');
+            burgerBtn.setAttribute('aria-label', 'Close sidebar menu');
+            const icon = burgerBtn.querySelector('.material-icons');
+            if (icon) icon.textContent = 'close';
+        }
         if (main) main.style.marginLeft = sb.offsetWidth + 'px';
         if (typeof updateHeaderPosition === 'function') updateHeaderPosition();
     }
@@ -250,21 +252,24 @@ if ($currentUserId !== '') {
     function closeSidebar() {
         sb.classList.remove('is-open');
         sb.setAttribute('aria-hidden', 'true');
+        if (burgerBtn) {
+            burgerBtn.setAttribute('aria-expanded', 'false');
+            burgerBtn.setAttribute('aria-label', 'Toggle sidebar menu');
+            const icon = burgerBtn.querySelector('.material-icons');
+            if (icon) icon.textContent = 'menu';
+        }
         if (main) main.style.marginLeft = '';
         if (typeof updateHeaderPosition === 'function') updateHeaderPosition();
     }
 
-    // close when clicking outside sidebar
-    document.addEventListener('click', function(e){
-        if (!sb.classList.contains('is-open')) return;
-        if (sb.contains(e.target)) return;
-        closeSidebar();
-    });
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function(e){
+    if (burgerBtn) {
+        burgerBtn.addEventListener('click', function(e){
             e.stopPropagation();
-            closeSidebar();
+            if (sb.classList.contains('is-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
         });
     }
 
@@ -284,28 +289,6 @@ if ($currentUserId !== '') {
 
     // update header position on resize
     window.addEventListener('resize', function(){ try{ if (typeof updateHeaderPosition==='function') updateHeaderPosition(); }catch(e){} });
-
-    // Auto-open/close behavior on hover-capable devices
-    try {
-        const canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
-        if (canHover) {
-            let hoverCloseTimer = null;
-            const hoverDelay = 700; // ms
-            sb.addEventListener('mouseenter', function(){
-                if (hoverCloseTimer) { clearTimeout(hoverCloseTimer); hoverCloseTimer = null; }
-                if (!sb.classList.contains('is-open')) {
-                    openSidebar();
-                }
-            });
-            sb.addEventListener('mouseleave', function(){
-                if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
-                hoverCloseTimer = setTimeout(function(){
-                    const activeInSidebar = document.activeElement && sb.contains(document.activeElement);
-                    if (!activeInSidebar) closeSidebar();
-                }, hoverDelay);
-            });
-        }
-    } catch (e) { /* ignore */ }
 
     function hideAllSectionTargets(){
         try{
@@ -330,8 +313,8 @@ if ($currentUserId !== '') {
                 group.classList.remove('is-open');
                 const toggle = group.querySelector('.nav-group-toggle');
                 const menu = group.querySelector('.nav-group-menu');
-                if(toggle) toggle.setAttribute('aria-expanded', 'false');
-                if(menu) menu.style.display = 'none';
+                if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                if (menu) menu.style.display = 'none';
             });
         }catch(e){ }
     }
@@ -356,7 +339,7 @@ if ($currentUserId !== '') {
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
                 maintenance: 'maintenanceSection',
-                recon: 'reconSection'
+                recon: 'homeSection'
             };
             return allowed[section] || 'dashboardSection';
         } catch (e) {
@@ -381,7 +364,6 @@ if ($currentUserId !== '') {
         navEl.addEventListener('click', function(e){
             try {
                 e.preventDefault();
-                if (!sb.classList.contains('is-open')) openSidebar();
                 if (id === 'navHome') {
                     collapseSidebarSubmenus();
                     dismissUserCreateAlert();
@@ -401,6 +383,9 @@ if ($currentUserId !== '') {
                     setTimeout(() => {
                         try { target.scrollIntoView({behavior:'auto', block:'start'}); } catch (e) {}
                     }, 40);
+                    if (navEl.closest('.nav-group-menu')) {
+                        closeSidebar();
+                    }
                 }
             } catch (err) {
                 console.error('[sidebar] nav click handler error', err);
@@ -426,7 +411,16 @@ if ($currentUserId !== '') {
                 const li = btn.closest('.nav-group');
                 if (!li) return;
                 const menu = li.querySelector('.nav-group-menu');
-                const open = li.classList.toggle('is-open');
+                const open = !li.classList.contains('is-open');
+                document.querySelectorAll('.sidebar-nav .nav-group').forEach(function(group){
+                    if (group === li) return;
+                    group.classList.remove('is-open');
+                    const groupToggle = group.querySelector('.nav-group-toggle');
+                    const groupMenu = group.querySelector('.nav-group-menu');
+                    if (groupToggle) groupToggle.setAttribute('aria-expanded', 'false');
+                    if (groupMenu) groupMenu.style.display = 'none';
+                });
+                li.classList.toggle('is-open', open);
                 if (menu) menu.style.display = open ? 'block' : 'none';
                 btn.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
@@ -460,15 +454,18 @@ window.addEventListener('DOMContentLoaded', function(){
     var input = form.querySelector('input[type="file"]');
     var actionInput = form.querySelector('input[name="profile_photo_action"]');
     var profilePhotoUrl = form.getAttribute('data-profile-photo-url') || '';
+    var sidebar = form.closest('.app-sidebar');
     if (!avatarButton || !menu || !input) return;
 
     function closeMenu() {
         form.classList.remove('is-menu-open');
+        if (sidebar) sidebar.classList.remove('is-avatar-menu-open');
         avatarButton.setAttribute('aria-expanded', 'false');
     }
 
     function toggleMenu() {
         var isOpen = form.classList.toggle('is-menu-open');
+        if (sidebar) sidebar.classList.toggle('is-avatar-menu-open', isOpen);
         avatarButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     }
 
