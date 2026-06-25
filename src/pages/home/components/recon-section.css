@@ -291,6 +291,36 @@
     overflow: auto;
 }
 
+.locked-dates-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.locked-dates-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.locked-dates-search input {
+    width: min(260px, 52vw);
+    height: 34px;
+    padding: 7px 10px;
+    border: 1px solid rgba(15,23,42,0.14);
+    border-radius: 7px;
+    color: #0f172a;
+    outline: none;
+}
+
+.locked-dates-search input:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220,53,69,0.10);
+}
+
 .locked-dates-modal__message {
     margin: 14px 18px 0;
     padding: 10px 12px;
@@ -347,6 +377,31 @@
 
 .locked-dates-table tbody tr:last-child td {
     border-bottom: 0;
+}
+
+.locked-dates-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.locked-dates-page-info {
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.locked-dates-page-btn {
+    min-width: 82px;
+    height: 32px;
+    padding: 5px 10px;
+}
+
+.locked-dates-page-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 
 .locked-dates-status {

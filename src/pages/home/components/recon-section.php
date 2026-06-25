@@ -72,11 +72,16 @@ try {
         <div id="lockedReconDatesModal" class="locked-dates-modal" aria-hidden="true">
             <div class="locked-dates-modal__panel" role="dialog" aria-modal="true" aria-labelledby="lockedReconDatesTitle">
                 <div class="locked-dates-modal__header">
-                    <h3 id="lockedReconDatesTitle">Reconciliation Dates</h3>
+                    <h3 id="lockedReconDatesTitle">View Locked Dates</h3>
                 </div>
                 <div id="lockedReconDatesMessage" class="locked-dates-modal__message" hidden></div>
                 <div class="locked-dates-modal__body">
-                    <div id="lockedReconDatesEmpty" class="locked-dates-empty" hidden>No locked reconciliation dates found.</div>
+                    <div class="locked-dates-toolbar">
+                        <label class="locked-dates-search">
+                            <span>Search</span>
+                            <input id="lockedReconDatesSearch" type="search" placeholder="Search locked dates" autocomplete="off">
+                        </label>
+                    </div>
                     <div class="locked-dates-table-wrap">
                         <table class="locked-dates-table">
                             <thead>
@@ -90,6 +95,11 @@ try {
                             </thead>
                             <tbody id="lockedReconDatesBody"></tbody>
                         </table>
+                    </div>
+                    <div class="locked-dates-pagination" id="lockedReconDatesPagination" hidden>
+                        <button type="button" class="material-btn locked-dates-page-btn" data-action="locked-dates-prev">Previous</button>
+                        <span id="lockedReconDatesPageInfo" class="locked-dates-page-info">Page 1 of 1</span>
+                        <button type="button" class="material-btn locked-dates-page-btn" data-action="locked-dates-next">Next</button>
                     </div>
                 </div>
                 <div class="locked-dates-modal__footer">
@@ -132,11 +142,18 @@ try {
                 const box = document.createElement('div'); Object.assign(box.style, { background:'#fff', padding:'18px', borderRadius:'8px', minWidth:'320px', maxWidth:'90%' });
                 const txt = document.createElement('div'); txt.textContent = message; txt.style.marginBottom = '12px';
                 const row = document.createElement('div'); row.style.textAlign = 'right';
-                const btnCancel = document.createElement('button'); btnCancel.textContent = 'Cancel'; btnCancel.className = 'material-btn'; btnCancel.style.marginRight = '8px';
+                const btnCancel = document.createElement('button'); btnCancel.textContent = (opts && opts.cancelText) ? opts.cancelText : 'Cancel'; btnCancel.className = 'material-btn';
                 const btnOk = document.createElement('button'); btnOk.textContent = (opts && opts.confirmText) ? opts.confirmText : 'Delete'; btnOk.className = 'material-btn material-btn--primary';
+                const confirmFirst = !!(opts && opts.confirmFirst);
                 btnCancel.addEventListener('click', ()=>{ try{ document.body.removeChild(m); }catch(e){} resolve(false); });
                 btnOk.addEventListener('click', ()=>{ try{ document.body.removeChild(m); }catch(e){} resolve(true); });
-                row.appendChild(btnCancel); row.appendChild(btnOk);
+                if(confirmFirst){
+                    btnOk.style.marginRight = '8px';
+                    row.appendChild(btnOk); row.appendChild(btnCancel);
+                } else {
+                    btnCancel.style.marginRight = '8px';
+                    row.appendChild(btnCancel); row.appendChild(btnOk);
+                }
                 box.appendChild(txt); box.appendChild(row); m.appendChild(box); document.body.appendChild(m);
             });
         }
@@ -427,8 +444,13 @@ try {
         const lockedDatesBtn = document.getElementById('hsViewLockedDates');
         const lockedDatesModal = document.getElementById('lockedReconDatesModal');
         const lockedDatesBody = document.getElementById('lockedReconDatesBody');
-        const lockedDatesEmpty = document.getElementById('lockedReconDatesEmpty');
         const lockedDatesMessage = document.getElementById('lockedReconDatesMessage');
+        const lockedDatesSearch = document.getElementById('lockedReconDatesSearch');
+        const lockedDatesPagination = document.getElementById('lockedReconDatesPagination');
+        const lockedDatesPageInfo = document.getElementById('lockedReconDatesPageInfo');
+        const LOCKED_DATES_PAGE_SIZE = 5;
+        let lockedDatesRows = [];
+        let lockedDatesPage = 1;
         // Reconcile button behavior: show day cards only when valid partner selected
         const reconcileBtn = document.getElementById('hsReconcile');
         const daysContainerWrap = document.querySelector('.days');
@@ -465,6 +487,8 @@ try {
             lockedDatesModal.classList.add('is-open');
             lockedDatesModal.setAttribute('aria-hidden', 'false');
             try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            if(lockedDatesSearch) lockedDatesSearch.value = '';
+            lockedDatesPage = 1;
             loadLockedDates();
         }
 
@@ -475,18 +499,40 @@ try {
             try{ document.body.style.overflow = ''; }catch(e){}
         }
 
-        function renderLockedDates(rows){
+        function getLockedDatesFilteredRows(){
+            const query = lockedDatesSearch ? String(lockedDatesSearch.value || '').trim().toLowerCase() : '';
+            const list = Array.isArray(lockedDatesRows) ? lockedDatesRows : [];
+            if(!query) return list;
+            return list.filter((row) => {
+                const partner = String(row.partnername || row.corporate_partner || '').trim();
+                const transactionDate = normalizeIsoDate(row.transaction_date || row.recon_date || row.date || '');
+                const status = String(row.status || 'locked').trim() || 'locked';
+                const searchable = [partner, transactionDate, formatDateMMDDYYYY(transactionDate), status].join(' ').toLowerCase();
+                return searchable.indexOf(query) !== -1;
+            });
+        }
+
+        function renderLockedDates(){
             if(!lockedDatesBody) return;
             lockedDatesBody.innerHTML = '';
-            const list = Array.isArray(rows) ? rows : [];
-            if(lockedDatesEmpty) lockedDatesEmpty.hidden = list.length > 0;
+            const list = getLockedDatesFilteredRows();
+            const totalPages = Math.max(1, Math.ceil(list.length / LOCKED_DATES_PAGE_SIZE));
+            if(lockedDatesPage > totalPages) lockedDatesPage = totalPages;
+            if(lockedDatesPage < 1) lockedDatesPage = 1;
             const formatLockedDisplayDate = function(dateString){
                 const raw = String(dateString || '').trim();
                 const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
                 if(!match) return raw;
                 return match[2] + '-' + match[3] + '-' + match[1];
             };
-            list.forEach((row) => {
+            if(list.length === 0){
+                lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
+                if(lockedDatesPagination) lockedDatesPagination.hidden = true;
+                return;
+            }
+
+            const startIndex = (lockedDatesPage - 1) * LOCKED_DATES_PAGE_SIZE;
+            list.slice(startIndex, startIndex + LOCKED_DATES_PAGE_SIZE).forEach((row) => {
                 const partner = String(row.partnername || row.corporate_partner || '').trim();
                 const transactionDate = normalizeIsoDate(row.transaction_date || row.recon_date || row.date || '');
                 const status = String(row.status || 'locked').trim() || 'locked';
@@ -505,27 +551,44 @@ try {
                     '</div></td>';
                 lockedDatesBody.appendChild(tr);
             });
+
+            if(lockedDatesPagination){
+                lockedDatesPagination.hidden = false;
+                const prevBtn = lockedDatesPagination.querySelector('[data-action="locked-dates-prev"]');
+                const nextBtn = lockedDatesPagination.querySelector('[data-action="locked-dates-next"]');
+                if(prevBtn) prevBtn.disabled = lockedDatesPage <= 1;
+                if(nextBtn) nextBtn.disabled = lockedDatesPage >= totalPages;
+            }
+            if(lockedDatesPageInfo){
+                lockedDatesPageInfo.textContent = 'Page ' + lockedDatesPage + ' of ' + totalPages + ' (' + list.length.toLocaleString() + ' locked date' + (list.length === 1 ? '' : 's') + ')';
+            }
         }
 
         async function loadLockedDates(){
             if(!lockedDatesBody) return;
             setLockedDatesMessage('', '');
             lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
-            if(lockedDatesEmpty) lockedDatesEmpty.hidden = true;
+            if(lockedDatesPagination) lockedDatesPagination.hidden = true;
             const selectedPartner = (company && company.value) ? String(company.value).trim() : '';
             const url = window.autoreconBaseUrl + '/src/controllers/recon/get_locked_reconciliation_dates.php' + (selectedPartner ? ('?partnername=' + encodeURIComponent(selectedPartner)) : '');
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
                 const json = await res.json();
                 if(!res.ok || !(json && json.success)){
-                    renderLockedDates([]);
+                    lockedDatesRows = [];
+                    lockedDatesPage = 1;
+                    renderLockedDates();
                     setLockedDatesMessage((json && (json.error || json.message)) || 'Failed to load locked reconciliation dates.', 'error');
                     return;
                 }
-                renderLockedDates(Array.isArray(json.locked_dates) ? json.locked_dates : []);
+                lockedDatesRows = Array.isArray(json.locked_dates) ? json.locked_dates : [];
+                lockedDatesPage = 1;
+                renderLockedDates();
             }catch(e){
                 console.warn('Failed to load locked reconciliation dates', e);
-                renderLockedDates([]);
+                lockedDatesRows = [];
+                lockedDatesPage = 1;
+                renderLockedDates();
                 setLockedDatesMessage('Failed to load locked reconciliation dates.', 'error');
             }
         }
@@ -674,7 +737,7 @@ try {
                 await showAlertModal('Missing locked date details.');
                 return;
             }
-            const confirmed = await showConfirmModal('Are you sure you want to unlock this reconciliation date?', { confirmText: 'Unlock' });
+            const confirmed = await showConfirmModal('Continue Unlock?', { confirmText: 'Yes', cancelText: 'No', confirmFirst: true });
             if(!confirmed) return;
             const btn = rowEl.querySelector('[data-action="unlock-locked-date"]');
             if(btn){ btn.disabled = true; btn.textContent = 'Unlocking...'; }
@@ -691,8 +754,12 @@ try {
                     setLockedDatesMessage((json && (json.error || json.message)) || 'Failed to unlock reconciliation date.', 'error');
                     return;
                 }
-                rowEl.remove();
-                if(lockedDatesBody && lockedDatesBody.children.length === 0 && lockedDatesEmpty) lockedDatesEmpty.hidden = false;
+                lockedDatesRows = (Array.isArray(lockedDatesRows) ? lockedDatesRows : []).filter((item) => {
+                    const itemPartner = String(item.partnername || item.corporate_partner || '').trim().toUpperCase();
+                    const itemDate = normalizeIsoDate(item.transaction_date || item.recon_date || item.date || '');
+                    return !(itemPartner === String(partner).trim().toUpperCase() && itemDate === transactionDate);
+                });
+                renderLockedDates();
                 setLockedDatesMessage('Reconciliation date unlocked successfully.', 'success');
                 daysContainer.querySelectorAll('.day-card[data-date]').forEach((card) => {
                     const cardDate = normalizeIsoDate(card.getAttribute('data-date') || '');
@@ -1057,6 +1124,7 @@ try {
             const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
             const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
             const searchEl = modal.querySelector('[data-role="resultSearch"]');
+            const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
             const filterEl = modal.querySelector('[data-role="resultFilter"]');
             const partnersScroll = modal.querySelector('[data-role="partnersScroll"]');
             const webScroll = modal.querySelector('[data-role="webScroll"]');
@@ -1533,13 +1601,19 @@ try {
 
             const applySearchFilter = function(){
                 const query = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
+                const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
 
                 filteredPairs = sortedPairs.filter((pair) => {
                     const pRef = String(pair.partnerRef || '').toLowerCase();
                     const wRef = String(pair.webRef || '').toLowerCase();
+                    const pCurrency = toUpperKey(pair.partnerCurrency || '');
+                    const wCurrency = toUpperKey(pair.webCurrency || '');
                     let show = true;
                     if(query) show = pRef.includes(query) || wRef.includes(query);
+                    if(currencyFilter !== 'ALL'){
+                        show = show && (pCurrency.indexOf(currencyFilter) !== -1 || wCurrency.indexOf(currencyFilter) !== -1);
+                    }
                     if(filter === 'mismatch') show = show && (pair.isMismatch && !pair.isDuplicate);
                     else if(filter === 'duplicates') show = show && pair.isDuplicate;
                     else if(filter === 'matched') show = show && !pair.isMismatch && !pair.isDuplicate;
@@ -1582,6 +1656,9 @@ try {
             if(searchEl && modal._moneygramRangeSearchHandler){
                 searchEl.removeEventListener('input', modal._moneygramRangeSearchHandler);
             }
+            if(currencyEl && modal._moneygramRangeCurrencyHandler){
+                currencyEl.removeEventListener('change', modal._moneygramRangeCurrencyHandler);
+            }
             if(filterEl && modal._moneygramRangeFilterHandler){
                 filterEl.removeEventListener('change', modal._moneygramRangeFilterHandler);
             }
@@ -1590,8 +1667,10 @@ try {
                 clearTimeout(searchFilterTimer);
                 searchFilterTimer = setTimeout(applySearchFilter, 120);
             };
+            modal._moneygramRangeCurrencyHandler = applySearchFilter;
             modal._moneygramRangeFilterHandler = applySearchFilter;
             if(searchEl){ searchEl.value = ''; searchEl.addEventListener('input', modal._moneygramRangeSearchHandler); }
+            if(currencyEl){ currencyEl.value = 'all'; currencyEl.addEventListener('change', modal._moneygramRangeCurrencyHandler); }
             if(filterEl){ filterEl.value = 'all'; filterEl.addEventListener('change', modal._moneygramRangeFilterHandler); }
 
             modal._moneygramVirtual = {
@@ -3486,15 +3565,19 @@ try {
 
                             try{
                                 const searchEl = modal.querySelector('[data-role="resultSearch"]');
+                                const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
                                 const filterEl = modal.querySelector('[data-role="resultFilter"]');
                                 function modalRenderMoneygramRows(){
                                     const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
+                                    const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
                                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
 
                                     // Show/hide rows according to search + filter
                                     alignedPairs.forEach(pair => {
                                         const partnerRef = String((pair.partnerRow.querySelector('.highlight-ref')?.textContent) || (pair.partnerRow.cells[1]?.textContent) || '').toLowerCase();
                                         const webRef = String((pair.webRow.querySelector('.highlight-ref')?.textContent) || (pair.webRow.cells[1]?.textContent) || '').toLowerCase();
+                                        const partnerCurrency = String(pair.partnerRow.dataset.currency || '').trim().toUpperCase();
+                                        const webCurrency = String(pair.webRow.dataset.currency || '').trim().toUpperCase();
 
                                         // base visibility from search
                                         let show = true;
@@ -3502,6 +3585,9 @@ try {
                                             const partnerMatch = partnerRef.includes(q);
                                             const webMatch = webRef.includes(q);
                                             show = partnerMatch || webMatch;
+                                        }
+                                        if(currencyFilter !== 'ALL'){
+                                            show = show && (partnerCurrency.indexOf(currencyFilter) !== -1 || webCurrency.indexOf(currencyFilter) !== -1);
                                         }
 
                                         // apply filter: 'all' should include matched, mismatched and duplicates
@@ -3609,6 +3695,7 @@ try {
 
                                 const resetMoneygramState = function(){
                                     if(searchEl) searchEl.value = '';
+                                    if(currencyEl) currencyEl.value = 'all';
                                     modal._moneygramLastSearchValue = '';
                                     if(modal._moneygramDebounceTimer){
                                         try{ clearTimeout(modal._moneygramDebounceTimer); }catch(_e){}
@@ -3626,12 +3713,17 @@ try {
                                 if(searchEl && modal._moneygramSearchHandler){
                                     searchEl.removeEventListener('input', modal._moneygramSearchHandler);
                                 }
+                                if(currencyEl && modal._moneygramCurrencyHandler){
+                                    currencyEl.removeEventListener('change', modal._moneygramCurrencyHandler);
+                                }
                                 if(filterEl && modal._moneygramFilterHandler){
                                     filterEl.removeEventListener('change', modal._moneygramFilterHandler);
                                 }
                                 modal._moneygramSearchHandler = function(){ modalRenderMoneygramRows(); };
+                                modal._moneygramCurrencyHandler = function(){ modalRenderMoneygramRows(); };
                                 modal._moneygramFilterHandler = function(){ modalRenderMoneygramRows(); };
                                 if(searchEl) searchEl.addEventListener('input', modal._moneygramSearchHandler);
+                                if(currencyEl) currencyEl.addEventListener('change', modal._moneygramCurrencyHandler);
                                 if(filterEl) filterEl.addEventListener('change', modal._moneygramFilterHandler);
 
                                 // On reopen: start with blank search and current dropdown filter.
@@ -3646,7 +3738,9 @@ try {
                             if(closeBtn){
                                 closeBtn.onclick = function(){
                                     const searchEl = modal.querySelector('[data-role="resultSearch"]');
+                                    const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
                                     if(searchEl) searchEl.value = '';
+                                    if(currencyEl) currencyEl.value = 'all';
                                     modal._moneygramLastSearchValue = '';
                                     if(modal._moneygramDebounceTimer){
                                         try{ clearTimeout(modal._moneygramDebounceTimer); }catch(_e){}
@@ -5043,11 +5137,32 @@ try {
             });
         }
 
+        if(lockedDatesSearch){
+            lockedDatesSearch.addEventListener('input', function(){
+                lockedDatesPage = 1;
+                renderLockedDates();
+            });
+        }
+
         if(lockedDatesModal){
             lockedDatesModal.addEventListener('click', function(e){
                 const closeTarget = e.target.closest && e.target.closest('[data-action="close-locked-dates"]');
                 if(closeTarget || e.target === lockedDatesModal){
                     closeLockedDatesModal();
+                    return;
+                }
+                const prevTarget = e.target.closest && e.target.closest('[data-action="locked-dates-prev"]');
+                if(prevTarget){
+                    e.preventDefault();
+                    lockedDatesPage = Math.max(1, lockedDatesPage - 1);
+                    renderLockedDates();
+                    return;
+                }
+                const nextTarget = e.target.closest && e.target.closest('[data-action="locked-dates-next"]');
+                if(nextTarget){
+                    e.preventDefault();
+                    lockedDatesPage += 1;
+                    renderLockedDates();
                     return;
                 }
                 const viewTarget = e.target.closest && e.target.closest('[data-action="view-locked-date-details"]');

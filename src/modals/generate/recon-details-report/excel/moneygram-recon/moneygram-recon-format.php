@@ -28,19 +28,31 @@ function moneygram_recon_input_filter(): string
     return in_array($filter, ['all', 'matched', 'mismatch', 'duplicates'], true) ? $filter : 'all';
 }
 
-function moneygram_recon_sheet_titles_for_filter(string $filter): array
+function moneygram_recon_input_currency(): string
+{
+    $currency = strtoupper(trim((string) ($_GET['currency'] ?? 'all')));
+    return in_array($currency, ['PHP', 'USD'], true) ? $currency : 'ALL';
+}
+
+function moneygram_recon_sheet_titles_for_filter(string $filter, string $currency): array
 {
     if ($filter === 'matched') {
-        return ['MATCHED PHP', 'MATCHED USD'];
-    }
-    if ($filter === 'mismatch') {
-        return ['MISMATCH PHP', 'MISMATCH USD'];
-    }
-    if ($filter === 'duplicates') {
-        return ['DUPLICATE PHP', 'DUPLICATE USD'];
+        $baseTitles = ['MATCHED PHP', 'MATCHED USD'];
+    } elseif ($filter === 'mismatch') {
+        $baseTitles = ['MISMATCH PHP', 'MISMATCH USD'];
+    } elseif ($filter === 'duplicates') {
+        $baseTitles = ['DUPLICATE PHP', 'DUPLICATE USD'];
+    } else {
+        $baseTitles = ['MATCHED PHP', 'MATCHED USD', 'MISMATCH PHP', 'MISMATCH USD', 'DUPLICATE PHP', 'DUPLICATE USD'];
     }
 
-    return ['MATCHED PHP', 'MATCHED USD', 'MISMATCH PHP', 'MISMATCH USD', 'DUPLICATE PHP', 'DUPLICATE USD'];
+    if ($currency === 'PHP' || $currency === 'USD') {
+        return array_values(array_filter($baseTitles, static function (string $title) use ($currency): bool {
+            return str_ends_with($title, ' ' . $currency);
+        }));
+    }
+
+    return $baseTitles;
 }
 
 function moneygram_recon_generated_by(): string
@@ -342,6 +354,7 @@ try {
     $startDate = moneygram_recon_input_date('start_date');
     $endDate = moneygram_recon_input_date('end_date');
     $filter = moneygram_recon_input_filter();
+    $currency = moneygram_recon_input_currency();
     $partnerName = trim((string) ($_GET['partnerName'] ?? 'MONEYGRAM'));
     if ($partnerName === '') {
         $partnerName = 'MONEYGRAM';
@@ -349,7 +362,7 @@ try {
 
     $data = moneygram_recon_fetch_data($startDate, $endDate, $partnerName);
     $groups = moneygram_recon_collect_rows($data);
-    $sheetTitles = moneygram_recon_sheet_titles_for_filter($filter);
+    $sheetTitles = moneygram_recon_sheet_titles_for_filter($filter, $currency);
     $spreadsheet = new Spreadsheet();
     $reportDate = moneygram_recon_report_date_label($startDate, $endDate);
     $generatedBy = moneygram_recon_generated_by();
@@ -364,14 +377,15 @@ try {
     }
 
     $spreadsheet->setActiveSheetIndex(0);
+    $currencyFilenamePart = $currency === 'PHP' || $currency === 'USD' ? '-' . $currency : '';
     if ($filter === 'matched') {
-        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-MATCHED-' . $startDate . '-to-' . $endDate . '.xlsx';
+        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-MATCHED' . $currencyFilenamePart . '-' . $startDate . '-to-' . $endDate . '.xlsx';
     }elseif ($filter === 'mismatch') {
-        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-MISMATCH-' . $startDate . '-to-' . $endDate . '.xlsx';
+        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-MISMATCH' . $currencyFilenamePart . '-' . $startDate . '-to-' . $endDate . '.xlsx';
     }elseif ($filter === 'duplicates') {
-        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-DUPLICATES-' . $startDate . '-to-' . $endDate . '.xlsx';
+        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-DUPLICATES' . $currencyFilenamePart . '-' . $startDate . '-to-' . $endDate . '.xlsx';
     }else{
-        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT-' . $startDate . '-to-' . $endDate . '.xlsx';
+        $filename = 'MONEYGRAM-RECON-DETAILS-REPORT' . $currencyFilenamePart . '-' . $startDate . '-to-' . $endDate . '.xlsx';
     }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="' . $filename . '"');

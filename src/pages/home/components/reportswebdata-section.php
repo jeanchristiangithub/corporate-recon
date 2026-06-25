@@ -194,11 +194,19 @@ try {
 			outline: none;
 		}
 
-		.reports-webdata-content .rwd-summary-badges { display:inline-flex; gap:10px; align-items:center; flex-wrap:wrap; margin-left:10px; }
-		.reports-webdata-content .rwd-summary-label { color:#1f2937; font-weight:800; font-size:0.95rem; }
-		.reports-webdata-content .rwd-summary-badge { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; font-weight:700; font-size:0.9rem; line-height:1; box-shadow:0 2px 6px rgba(2,6,23,0.06); }
-		.reports-webdata-content .rwd-summary-badge--php { background:#ecfdf5; color:#065f46; }
-		.reports-webdata-content .rwd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
+		.reports-webdata-content .rwd-results-layout { display:grid; grid-template-columns:minmax(230px, 280px) minmax(0, 1fr); gap:12px; align-items:start; }
+		.reports-webdata-content .rwd-filter-card { border:1px solid #e6eef6; border-radius:8px; background:#fff; padding:18px 16px; color:#001234; }
+		.reports-webdata-content .rwd-filter-card__title { margin:0 0 18px; text-align:center; color:#e52f3f; font-size:0.78rem; font-weight:800; text-transform:uppercase; }
+		.reports-webdata-content .rwd-filter-card__item { margin:0 0 18px; }
+		.reports-webdata-content .rwd-filter-card__item:last-child { margin-bottom:0; }
+		.reports-webdata-content .rwd-filter-card__label { display:block; margin-bottom:8px; color:#ef3340; font-size:0.78rem; font-weight:800; text-transform:uppercase; }
+		.reports-webdata-content .rwd-filter-card__value { display:block; color:#001234; font-size:0.95rem; font-weight:800; overflow-wrap:anywhere; }
+		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px 20px; font-size:0.9rem; font-weight:800; }
+		.reports-webdata-content .rwd-filter-card__money--php { color:#00704a; }
+		.reports-webdata-content .rwd-filter-card__money--usd { color:#0b4aa2; }
+		@media (max-width: 900px) {
+			.reports-webdata-content .rwd-results-layout { grid-template-columns:1fr; }
+		}
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
 	<style>
@@ -249,11 +257,9 @@ try {
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
 				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
 			</div>
-		</form>
 
-		<!-- Additional multi-column filters: MAINZONE, ZONE, REGION, AREA, BRANCH NAME, BRANCH ID -->
-		<div class="rwd-multi-filters" style="margin-top:0.75rem;">
-			<form id="rwdExtraFilters" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+			<!-- Additional multi-column filters: MAINZONE, ZONE, REGION, AREA, BRANCH NAME, BRANCH ID -->
+			<div class="rwd-multi-filters" id="rwdExtraFilters" style="flex:0 0 100%;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
 				<label style="flex:1;min-width:12ch;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280">
 					<span style="font-size:0.75rem;color:#6b7280">MAINZONE</span>
 					<div class="autocomplete-field">
@@ -296,16 +302,14 @@ try {
 						<ul class="autocomplete-list" id="rwdBranchIdSuggestions" role="listbox" hidden></ul>
 					</div>
 				</label>
-			</form>
-		</div>
+			</div>
+		</form>
 
 		<!-- Results container -->
 		<div id="rwdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #e6eef6">
-				<div>
-					<h4 id="rwdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
-					<p id="rwdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
-				</div>
+			<div class="rwd-results-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:0.75rem">
+				<h4 id="rwdResultsTitle" style="display:none;margin:0"></h4>
+				<p id="rwdResultsSummary" style="display:none;margin:0"></p>
 				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
 					<label for="rwdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
 						<select id="rwdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
@@ -314,31 +318,61 @@ try {
 							<option value="USD">USD</option>
 						</select>
 					</label>
-					<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
+					<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff">Export Excel</button>
 				</div>
 			</div>
-			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
-				<table id="rwdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
-					<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
-						<tr>
-							<th id="rwdDateHeader" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch ID</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">KPTN</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
-							<th style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
-							<th id="rwdThCharge" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Charge</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
-							<th id="rwdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
-							<th style="padding:0.5rem;text-align:center;color:#6b7280;font-weight:600;white-space:nowrap">Details</th>
-						</tr>
-					</thead>
-					<tbody id="rwdResultsBody">
-					</tbody>
-				</table>
+			<div class="rwd-results-layout">
+				<aside class="rwd-filter-card" aria-label="Filter results">
+					<h5 class="rwd-filter-card__title">Filter Results</h5>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Corporate Partner:</span>
+						<span class="rwd-filter-card__value" id="rwdCardPartner">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Transaction Date:</span>
+						<span class="rwd-filter-card__value" id="rwdCardDateRange">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Transaction Type:</span>
+						<span class="rwd-filter-card__value" id="rwdCardType">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Currency:</span>
+						<span class="rwd-filter-card__value" id="rwdCardCurrency">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Volume:</span>
+						<span class="rwd-filter-card__value" id="rwdCardVolume">0</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Principal:</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--php" id="rwdCardPrincipalPhp">- PHP: 0.00</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--usd" id="rwdCardPrincipalUsd">- USD: 0.00</span>
+					</div>
+				</aside>
+				<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
+					<table id="rwdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
+						<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
+							<tr>
+								<th id="rwdDateHeader" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch ID</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">KPTN</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
+								<th style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
+								<th id="rwdThCharge" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Charge</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
+								<th id="rwdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
+								<th style="padding:0.5rem;text-align:center;color:#6b7280;font-weight:600;white-space:nowrap">Details</th>
+							</tr>
+						</thead>
+						<tbody id="rwdResultsBody">
+						</tbody>
+					</table>
+				</div>
 			</div>
 			<div id="rwdPagination" class="rwd-pagination" style="display:none">
 				<div id="rwdPaginationInfo" class="rwd-pagination-info"></div>
@@ -380,6 +414,15 @@ try {
 		const paginationInfo = document.getElementById('rwdPaginationInfo');
 		const prevBtn = document.getElementById('rwdPrevBtn');
 		const nextBtn = document.getElementById('rwdNextBtn');
+		const filterCard = {
+			partner: document.getElementById('rwdCardPartner'),
+			dateRange: document.getElementById('rwdCardDateRange'),
+			type: document.getElementById('rwdCardType'),
+			currency: document.getElementById('rwdCardCurrency'),
+			volume: document.getElementById('rwdCardVolume'),
+			principalPhp: document.getElementById('rwdCardPrincipalPhp'),
+			principalUsd: document.getElementById('rwdCardPrincipalUsd')
+		};
 		const PAGE_SIZE = 10000;
 		const VIRTUAL_ROW_HEIGHT = 48;
 		const VIRTUAL_BUFFER_ROWS = 12;
@@ -387,6 +430,9 @@ try {
 		let lastReportData = null;
 		let virtualWebRows = [];
 		let virtualWebIsSendout = false;
+		let autoFilterTimer = null;
+		let isClearingFilters = false;
+		const autoFilterIds = ['rwdType','rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
 		const partners = <?= json_encode($partners) ?>;
 
 		// Local partner autocomplete mirrors Partner Data Reports.
@@ -1037,6 +1083,11 @@ try {
 
 		function clearAllFilters(){
 			try{
+				isClearingFilters = true;
+				if (autoFilterTimer) {
+					clearTimeout(autoFilterTimer);
+					autoFilterTimer = null;
+				}
 				// Only clear branch/location-related filters. Keep partner and date range intact.
 				const mainEl = document.getElementById('rwdMainzone');
 				const zoneEl = document.getElementById('rwdZone');
@@ -1063,6 +1114,7 @@ try {
 					currentFilters = null;
 				} catch(e) { console.warn('Error hiding results after clearing filters', e); }
 			} catch (e) { console.warn('Error clearing filters', e); }
+			finally { isClearingFilters = false; }
 		}
 
 		if(clearBtn){
@@ -1084,6 +1136,30 @@ try {
 			const num = Number(value || 0);
 			if (!Number.isFinite(num)) return String(value || '0');
 			return num.toLocaleString('en-US');
+		}
+
+		function updateFilterResultsCard(data) {
+			if (!data) return;
+			const typeValue = String(data.type || '').trim();
+			const currencyValue = String(data.currency_filter || '').trim();
+			const startDate = String(data.start_date || '').trim();
+			const endDate = String(data.end_date || '').trim();
+			let dateRange = 'ALL';
+			if (startDate && endDate) {
+				dateRange = `${startDate} to ${endDate}`;
+			} else if (startDate) {
+				dateRange = `from ${startDate}`;
+			} else if (endDate) {
+				dateRange = `until ${endDate}`;
+			}
+
+			if (filterCard.partner) filterCard.partner.textContent = data.partner || 'ALL';
+			if (filterCard.dateRange) filterCard.dateRange.textContent = dateRange;
+			if (filterCard.type) filterCard.type.textContent = typeValue ? typeValue.toUpperCase() : 'ALL';
+			if (filterCard.currency) filterCard.currency.textContent = currencyValue || 'ALL';
+			if (filterCard.volume) filterCard.volume.textContent = formatNumber(data.count || 0);
+			if (filterCard.principalPhp) filterCard.principalPhp.textContent = `- PHP: ${formatCurrency(Math.abs(Number(data.php_total || 0)), 'PHP')}`;
+			if (filterCard.principalUsd) filterCard.principalUsd.textContent = `- USD: ${formatCurrency(Math.abs(Number(data.usd_total || 0)), 'USD')}`;
 		}
 
 		function getAppBasePath() {
@@ -1427,6 +1503,33 @@ try {
 			await runReport();
 		});
 
+		function scheduleAutoFilterReport(delay) {
+			if (isClearingFilters || !currentFilters) return;
+			const partnerValue = String(input.value || '').trim();
+			const startDateValue = String((document.getElementById('rwdStartDate') || {}).value || '').trim();
+			const endDateValue = String((document.getElementById('rwdEndDate') || {}).value || '').trim();
+			if (!partnerValue || !startDateValue || !endDateValue) return;
+			if (autoFilterTimer) clearTimeout(autoFilterTimer);
+			autoFilterTimer = setTimeout(async function() {
+				autoFilterTimer = null;
+				if (isClearingFilters || !currentFilters) return;
+				await runReport();
+			}, delay);
+		}
+
+		autoFilterIds.forEach(function(id) {
+			const el = document.getElementById(id);
+			if (!el) return;
+			el.addEventListener('input', function() {
+				if (el.disabled) return;
+				scheduleAutoFilterReport(600);
+			});
+			el.addEventListener('change', function() {
+				if (el.disabled) return;
+				scheduleAutoFilterReport(150);
+			});
+		});
+
 		if (currencyFilter) {
 			currencyFilter.addEventListener('change', function() {
 				if (!currentFilters) return;
@@ -1437,38 +1540,15 @@ try {
 
 		// Display results in table
 		function displayResults(data) {
+			updateFilterResultsCard(data);
 			const activeDateLabel = String(data.date_label || 'Date Claimed');
 			if(dateHeader) dateHeader.textContent = activeDateLabel;
 			// Toggle Operator header to Charge for SENDOUT reports
 			const isSendout = String((data.type || '')).toLowerCase() === 'sendout';
 			if(operatorHeader) operatorHeader.textContent = 'Operator';
 			if(chargeHeader) chargeHeader.style.display = isSendout ? '' : 'none';
-			resultsTitle.textContent = `${data.partner} — ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}`;
 
-			let dateRange = '';
-			if (data.start_date && data.end_date) {
-				dateRange = ` (${data.start_date} to ${data.end_date})`;
-			} else if (data.start_date) {
-				dateRange = ` (from ${data.start_date})`;
-			} else if (data.end_date) {
-				dateRange = ` (until ${data.end_date})`;
-			}
-
-			// Render date range and currency totals (separate badges for PHP and USD)
-			const phpTotal = Number(data.php_total || 0);
-			const usdTotal = Number(data.usd_total || 0);
-			const phpBadge = `<span class="badge php">PHP Total: ₱${formatCurrency(phpTotal, 'PHP')}</span>`;
-			const usdBadge = `<span class="badge usd">USD Total: $${formatCurrency(usdTotal, 'USD')}</span>`;
-			// Show Charge total only for SENDOUT
-			const chargeTotal = Number(data.charge_total || 0);
-			const chargeBadge = `<span class="badge charge">Charge Total: ₱${formatCurrency(chargeTotal, 'PHP')}</span>`;
-			resultsSummary.innerHTML = `${dateRange} <span class="currency-summary">${phpBadge} ${usdBadge}${isSendout ? ' ' + chargeBadge : ''}</span>`;
-
-			const principalPhpTotal = Math.abs(Number(data.php_total || 0));
-			const principalUsdTotal = Math.abs(Number(data.usd_total || 0));
-			const principalChargeTotal = Math.abs(Number(data.charge_total || 0));
-			const chargeSummary = isSendout ? `<span class="rwd-summary-label">Charge:</span><span class="rwd-summary-badge rwd-summary-badge--php">PHP: ${formatCurrency(principalChargeTotal, 'PHP')}</span>` : '';
-			resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rwd-summary-badges"><span class="rwd-summary-label">Principal:</span><span class="rwd-summary-badge rwd-summary-badge--php">PHP: ${formatCurrency(principalPhpTotal, 'PHP')}</span><span class="rwd-summary-badge rwd-summary-badge--usd">USD: ${formatCurrency(principalUsdTotal, 'USD')}</span>${chargeSummary}</span>`;
+			resultsTitle.textContent = '';
 			resultsSummary.textContent = '';
 			resultsSummary.style.display = 'none';
 
@@ -1479,14 +1559,6 @@ try {
 			if (!data.rows || data.rows.length === 0) {
 				resultsBody.innerHTML = `<tr><td colspan="${isSendout ? 13 : 12}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
-				// still display totals (will be 0.00 if none)
-				const phpTotalEmpty = Number(data.php_total || 0);
-				const usdTotalEmpty = Number(data.usd_total || 0);
-				const phpBadgeEmpty = `<span class="badge php">PHP Total: ₱${formatCurrency(phpTotalEmpty, 'PHP')}</span>`;
-				const usdBadgeEmpty = `<span class="badge usd">USD Total: $${formatCurrency(usdTotalEmpty, 'USD')}</span>`;
-				const chargeTotalEmpty = Number(data.charge_total || 0);
-				const chargeBadgeEmpty = `<span class="badge charge">Charge Total: ₱${formatCurrency(chargeTotalEmpty, 'PHP')}</span>`;
-				resultsSummary.innerHTML = `${dateRange} <span class="currency-summary">${phpBadgeEmpty} ${usdBadgeEmpty}${isSendout ? ' ' + chargeBadgeEmpty : ''}</span>`;
 				resultsDiv.style.display = 'block';
 				return;
 			}

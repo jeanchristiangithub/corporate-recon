@@ -1071,6 +1071,15 @@ line-height: 1;
 .moneygram-lock-all-btn:hover{ transform: translateY(-1px); opacity:0.95 }
 .moneygram-lock-all-btn:disabled{ opacity:0.5; cursor:default; transform:none }
 
+#moneygramExportExcelBtn {
+    background: #198754;
+    box-shadow: 0 6px 14px rgba(25, 135, 84, 0.16);
+}
+
+#moneygramExportExcelBtn:hover {
+    background: #157347;
+}
+
 /* Only show lock marker for partner-side rows that are matched and locked.
    Keep it CSS-only so thousands of locked rows do not create extra icon DOM. */
 .moneygram-table-body-scroll tbody tr.matched-row.locked-row td:first-child,

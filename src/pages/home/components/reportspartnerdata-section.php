@@ -144,6 +144,89 @@ try {
 		.rpd-summary-badge--php { background:#ecfdf5; color:#065f46; }
 		.rpd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
 
+		.reports-webdata-content .rpd-results-layout {
+			display: grid;
+			grid-template-columns: 280px minmax(0, 1fr);
+			gap: 0.75rem;
+			align-items: stretch;
+		}
+
+		.reports-webdata-content .rpd-results-card {
+			border: 1px solid #e6eef6;
+			border-radius: 8px;
+			background: #fff;
+			padding: 1rem;
+			min-height: 340px;
+			height: 100%;
+			box-sizing: border-box;
+			box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+		}
+
+		.reports-webdata-content .rpd-results-card__title {
+			margin: 0 0 1.5rem;
+			color: #dc3545;
+			font-size: 0.78rem;
+			font-weight: 800;
+			text-align: center;
+			text-transform: uppercase;
+		}
+
+		.reports-webdata-content .rpd-results-card__section {
+			margin-top: 1.25rem;
+		}
+
+		.reports-webdata-content .rpd-results-card__label {
+			margin: 0;
+			color: #dc3545;
+			font-size: 0.78rem;
+			font-weight: 800;
+			text-transform: uppercase;
+		}
+
+		.reports-webdata-content .rpd-results-card__value {
+			margin: 0.35rem 0 0;
+			color: #111827;
+			font-size: 0.9rem;
+			font-weight: 700;
+			overflow-wrap: anywhere;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue {
+			margin: 0.55rem 0 0 1.25rem;
+			font-size: 0.82rem;
+			font-weight: 700;
+			overflow-wrap: anywhere;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue--php {
+			color: #065f46;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue--usd {
+			color: #1e3a8a;
+		}
+
+		.reports-webdata-content .rpd-results-main {
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+
+		.reports-webdata-content .rpd-results-main .rwd-results-table-wrap {
+			flex: 1 1 auto;
+		}
+
+		@media (max-width: 900px) {
+			.reports-webdata-content .rpd-results-layout {
+				grid-template-columns: 1fr;
+			}
+
+			.reports-webdata-content .rpd-results-card {
+				min-height: 0;
+			}
+		}
+
 		.reports-webdata-content .rwd-results-header {
 			gap: 1rem;
 			align-items: flex-start !important;
@@ -160,7 +243,15 @@ try {
 		}
 
 		.reports-webdata-content #rpdExportBtn {
+			background: #198754;
+			border-color: #198754;
+			color: #fff;
 			white-space: nowrap;
+		}
+
+		.reports-webdata-content #rpdExportBtn:hover:not(:disabled) {
+			background: #157347;
+			border-color: #157347;
 		}
 
 		.reports-webdata-content .txn-view-btn {
@@ -335,11 +426,7 @@ try {
 
 		<!-- Results container -->
 		<div id="rpdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #e6eef6">
-				<div>
-					<h4 id="rpdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
-					<p id="rpdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
-				</div>
+			<div class="rwd-results-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:1rem">
 				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
 					<label for="rpdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
 						<select id="rpdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
@@ -351,31 +438,68 @@ try {
 					<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
 				</div>
 			</div>
-			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
-				<table id="rpdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
-					<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
-						<tr>
-							<th id="rpdThNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
-							<th id="rpdThControlSeries" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
-							<th id="rpdThDateClaimed" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
-							<th id="rpdThCcrefNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
-							<th id="rpdThCurrency" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
-							<th id="rpdThAmount" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
-							<th id="rpdThSender" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
-							<th id="rpdThBeneficiary" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
-							<th id="rpdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
-							<th id="rpdThBranch" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
-						</tr>
-					</thead>
-					<tbody id="rpdResultsBody">
-					</tbody>
-				</table>
-			</div>
-			<div id="rpdPagination" class="rwd-pagination" style="display:none">
-				<div id="rpdPaginationInfo" class="rwd-pagination-info"></div>
-				<div class="rwd-pagination-actions">
-					<button type="button" id="rpdPrevBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Previous</button>
-					<button type="button" id="rpdNextBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Next</button>
+			<div class="rpd-results-layout">
+				<aside class="rpd-results-card" aria-label="Results summary">
+					<h5 class="rpd-results-card__title">Filter Results</h5>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Corporate Partner:</p>
+						<p id="rpdCardPartner" class="rpd-results-card__value">-</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Transaction Date:</p>
+						<p id="rpdCardTransactionDate" class="rpd-results-card__value">-</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Transaction Type:</p>
+						<p id="rpdCardTransactionType" class="rpd-results-card__value">ALL</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Currency:</p>
+						<p id="rpdCardCurrency" class="rpd-results-card__value">ALL</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Volume:</p>
+						<p id="rpdCardVolume" class="rpd-results-card__value">0</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Principal:</p>
+						<p id="rpdCardPrincipalPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">- PHP: 0.00</p>
+						<p id="rpdCardPrincipalUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">- USD: 0.00</p>
+					</div>
+					<div id="rpdCardCommissionSection" class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Commission:</p>
+						<p id="rpdCardCommissionPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">- PHP: 0.00</p>
+						<p id="rpdCardCommissionUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">- USD: 0.00</p>
+					</div>
+				</aside>
+				<div class="rpd-results-main">
+					<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
+						<table id="rpdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
+							<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
+								<tr>
+									<th id="rpdThNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
+									<th id="rpdThControlSeries" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
+									<th id="rpdThDateClaimed" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
+									<th id="rpdThCcrefNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
+									<th id="rpdThCurrency" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
+									<th id="rpdThAmount" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
+									<th id="rpdThSender" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
+									<th id="rpdThBeneficiary" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
+									<th id="rpdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
+									<th id="rpdThBranch" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+								</tr>
+							</thead>
+							<tbody id="rpdResultsBody">
+							</tbody>
+						</table>
+					</div>
+					<div id="rpdPagination" class="rwd-pagination" style="display:none">
+						<div id="rpdPaginationInfo" class="rwd-pagination-info"></div>
+						<div class="rwd-pagination-actions">
+							<button type="button" id="rpdPrevBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Previous</button>
+							<button type="button" id="rpdNextBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Next</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -410,6 +534,16 @@ try {
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
 		const prevBtn = document.getElementById('rpdPrevBtn');
 		const nextBtn = document.getElementById('rpdNextBtn');
+		const cardPartner = document.getElementById('rpdCardPartner');
+		const cardTransactionDate = document.getElementById('rpdCardTransactionDate');
+		const cardTransactionType = document.getElementById('rpdCardTransactionType');
+		const cardCurrency = document.getElementById('rpdCardCurrency');
+		const cardVolume = document.getElementById('rpdCardVolume');
+		const cardPrincipalPhp = document.getElementById('rpdCardPrincipalPhp');
+		const cardPrincipalUsd = document.getElementById('rpdCardPrincipalUsd');
+		const cardCommissionSection = document.getElementById('rpdCardCommissionSection');
+		const cardCommissionPhp = document.getElementById('rpdCardCommissionPhp');
+		const cardCommissionUsd = document.getElementById('rpdCardCommissionUsd');
 		const partners = <?= json_encode($partners) ?>;
 		const PAGE_SIZE = 10000;
 		const VIRTUAL_ROW_HEIGHT = 48;
@@ -419,6 +553,28 @@ try {
 		let virtualPartnerRows = [];
 		let virtualPartnerMode = 'standard';
 		let virtualPartnerColCount = 10;
+
+		function updateResultsCard(data, totals, hideCommission) {
+			const filters = currentFilters || {};
+			const startDate = filters.startDate || (data && data.start_date) || '';
+			const endDate = filters.endDate || (data && data.end_date) || '';
+			const transactionDate = startDate && endDate
+				? `${startDate} to ${endDate}`
+				: (startDate ? `From ${startDate}` : (endDate ? `Until ${endDate}` : '-'));
+			const transactionType = filters.type ? String(filters.type).toUpperCase() : 'ALL';
+			const selectedCurrency = currencyFilter && currencyFilter.value ? currencyFilter.value : 'ALL';
+			const count = Number(data && data.count ? data.count : 0);
+			if (cardPartner) cardPartner.textContent = (data && data.partner) || filters.partner || '-';
+			if (cardTransactionDate) cardTransactionDate.textContent = transactionDate;
+			if (cardTransactionType) cardTransactionType.textContent = transactionType;
+			if (cardCurrency) cardCurrency.textContent = selectedCurrency;
+			if (cardVolume) cardVolume.textContent = formatNumber(count);
+			if (cardPrincipalPhp) cardPrincipalPhp.textContent = `- PHP: ${formatCurrencyAllowZero(totals.phpTotal)}`;
+			if (cardPrincipalUsd) cardPrincipalUsd.textContent = `- USD: ${formatCurrencyAllowZero(totals.usdTotal)}`;
+			if (cardCommissionSection) cardCommissionSection.style.display = hideCommission ? 'none' : '';
+			if (cardCommissionPhp) cardCommissionPhp.textContent = `- PHP: ${formatCurrencyAllowZero(totals.phpCommissionTotal)}`;
+			if (cardCommissionUsd) cardCommissionUsd.textContent = `- USD: ${formatCurrencyAllowZero(totals.usdCommissionTotal)}`;
+		}
 
 		// Autocomplete function
 		function attachPartnerAutocomplete(inputEl, suggestions){
@@ -1074,7 +1230,7 @@ try {
 
 		// Display results in table
 		function displayResults(data) {
-			resultsTitle.textContent = `${data.partner} — ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}`;
+			if (resultsTitle) resultsTitle.textContent = data.partner || 'Partner data transactions';
 
 			let dateRange = '';
 			if (data.start_date && data.end_date) {
@@ -1085,26 +1241,6 @@ try {
 				dateRange = ` (until ${data.end_date})`;
 			}
 
-			if (isMoneygramPartner(data.partner)) {
-				const phpTotal = Math.abs(Number(data.moneygram_php_total || 0));
-				const usdTotal = Math.abs(Number(data.moneygram_usd_total || 0));
-				resultsSummary.innerHTML = `${dateRange}<span class="rpd-summary-badges"><span class="rpd-summary-badge rpd-summary-badge--php">PHP Total: ₱${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD Total: $${formatCurrencyAllowZero(usdTotal)}</span></span>`;
-			} else {
-				resultsSummary.textContent = dateRange;
-			}
-
-			if (isMoneygramPartner(data.partner)) {
-				const phpTotal = Math.abs(Number(data.moneygram_php_total || 0));
-				const usdTotal = Math.abs(Number(data.moneygram_usd_total || 0));
-				const phpCommissionTotal = Math.abs(Number(data.moneygram_commission_php_total || 0));
-				const usdCommissionTotal = Math.abs(Number(data.moneygram_commission_usd_total || 0));
-				resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rpd-summary-badges"><span class="rpd-summary-group"><span class="rpd-summary-label">Principal:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdTotal)}</span></span><span class="rpd-summary-group"><span class="rpd-summary-label">Commission:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpCommissionTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdCommissionTotal)}</span></span></span>`;
-				resultsSummary.textContent = '';
-				resultsSummary.style.display = 'none';
-			} else {
-				resultsSummary.style.display = '';
-			}
-
 			const isMoneygram = isMoneygramPartner(data.partner);
 			const isWic = isWorldcomPartner(data.partner);
 			const isMbtc = isMetrobankHeadOfficePartner(data.partner);
@@ -1112,11 +1248,16 @@ try {
 			const usdTotal = Math.abs(Number(data.usd_total !== undefined ? data.usd_total : (data.moneygram_usd_total || 0)));
 			const phpCommissionTotal = Math.abs(Number(data.php_commission_total !== undefined ? data.php_commission_total : (data.moneygram_commission_php_total || 0)));
 			const usdCommissionTotal = Math.abs(Number(data.usd_commission_total !== undefined ? data.usd_commission_total : (data.moneygram_commission_usd_total || 0)));
-			const principalHeader = `<span class="rpd-summary-group"><span class="rpd-summary-label">Principal:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdTotal)}</span></span>`;
-			const commissionHeader = isWic ? '' : `<span class="rpd-summary-group"><span class="rpd-summary-label">Commission:</span><span class="rpd-summary-badge rpd-summary-badge--php">PHP: ${formatCurrencyAllowZero(phpCommissionTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD: ${formatCurrencyAllowZero(usdCommissionTotal)}</span></span>`;
-			resultsTitle.innerHTML = `Volume: ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}<span class="rpd-summary-badges">${principalHeader}${commissionHeader}</span>`;
-			resultsSummary.textContent = '';
-			resultsSummary.style.display = 'none';
+			updateResultsCard(data, {
+				phpTotal: phpTotal,
+				usdTotal: usdTotal,
+				phpCommissionTotal: phpCommissionTotal,
+				usdCommissionTotal: usdCommissionTotal
+			}, isWic);
+			if (resultsSummary) {
+				resultsSummary.textContent = dateRange ? dateRange.replace(/^\s*\(|\)\s*$/g, '') : '';
+				resultsSummary.style.display = resultsSummary.textContent ? '' : 'none';
+			}
 			const resultsTable = document.getElementById('rpdResultsTable');
 			if (resultsTable) {
 				resultsTable.classList.toggle('rpd-table--wic', isWic);

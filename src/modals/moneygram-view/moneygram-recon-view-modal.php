@@ -18,6 +18,7 @@
 
             <div class="moneygram-recon-modal__controls">
                 <label class="cmp-control-search"><input data-role="resultSearch" type="search" placeholder="Search"></label>
+                <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
                 <label class="cmp-control-filter">Show: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
                 <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
                 <button id="moneygramExportExcelBtn" class="moneygram-lock-all-btn" type="button">Export to Excel</button>
@@ -287,10 +288,12 @@ window.showSuccessToast = function(message, timeout){
             const startEl = document.getElementById('hsStartDate');
             const endEl = document.getElementById('hsEndDate');
             const companyEl = document.getElementById('hsCompany');
+            const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
             const filterEl = modal.querySelector('[data-role="resultFilter"]');
             const startDate = startEl ? String(startEl.value || '').trim() : '';
             const endDate = endEl ? String(endEl.value || '').trim() : '';
             const partnerName = companyEl && String(companyEl.value || '').trim() ? String(companyEl.value || '').trim() : 'MONEYGRAM';
+            const currency = currencyEl ? String(currencyEl.value || 'all').trim() : 'all';
             const filter = filterEl ? String(filterEl.value || 'all').trim() : 'all';
 
             if(!startDate || !endDate){
@@ -307,6 +310,7 @@ window.showSuccessToast = function(message, timeout){
                 + '?start_date=' + encodeURIComponent(startDate)
                 + '&end_date=' + encodeURIComponent(endDate)
                 + '&partnerName=' + encodeURIComponent(partnerName)
+                + '&currency=' + encodeURIComponent(currency)
                 + '&filter=' + encodeURIComponent(filter);
             window.location.href = url;
         });
@@ -357,6 +361,8 @@ window.showSuccessToast = function(message, timeout){
                     // Clear any search/filter state
                     const searchEl = modal.querySelector('[data-role="resultSearch"]');
                     if(searchEl) searchEl.value = '';
+                    const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
+                    if(currencyEl) currencyEl.value = 'all';
                     const filterEl = modal.querySelector('[data-role="resultFilter"]');
                     if(filterEl) filterEl.value = 'all';
                     
