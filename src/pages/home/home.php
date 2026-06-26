@@ -48,9 +48,11 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/header.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/sidebar.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-cancellation-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/debug/error-debug-modal.css">
         <link rel="icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
@@ -115,6 +117,10 @@ if ($currentUserId !== '') {
                         <span class="icon material-icons" aria-hidden="true">web</span>
                         <span class="label">KPX Web Data</span>
                     </a></li>
+                    <li><a href="#" id="navWebDataCancellation" class="nav-subitem--compact" data-show="webdataCancellationSection">
+                        <span class="icon material-icons" aria-hidden="true">cancel</span>
+                        <span class="label">KPX Web Cancellation</span>
+                    </a></li>
                     <li><a href="#" id="navPartnerData" data-show="partnerdataSection">
                         <span class="icon material-icons" aria-hidden="true">people</span>
                         <span class="label">Partner Data</span>
@@ -156,6 +162,19 @@ if ($currentUserId !== '') {
                 <span class="icon material-icons" aria-hidden="true">compare_arrows</span>
                 <span class="label">Process Recon</span>
             </a></li>
+                    </ul>
+                </li>
+                <li class="nav-group">
+                    <button class="nav-group-toggle" aria-expanded="false" aria-controls="historyLogsMenu">
+                        <span class="icon material-icons" aria-hidden="true">history</span>
+                        <span class="label">History Logs</span>
+                        <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                    </button>
+                    <ul id="historyLogsMenu" class="nav-group-menu" style="display:none;">
+                        <li><a href="#" id="navUploadedFileLogs" data-show="uploadedFileLogsSection">
+                            <span class="icon material-icons" aria-hidden="true">upload_file</span>
+                            <span class="label">Uploaded File Logs</span>
+                        </a></li>
                     </ul>
                 </li>
             <?php if (isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0): ?>
@@ -208,7 +227,9 @@ if ($currentUserId !== '') {
     </section>
 
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
+    <?php include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
+    <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
 </main>
 
@@ -336,9 +357,11 @@ if ($currentUserId !== '') {
                 workspace: 'homeSection',
                 users: 'usersSection',
                 webdata: 'webdataSection',
+                webdatacancellation: 'webdataCancellationSection',
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
                 maintenance: 'maintenanceSection',
+                uploadedfilelogs: 'uploadedFileLogsSection',
                 recon: 'homeSection'
             };
             return allowed[section] || 'dashboardSection';
@@ -358,7 +381,7 @@ if ($currentUserId !== '') {
     }catch(e){}
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconTool','navMaintenance'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){

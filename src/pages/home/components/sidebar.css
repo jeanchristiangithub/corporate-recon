@@ -26,6 +26,25 @@
     overflow: hidden;
 }
 
+.nav-group-menu li a.nav-subitem--compact {
+    gap: 6px;
+    padding-right: 6px;
+}
+
+.nav-group-menu li a.nav-subitem--compact .label {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.nav-group-menu li a.nav-subitem--compact .icon {
+    width: 18px;
+    height: 18px;
+}
+
+.nav-group-menu li a.nav-subitem--compact .icon.material-icons {
+    font-size: 11px;
+}
+
 .app-sidebar.is-avatar-menu-open,
 .app-sidebar:has(.sidebar-avatar-form.is-menu-open) {
     overflow: visible;

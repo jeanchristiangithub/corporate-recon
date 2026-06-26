@@ -1,0 +1,314 @@
+.uploaded-file-logs-section {
+    color: #1f2937;
+}
+
+.uploaded-file-logs-panel {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.uploaded-file-logs-header h2 {
+    margin: 0 0 1rem;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.uploaded-file-logs-filters {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+}
+
+.uploaded-file-logs-group {
+    min-width: 240px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.uploaded-file-logs-group legend {
+    margin: 0 0 0.55rem;
+    padding: 0;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.uploaded-file-logs-options {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.uploaded-file-logs-state-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.uploaded-file-logs-options--state {
+    flex: 0 1 auto;
+    max-width: none;
+    flex-wrap: nowrap;
+}
+
+.uploaded-file-logs-filter-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex: 0 0 auto;
+}
+
+.uploaded-file-logs-state-card {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.85rem;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.uploaded-file-logs-state-card[hidden] {
+    display: none;
+}
+
+.uploaded-file-logs-table-card {
+    margin-top: 1rem;
+    background: #fff;
+    border-top: 1px solid #e6eef6;
+    border-radius: 0;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.uploaded-file-logs-table-card[hidden] {
+    display: none;
+}
+
+.uploaded-file-logs-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e6eef6;
+}
+
+.uploaded-file-logs-table-header h3 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.uploaded-file-logs-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.uploaded-file-logs-table {
+    width: 100%;
+    min-width: 920px;
+    border-collapse: collapse;
+    background: #fff;
+    font-size: 0.9rem;
+}
+
+.uploaded-file-logs-table thead {
+    background: #f9fafb;
+}
+
+.uploaded-file-logs-table th,
+.uploaded-file-logs-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #eef2f7;
+    white-space: nowrap;
+}
+
+.uploaded-file-logs-table th {
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.uploaded-file-logs-table td {
+    color: #1f2937;
+}
+
+.uploaded-file-logs-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.uploaded-file-logs-empty {
+    padding: 1.5rem;
+    color: #9ca3af;
+    text-align: center;
+    white-space: normal;
+}
+
+.uploaded-file-logs-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 36px;
+    padding: 0.45rem 0.7rem;
+    box-sizing: border-box;
+    color: #374151;
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.2;
+    background: #f9fafb;
+    border: 1px solid #e6eef6;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uploaded-file-logs-radio:hover {
+    border-color: rgba(220, 53, 69, 0.35);
+    background: #fff;
+}
+
+.uploaded-file-logs-radio input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: #dc3545;
+    cursor: pointer;
+}
+
+.uploaded-file-logs-radio:has(input:checked) {
+    color: #dc3545;
+    background: #fff5f5;
+    border-color: rgba(220, 53, 69, 0.42);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.08);
+}
+
+.uploaded-file-logs-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 36px;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.uploaded-file-logs-field input {
+    min-height: 36px;
+    padding: 0.45rem 0.65rem;
+    box-sizing: border-box;
+    color: #1f2937;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-transform: none;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uploaded-file-logs-field input:focus {
+    border-color: rgba(220, 53, 69, 0.45);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.uploaded-file-logs-field--search input {
+    width: 220px;
+}
+
+.uploaded-file-logs-clear-btn {
+    min-height: 36px;
+    padding: 0.45rem 0.85rem;
+    color: #374151;
+    font-size: 0.84rem;
+    font-weight: 800;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.uploaded-file-logs-clear-btn:hover,
+.uploaded-file-logs-clear-btn:focus-visible {
+    color: #dc3545;
+    border-color: rgba(220, 53, 69, 0.4);
+    background: #fff5f5;
+    outline: none;
+}
+
+@media (max-width: 720px) {
+    .uploaded-file-logs-filters {
+        flex-direction: column;
+    }
+
+    .uploaded-file-logs-group {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .uploaded-file-logs-state-card {
+        width: 100%;
+        padding: 0.7rem;
+    }
+
+    .uploaded-file-logs-radio {
+        flex: 1 1 160px;
+        justify-content: flex-start;
+    }
+
+    .uploaded-file-logs-options--state {
+        flex-wrap: wrap;
+    }
+
+    .uploaded-file-logs-state-toolbar,
+    .uploaded-file-logs-filter-tools {
+        align-items: stretch;
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .uploaded-file-logs-filter-tools {
+        margin-left: 0;
+    }
+
+    .uploaded-file-logs-field,
+    .uploaded-file-logs-clear-btn {
+        width: 100%;
+    }
+
+    .uploaded-file-logs-field input,
+    .uploaded-file-logs-field--search input {
+        width: 100%;
+    }
+
+    .uploaded-file-logs-table-header {
+        padding: 0.75rem;
+    }
+
+    .uploaded-file-logs-table th,
+    .uploaded-file-logs-table td {
+        padding: 0.65rem;
+    }
+}
