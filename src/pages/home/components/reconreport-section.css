@@ -1,0 +1,334 @@
+.recon-report-section {
+    padding: 1rem;
+}
+
+.recon-report-inner {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.recon-report-title {
+    margin: 0 0 1rem;
+    color: #1f2937;
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
+.recon-report-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem;
+    box-sizing: border-box;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    overflow: visible;
+}
+
+.recon-report-field {
+    display: flex;
+    flex: 1 1 180px;
+    min-width: 160px;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: #6b7280;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.recon-report-field--date {
+    flex-basis: 150px;
+    min-width: 145px;
+}
+
+.recon-report-field--select {
+    flex-basis: 145px;
+    min-width: 135px;
+}
+
+.recon-report-field input,
+.recon-report-field select {
+    width: 100%;
+    height: 38px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    color: #111827;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.recon-report-field input:focus,
+.recon-report-field select:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+}
+
+.recon-report-autocomplete {
+    position: relative;
+}
+
+.recon-report-autocomplete-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    max-height: 280px;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+}
+
+.recon-report-autocomplete-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.recon-report-autocomplete-item small {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.recon-report-autocomplete-item:hover,
+.recon-report-autocomplete-item.is-active {
+    background: #eef6ff;
+}
+
+.recon-report-autocomplete-item--empty {
+    color: #64748b;
+    cursor: default;
+}
+
+.recon-report-autocomplete-item--empty:hover {
+    background: transparent;
+}
+
+.recon-report-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.recon-report-button {
+    height: 38px;
+    padding: 0 1rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.recon-report-button:hover {
+    transform: translateY(-1px);
+}
+
+.recon-report-button--primary {
+    color: #fff;
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.recon-report-button--success {
+    color: #fff;
+    background: #198754;
+    border-color: #198754;
+}
+
+.recon-report-button--secondary {
+    color: #374151;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.recon-report-table-card {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #fff;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.recon-report-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    overflow-x: auto;
+}
+
+.recon-report-summary-group {
+    display: flex;
+    flex: 1 0 520px;
+    align-items: center;
+    gap: 1rem;
+    min-height: 40px;
+    padding: 0.65rem 0.75rem;
+    box-sizing: border-box;
+    color: #4b5563;
+    background: #f8fafc;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.recon-report-summary-title {
+    color: #111827;
+    font-weight: 800;
+}
+
+.recon-report-summary strong {
+    color: #111827;
+    font-weight: 800;
+}
+
+.recon-report-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.recon-report-table {
+    width: 100%;
+    min-width: 1080px;
+    border-collapse: collapse;
+    color: #111827;
+    font-size: 0.85rem;
+}
+
+.recon-report-table th,
+.recon-report-table td {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #dbe5f1;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.recon-report-table thead tr:first-child th {
+    background: #f8fafc;
+    color: #111827;
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.recon-report-table thead tr:nth-child(2) th {
+    background: #fff;
+    color: #111827;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.recon-report-table tbody td {
+    background: #fff;
+}
+
+.recon-report-table tbody tr.recon-report-result-row:hover td {
+    background: #f8fafc;
+}
+
+.recon-report-table tbody tr.recon-report-date-row td {
+    background: #fff;
+    color: #111827;
+    font-weight: 700;
+    text-align: center;
+}
+
+.recon-report-table tbody td:nth-child(1),
+.recon-report-table tbody td:nth-child(2),
+.recon-report-table tbody td:nth-child(5),
+.recon-report-table tbody td:nth-child(6),
+.recon-report-table tbody td:nth-child(7),
+.recon-report-table tbody td:nth-child(8),
+.recon-report-table tbody td:nth-child(10),
+.recon-report-table tbody td:nth-child(11) {
+    text-align: center;
+}
+
+.recon-report-table tbody td:nth-child(3),
+.recon-report-table tbody td:nth-child(4),
+.recon-report-table tbody td:nth-child(9) {
+    text-align: right;
+}
+
+.recon-report-empty-row td {
+    height: 96px;
+    color: #6b7280;
+    text-align: center;
+}
+
+@media (max-width: 980px) {
+    .recon-report-toolbar {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+
+    .recon-report-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .recon-report-summary {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+
+    .recon-report-summary-group {
+        flex-basis: 100%;
+    }
+}
+
+@media (max-width: 640px) {
+    .recon-report-section {
+        padding: 0.75rem;
+    }
+
+    .recon-report-field,
+    .recon-report-field--date,
+    .recon-report-field--select {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .recon-report-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .recon-report-button {
+        width: 100%;
+    }
+
+    .recon-report-summary-group {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.4rem;
+        white-space: normal;
+    }
+}

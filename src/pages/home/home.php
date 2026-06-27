@@ -50,6 +50,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-cancellation-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/reconreport-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
@@ -148,6 +149,10 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">summarize</span>
                             <span class="label">Summary Report</span>
                         </a></li>
+                        <li><a href="#" id="navReconReport" data-show="reconReportSection">
+                            <span class="icon material-icons" aria-hidden="true">receipt_long</span>
+                            <span class="label">Recon Report</span>
+                        </a></li>
                     </ul>
                 </li>
 
@@ -224,6 +229,10 @@ if ($currentUserId !== '') {
 
     <section id="summaryReportSection" class="summary-report-section" aria-label="Summary Report" style="display:none; padding:1rem">
         <?php include __DIR__ . '/components/summaryreport-section.php'; ?>
+    </section>
+
+    <section id="reconReportSection" class="recon-report-section" aria-label="Recon Report" style="display:none; padding:1rem">
+        <?php include __DIR__ . '/components/reconreport-section.php'; ?>
     </section>
 
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
@@ -360,6 +369,7 @@ if ($currentUserId !== '') {
                 webdatacancellation: 'webdataCancellationSection',
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
+                reconreport: 'reconReportSection',
                 maintenance: 'maintenanceSection',
                 uploadedfilelogs: 'uploadedFileLogsSection',
                 recon: 'homeSection'
@@ -381,7 +391,7 @@ if ($currentUserId !== '') {
     }catch(e){}
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
