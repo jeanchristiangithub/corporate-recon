@@ -26,88 +26,67 @@
 
         </div>
 
-        <div class="moneygram-recon-modal__tables" data-role="globalScroll">
-            <section>
-                <div class="moneygram-section-header">
-                <h4>Partners Data</h4>
-                    <div class="moneygram-section-metrics">
-                        <div class="moneygram-volume" data-role="partnersVolume">Volume: 0</div>
-                        <div class="moneygram-principal" data-role="partnersPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
-                        <div class="moneygram-principal" data-role="partnersPrincipalUsd" style="display:none;"></div>
+        <div class="moneygram-recon-modal__tables moneygram-recon-modal__tables--combined" data-role="globalScroll">
+            <section class="moneygram-recon-modal__combined-section">
+                <div class="moneygram-section-header moneygram-section-header--combined">
+                    <div>
+                        <h4>Partners Data</h4>
+                        <div class="moneygram-section-metrics">
+                            <div class="moneygram-volume" data-role="partnersVolume">Volume: 0</div>
+                            <div class="moneygram-principal" data-role="partnersPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
+                            <div class="moneygram-principal" data-role="partnersPrincipalUsd" style="display:none;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4>KPX Web Data</h4>
+                        <div class="moneygram-section-metrics">
+                            <div class="moneygram-volume" data-role="webVolume">Volume: 0</div>
+                            <div class="moneygram-principal" data-role="webPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
+                            <div class="moneygram-principal" data-role="webPrincipalUsd" style="display:none;"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="moneygram-table-shell moneygram-table-shell--partners">
-                    <table class="moneygram-table moneygram-table--partners moneygram-table--head">
-                        <colgroup>
-                            <col class="moneygram-col-date">
-                            <col class="moneygram-col-ref">
-                            <col class="moneygram-col-amount">
-                            <col class="moneygram-col-commission">
-                            <col class="moneygram-col-currency">
-                        </colgroup>
-                        <thead data-role="partnersHead">
-                            <tr>
-                                <th>Date</th>
-                                <th>Reference ID</th>
-                                <th>Amount</th>
-                                <th>Commission</th>
-                                <th>CURRENCY</th>
-                            </tr>
-                        </thead>
-                    </table>
-                    <div class="moneygram-scroll-lock-header" aria-hidden="true">&#128274;</div>
+                <div class="moneygram-table-shell moneygram-table-shell--combined">
                     <div class="moneygram-table-body-scroll" data-role="partnersScroll">
-                        <table class="moneygram-table moneygram-table--partners moneygram-table--body">
+                        <table class="moneygram-table moneygram-table--combined">
                             <colgroup>
                                 <col class="moneygram-col-date">
                                 <col class="moneygram-col-ref">
                                 <col class="moneygram-col-amount">
                                 <col class="moneygram-col-commission">
                                 <col class="moneygram-col-currency">
-                            </colgroup>
-                            <tbody data-role="partnersBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section>
-                <div class="moneygram-section-header">
-                <h4>KPX Web Data</h4>
-                    <div class="moneygram-section-metrics">
-                        <div class="moneygram-volume" data-role="webVolume">Volume: 0</div>
-                        <div class="moneygram-principal" data-role="webPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
-                        <div class="moneygram-principal" data-role="webPrincipalUsd" style="display:none;"></div>
-                    </div>
-                </div>
-                <div class="moneygram-table-shell moneygram-table-shell--web">
-                    <table class="moneygram-table moneygram-table--web moneygram-table--head">
-                        <colgroup>
-                            <col class="moneygram-col-date">
-                            <col class="moneygram-col-kptn">
-                            <col class="moneygram-col-ref">
-                            <col class="moneygram-col-amount">
-                            <col class="moneygram-col-currency">
-                        </colgroup>
-                        <thead data-role="webHead">
-                            <tr>
-                                <th>Date</th>
-                                <th>KPTN</th>
-                                <th>CCREF NO</th>
-                                <th>Amount</th>
-                                <th>CURRENCY</th>
-                            </tr>
-                        </thead>
-                    </table>
-                    <div class="moneygram-table-body-scroll" data-role="webScroll">
-                        <table class="moneygram-table moneygram-table--web moneygram-table--body">
-                            <colgroup>
                                 <col class="moneygram-col-date">
                                 <col class="moneygram-col-kptn">
                                 <col class="moneygram-col-ref">
                                 <col class="moneygram-col-amount">
                                 <col class="moneygram-col-currency">
+                                <col class="moneygram-col-status">
                             </colgroup>
+                            <thead>
+                                <tr>
+                                    <th colspan="5">PARTNERS DATA</th>
+                                    <th colspan="5">KPX WEB DATA</th>
+                                    <th class="moneygram-status-header moneygram-status-header--group"></th>
+                                </tr>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference ID</th>
+                                    <th>Amount</th>
+                                    <th>Commission</th>
+                                    <th>CURRENCY</th>
+                                    <th>Date</th>
+                                    <th>KPTN</th>
+                                    <th>CCREF NO</th>
+                                    <th>Amount</th>
+                                    <th>CURRENCY</th>
+                                    <th class="moneygram-status-header">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody data-role="partnersBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="moneygram-table-body-scroll moneygram-table-body-scroll--compat" data-role="webScroll" aria-hidden="true">
+                        <table class="moneygram-table moneygram-table--web moneygram-table--body">
                             <tbody data-role="webBody"></tbody>
                         </table>
                     </div>
@@ -127,6 +106,11 @@
 (function () {
     const modal = document.getElementById('moneygramReconViewModal');
     if (!modal || modal.dataset.scrollSyncBound === 'true') {
+        return;
+    }
+
+    if (modal.querySelector('.moneygram-table--combined')) {
+        modal.dataset.scrollSyncBound = 'true';
         return;
     }
 

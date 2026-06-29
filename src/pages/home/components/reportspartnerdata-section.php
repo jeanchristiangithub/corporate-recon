@@ -192,7 +192,7 @@ try {
 		}
 
 		.reports-webdata-content .rpd-results-card__subvalue {
-			margin: 0.55rem 0 0 1.25rem;
+			margin: 0.55rem 0 0;
 			font-size: 0.82rem;
 			font-weight: 700;
 			overflow-wrap: anywhere;
@@ -373,8 +373,8 @@ try {
 		@keyframes rpdModalIn { from { opacity:0; transform: translateY(-6px) scale(0.98); } to { opacity:1; transform: translateY(0) scale(1); } }
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
-		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">Partner data transactions</h3>
-		<p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the Partner Data Uploader, filtered by corporate partner.</p>
+		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">Partner Data Transactions</h3>
+		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the Partner Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="rpdForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
 			<label for="rpdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
@@ -397,6 +397,14 @@ try {
 			</div>
 
 			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+				<label for="rpdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
+					<select id="rpdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
+						<option value="">ALL</option>
+						<option value="PHP">PHP</option>
+						<option value="USD">USD</option>
+					</select>
+				</label>
 				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
 					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
@@ -406,6 +414,7 @@ try {
 					</select>
 				</label>
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Export to Excel</button>
 				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
 			</div>
 		</form>
@@ -426,18 +435,6 @@ try {
 
 		<!-- Results container -->
 		<div id="rpdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:1rem">
-				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-					<label for="rpdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
-						<select id="rpdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
-							<option value="">ALL</option>
-							<option value="PHP">PHP</option>
-							<option value="USD">USD</option>
-						</select>
-					</label>
-					<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
-				</div>
-			</div>
 			<div class="rpd-results-layout">
 				<aside class="rpd-results-card" aria-label="Results summary">
 					<h5 class="rpd-results-card__title">Filter Results</h5>
@@ -450,12 +447,12 @@ try {
 						<p id="rpdCardTransactionDate" class="rpd-results-card__value">-</p>
 					</div>
 					<div class="rpd-results-card__section">
-						<p class="rpd-results-card__label">Transaction Type:</p>
-						<p id="rpdCardTransactionType" class="rpd-results-card__value">ALL</p>
-					</div>
-					<div class="rpd-results-card__section">
 						<p class="rpd-results-card__label">Currency:</p>
 						<p id="rpdCardCurrency" class="rpd-results-card__value">ALL</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Transaction Type:</p>
+						<p id="rpdCardTransactionType" class="rpd-results-card__value">ALL</p>
 					</div>
 					<div class="rpd-results-card__section">
 						<p class="rpd-results-card__label">Volume:</p>
@@ -463,13 +460,13 @@ try {
 					</div>
 					<div class="rpd-results-card__section">
 						<p class="rpd-results-card__label">Principal:</p>
-						<p id="rpdCardPrincipalPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">- PHP: 0.00</p>
-						<p id="rpdCardPrincipalUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">- USD: 0.00</p>
+						<p id="rpdCardPrincipalPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">PHP: 0.00</p>
+						<p id="rpdCardPrincipalUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">USD: 0.00</p>
 					</div>
 					<div id="rpdCardCommissionSection" class="rpd-results-card__section">
 						<p class="rpd-results-card__label">Commission:</p>
-						<p id="rpdCardCommissionPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">- PHP: 0.00</p>
-						<p id="rpdCardCommissionUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">- USD: 0.00</p>
+						<p id="rpdCardCommissionPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">PHP: 0.00</p>
+						<p id="rpdCardCommissionUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">USD: 0.00</p>
 					</div>
 				</aside>
 				<div class="rpd-results-main">
@@ -559,8 +556,8 @@ try {
 			const startDate = filters.startDate || (data && data.start_date) || '';
 			const endDate = filters.endDate || (data && data.end_date) || '';
 			const transactionDate = startDate && endDate
-				? `${startDate} to ${endDate}`
-				: (startDate ? `From ${startDate}` : (endDate ? `Until ${endDate}` : '-'));
+				? (startDate === endDate ? formatDateLong(startDate) : `${formatDateLong(startDate)} to ${formatDateLong(endDate)}`)
+				: (startDate ? `From ${formatDateLong(startDate)}` : (endDate ? `Until ${formatDateLong(endDate)}` : '-'));
 			const transactionType = filters.type ? String(filters.type).toUpperCase() : 'ALL';
 			const selectedCurrency = currencyFilter && currencyFilter.value ? currencyFilter.value : 'ALL';
 			const count = Number(data && data.count ? data.count : 0);
@@ -569,11 +566,23 @@ try {
 			if (cardTransactionType) cardTransactionType.textContent = transactionType;
 			if (cardCurrency) cardCurrency.textContent = selectedCurrency;
 			if (cardVolume) cardVolume.textContent = formatNumber(count);
-			if (cardPrincipalPhp) cardPrincipalPhp.textContent = `- PHP: ${formatCurrencyAllowZero(totals.phpTotal)}`;
-			if (cardPrincipalUsd) cardPrincipalUsd.textContent = `- USD: ${formatCurrencyAllowZero(totals.usdTotal)}`;
+			if (cardPrincipalPhp) {
+				cardPrincipalPhp.textContent = `PHP: ${formatCurrencyAllowZero(totals.phpTotal)}`;
+				cardPrincipalPhp.style.display = selectedCurrency === 'USD' ? 'none' : '';
+			}
+			if (cardPrincipalUsd) {
+				cardPrincipalUsd.textContent = `USD: ${formatCurrencyAllowZero(totals.usdTotal)}`;
+				cardPrincipalUsd.style.display = selectedCurrency === 'PHP' ? 'none' : '';
+			}
 			if (cardCommissionSection) cardCommissionSection.style.display = hideCommission ? 'none' : '';
-			if (cardCommissionPhp) cardCommissionPhp.textContent = `- PHP: ${formatCurrencyAllowZero(totals.phpCommissionTotal)}`;
-			if (cardCommissionUsd) cardCommissionUsd.textContent = `- USD: ${formatCurrencyAllowZero(totals.usdCommissionTotal)}`;
+			if (cardCommissionPhp) {
+				cardCommissionPhp.textContent = `PHP: ${formatCurrencyAllowZero(totals.phpCommissionTotal)}`;
+				cardCommissionPhp.style.display = selectedCurrency === 'USD' ? 'none' : '';
+			}
+			if (cardCommissionUsd) {
+				cardCommissionUsd.textContent = `USD: ${formatCurrencyAllowZero(totals.usdCommissionTotal)}`;
+				cardCommissionUsd.style.display = selectedCurrency === 'PHP' ? 'none' : '';
+			}
 		}
 
 		// Autocomplete function
@@ -856,24 +865,24 @@ try {
 		});
 
 		// Format date
-		function formatDate(dateStr) {
+		function formatDateLong(dateStr) {
 			if (!dateStr) return '';
-			const date = new Date(dateStr);
-			if (isNaN(date.getTime())) return dateStr;
-			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+			const value = String(dateStr).trim();
+			const dateOnly = value.split(/\s+/)[0];
+			const parts = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+			const date = parts
+				? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+				: new Date(value);
+			if (isNaN(date.getTime())) return value;
+			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+		}
+
+		function formatDate(dateStr) {
+			return formatDateLong(dateStr);
 		}
 
 		function formatDateMonthDayYear(dateStr) {
-			if (!dateStr) return '';
-			const dateOnly = String(dateStr).trim().split(/\s+/)[0];
-			const parts = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-			if (parts) return `${parts[2]}-${parts[3]}-${parts[1]}`;
-
-			const date = new Date(dateStr);
-			if (isNaN(date.getTime())) return String(dateStr);
-			const month = String(date.getMonth() + 1).padStart(2, '0');
-			const day = String(date.getDate()).padStart(2, '0');
-			return `${month}-${day}-${date.getFullYear()}`;
+			return formatDateLong(dateStr);
 		}
 
 		async function fetchTransactions(page) {
@@ -883,6 +892,7 @@ try {
 			viewBtn.textContent = 'Loading...';
 			prevBtn.disabled = true;
 			nextBtn.disabled = true;
+			if (exportBtn) exportBtn.disabled = true;
 
 			try {
 				const params = new URLSearchParams({
@@ -990,6 +1000,11 @@ try {
 			}
 			if (pagination) pagination.style.display = 'none';
 			if (hideBtn) hideBtn.style.display = 'none';
+			if (exportBtn) {
+				exportBtn.style.display = 'none';
+				exportBtn.disabled = false;
+				exportBtn.textContent = 'Export to Excel';
+			}
 			virtualPartnerRows = [];
 			lastReportData = null;
 			currentFilters = null;
@@ -1148,7 +1163,7 @@ try {
 			];
 
 			const mbtcCells = [
-				row['partner_date'] || row['date_claimed'] || '',
+				formatDateLong(row['partner_date'] || row['date_claimed'] || ''),
 				row['partner_time'] || '',
 				row['partner_reference_no'] || row['control_series_no'] || '',
 				row['partner_rts_tracer_no'] || '',
@@ -1277,6 +1292,10 @@ try {
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
 				if (hideBtn) hideBtn.style.display = '';
+				if (exportBtn) {
+					exportBtn.style.display = 'none';
+					exportBtn.disabled = true;
+				}
 				return;
 			}
 
@@ -1317,6 +1336,10 @@ try {
 
 			resultsDiv.style.display = 'block';
 			if (hideBtn) hideBtn.style.display = '';
+			if (exportBtn) {
+				exportBtn.style.display = '';
+				exportBtn.disabled = false;
+			}
 
 			const page = Number(data.page || 1);
 			const perPage = Number(data.per_page || PAGE_SIZE);
@@ -1386,7 +1409,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				}).catch(err => {
 					console.error('Export error', err);
 					alert('Export failed: ' + err.message);
-				}).finally(() => { exportBtn.disabled = false; exportBtn.textContent = 'Export Excel'; });
+				}).finally(() => { exportBtn.disabled = false; exportBtn.textContent = 'Export to Excel'; });
 
 				return;
 			}

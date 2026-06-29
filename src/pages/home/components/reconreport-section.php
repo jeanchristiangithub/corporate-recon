@@ -863,34 +863,36 @@ $reconReportControllerMap = [
         updateSummary();
     }
 
-    function exportVisibleRows() {
-        const rows = visibleRows();
-        if (!rows.length) {
-            alert('No data available to export.');
+    function moneygramReconExcelEndpoint(partnerName, startDate, endDate) {
+        const baseUrl = String(window.autoreconBaseUrl || '').replace(/\/$/, '');
+        const url = new URL(baseUrl + '/src/modals/generate/recon-details-report/excel/moneygram-recon/moneygram-recon-format.php', window.location.origin);
+        const status = normalizeStatus(statusSelect && statusSelect.value) || 'all';
+        const currency = normalizeKey(currencySelect && currencySelect.value) || 'ALL';
+
+        url.searchParams.set('start_date', startDate);
+        url.searchParams.set('end_date', endDate);
+        url.searchParams.set('partnerName', partnerName || 'MONEYGRAM');
+        url.searchParams.set('filter', status === 'duplicate' ? 'duplicates' : status);
+        url.searchParams.set('currency', currency === 'ALL' ? 'all' : currency);
+
+        return url.toString();
+    }
+
+    function exportExcelReport() {
+        const partnerName = selectedPartnerName();
+        const startDate = String(startDateInput && startDateInput.value || '').trim();
+        const endDate = String(endDateInput && endDateInput.value || '').trim();
+
+        if (!partnerName || !startDate || !endDate) {
+            alert('Please select Corporate Partner, Start Date, and End Date.');
+            return;
+        }
+        if (startDate > endDate) {
+            alert('Start Date cannot be greater than End Date.');
             return;
         }
 
-        const csvRows = [];
-        csvRows.push(['Partners Data', '', '', '', '', 'KPX Web Data', '', '', '', '', 'Data Status']);
-        csvRows.push(['Date', 'Reference ID', 'Amount', 'Commission', 'Currency', 'Date', 'KPTN', 'CCREF NO', 'Amount', 'Currency', 'Data Status']);
-        rows.forEach(function (tr) {
-            csvRows.push(Array.from(tr.cells).map(function (cell) {
-                return cell.textContent.trim();
-            }));
-        });
-
-        const csv = csvRows.map(function (row) {
-            return row.map(function (cell) {
-                return '"' + String(cell).replace(/"/g, '""') + '"';
-            }).join(',');
-        }).join('\r\n');
-
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'recon-report.csv';
-        link.click();
-        URL.revokeObjectURL(link.href);
+        window.location.href = moneygramReconExcelEndpoint(partnerName, startDate, endDate);
     }
 
     if (!form || !tbody) return;
@@ -904,7 +906,7 @@ $reconReportControllerMap = [
     if (clearBtn) clearBtn.addEventListener('click', function () {
         window.setTimeout(clearReport, 0);
     });
-    if (exportBtn) exportBtn.addEventListener('click', exportVisibleRows);
+    if (exportBtn) exportBtn.addEventListener('click', exportExcelReport);
     attachPartnerAutocomplete();
     attachDateAutofill();
     clearReport();

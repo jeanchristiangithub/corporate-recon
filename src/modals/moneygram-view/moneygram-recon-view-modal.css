@@ -265,6 +265,219 @@
     border-bottom: 1px solid var(--border-soft);
 }
 
+.moneygram-recon-modal__tables--combined {
+    display: block;
+}
+
+.moneygram-recon-modal__combined-section {
+    width: 100%;
+    height: 100%;
+}
+
+.moneygram-section-header--combined {
+    grid-template-columns: 1fr 1fr !important;
+}
+
+.moneygram-section-header--combined > div {
+    min-width: 0;
+}
+
+.moneygram-table-shell--combined {
+    position: relative;
+}
+
+.moneygram-table--combined {
+    min-width: 100%;
+    table-layout: auto;
+    border-spacing: 0;
+}
+
+.moneygram-table--combined col {
+    width: auto;
+}
+
+.moneygram-table--combined col.moneygram-col-status {
+    width: 74px;
+}
+
+.moneygram-col-status {
+    width: 74px;
+}
+
+.moneygram-table-shell--combined .moneygram-table-body-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.moneygram-table--combined thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-elevated);
+    text-align: left;
+    padding: 4px 6px;
+    font-weight: 700;
+    color: var(--color-title);
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.moneygram-table--combined thead tr:first-child th {
+    text-align: center;
+    background: #f8fafc;
+}
+
+.moneygram-table--combined thead tr:nth-child(2) th {
+    top: 25px;
+    text-align: center;
+}
+
+.moneygram-table--combined thead th.moneygram-status-header {
+    text-align: center;
+    vertical-align: middle;
+    min-width: 74px;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.moneygram-table--combined thead th.moneygram-status-header--group {
+    color: transparent;
+}
+
+.moneygram-status-lock {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    line-height: 1;
+}
+
+.moneygram-date-lock {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #334155;
+    font-size: 0.78rem;
+}
+
+.moneygram-table--combined tbody tr[data-role="date-separator"] td.moneygram-date-lock-cell {
+    text-align: center;
+    background: #f8fafc !important;
+    border-top: 1px solid #dbe3ef;
+    border-bottom: 1px solid #dbe3ef;
+    padding: 6px 8px;
+}
+
+.moneygram-table--combined tbody td {
+    padding: 2px 6px;
+    line-height: 1.2;
+    color: var(--color-text);
+    vertical-align: middle;
+    height: 18px;
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.moneygram-table--combined th,
+.moneygram-table--combined td {
+    white-space: nowrap;
+}
+
+.moneygram-table--combined .moneygram-cell-center {
+    text-align: center;
+}
+
+.moneygram-table--combined .moneygram-cell-number {
+    text-align: right;
+}
+
+.moneygram-table--combined tbody tr:nth-child(even) td {
+    background: rgba(240, 244, 247, 0.5);
+}
+
+.moneygram-table--combined tbody tr.mismatch-row td,
+.moneygram-table--combined tbody tr.row-mismatch td {
+    background: var(--mismatch-red);
+}
+
+.moneygram-table--combined tbody tr.dup-row td,
+.moneygram-table--combined tbody tr.row-duplicate td {
+    background: var(--dup-yellow);
+}
+
+.moneygram-table--combined tbody tr[data-role="date-separator"] td {
+    background: #f8fafc !important;
+    border-top: 1px solid #dbe3ef;
+    border-bottom: 1px solid #dbe3ef;
+    color: #334155;
+    font-weight: 700;
+    padding: 6px 8px;
+}
+
+.moneygram-table--combined tbody tr.matched-row td:first-child {
+    border-left: 4px solid #34a853;
+}
+
+.moneygram-table--combined tbody tr.mismatch-row td:first-child {
+    border-left: 4px solid var(--color-highlight);
+}
+
+.moneygram-table--combined tbody tr.dup-row td:first-child {
+    border-left: 4px solid #ffb300;
+}
+
+.moneygram-status-cell {
+    text-align: center;
+    white-space: nowrap;
+    padding-left: 6px !important;
+}
+
+.moneygram-status-icon,
+.moneygram-status-lock-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+    font-size: 0.82rem;
+    font-weight: 800;
+    vertical-align: middle;
+}
+
+.moneygram-status-icon--matched {
+    color: #16a34a;
+}
+
+.moneygram-status-icon--mismatch {
+    color: #dc3545;
+}
+
+.moneygram-status-icon--duplicate {
+    color: #d97706;
+}
+
+.moneygram-status-lock-icon {
+    margin-left: 2px;
+    color: #334155;
+    font-size: 0.74rem;
+}
+
+.moneygram-table--combined tbody tr.matched-row td:first-child::before,
+.moneygram-table--combined tbody tr.mismatch-row td:first-child::before,
+.moneygram-table--combined tbody tr.dup-row td:first-child::before {
+    content: none !important;
+    display: none !important;
+}
+
+.moneygram-table--combined tbody td:first-child {
+    padding-left: 6px;
+}
+
+.moneygram-table-body-scroll--compat {
+    display: none !important;
+}
+
 .moneygram-table-shell {
     display: flex;
     flex-direction: column;
@@ -571,6 +784,34 @@
 .moneygram-recon-modal__tables section .moneygram-section-metrics .moneygram-principal {
     grid-column: 1 / -1;
     grid-row: 2;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-section-metrics {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 0 6px 4px;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-section-metrics .moneygram-volume,
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-section-metrics .moneygram-principal {
+    grid-column: auto;
+    grid-row: auto;
+    display: inline-flex;
+    padding: 0;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined h4 {
+    display: block;
+    padding: 2px 6px 4px;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-summary-gap {
+    display: inline-block;
+    width: 18px;
 }
 
 

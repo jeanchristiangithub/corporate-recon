@@ -201,7 +201,7 @@ try {
 		.reports-webdata-content .rwd-filter-card__item:last-child { margin-bottom:0; }
 		.reports-webdata-content .rwd-filter-card__label { display:block; margin-bottom:8px; color:#ef3340; font-size:0.78rem; font-weight:800; text-transform:uppercase; }
 		.reports-webdata-content .rwd-filter-card__value { display:block; color:#001234; font-size:0.95rem; font-weight:800; overflow-wrap:anywhere; }
-		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px 20px; font-size:0.9rem; font-weight:800; }
+		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px; font-size:0.9rem; font-weight:800; }
 		.reports-webdata-content .rwd-filter-card__money--php { color:#00704a; }
 		.reports-webdata-content .rwd-filter-card__money--usd { color:#0b4aa2; }
 		@media (max-width: 900px) {
@@ -215,6 +215,12 @@ try {
 			overflow-x: auto;
 			/* vertical scrolling area will be set dynamically by JS */
 		}
+		.reports-webdata-content .rwd-results-table {
+			min-width: max-content;
+		}
+		.reports-webdata-content .rwd-results-table td {
+			white-space: nowrap;
+		}
 		.reports-webdata-content .rwd-results-table-wrap table thead th {
 			position: sticky;
 			top: 0;
@@ -222,8 +228,8 @@ try {
 			background: #f9fafb;
 		}
 	</style>
-		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">KPX Web data transactions</h3>
-		<p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the ML Web Data Uploader, filtered by corporate partner.</p>
+		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">KPX Web Data Transactions</h3>
+		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the ML Web Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="reportsWebdataForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
 			<label for="rwdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
@@ -245,7 +251,15 @@ try {
 				</div>
 			</div>
 
-			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto;flex-wrap:nowrap">
+				<label for="rwdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:8ch">
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
+					<select id="rwdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;min-width:8ch;font-size:.9rem;outline:none">
+						<option value="">ALL</option>
+						<option value="PHP">PHP</option>
+						<option value="USD">USD</option>
+					</select>
+				</label>
 				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
 					<select id="rwdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
@@ -255,6 +269,7 @@ try {
 					</select>
 				</label>
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="display:none;padding:0.55rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff;white-space:nowrap">Export Excel</button>
 				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
 			</div>
 
@@ -307,20 +322,8 @@ try {
 
 		<!-- Results container -->
 		<div id="rwdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:0.75rem">
-				<h4 id="rwdResultsTitle" style="display:none;margin:0"></h4>
-				<p id="rwdResultsSummary" style="display:none;margin:0"></p>
-				<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-					<label for="rwdCurrencyFilter" style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;color:#6b7280;font-weight:700;white-space:nowrap">Currency
-						<select id="rwdCurrencyFilter" style="padding:0.35rem 0.65rem;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;font-size:0.85rem;outline:none">
-							<option value="">ALL</option>
-							<option value="PHP">PHP</option>
-							<option value="USD">USD</option>
-						</select>
-					</label>
-					<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff">Export Excel</button>
-				</div>
-			</div>
+			<h4 id="rwdResultsTitle" style="display:none;margin:0"></h4>
+			<p id="rwdResultsSummary" style="display:none;margin:0"></p>
 			<div class="rwd-results-layout">
 				<aside class="rwd-filter-card" aria-label="Filter results">
 					<h5 class="rwd-filter-card__title">Filter Results</h5>
@@ -346,8 +349,8 @@ try {
 					</div>
 					<div class="rwd-filter-card__item">
 						<span class="rwd-filter-card__label">Principal:</span>
-						<span class="rwd-filter-card__money rwd-filter-card__money--php" id="rwdCardPrincipalPhp">- PHP: 0.00</span>
-						<span class="rwd-filter-card__money rwd-filter-card__money--usd" id="rwdCardPrincipalUsd">- USD: 0.00</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--php" id="rwdCardPrincipalPhp">PHP: 0.00</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--usd" id="rwdCardPrincipalUsd">USD: 0.00</span>
 					</div>
 				</aside>
 				<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
@@ -1109,6 +1112,7 @@ try {
 					resultsBody.innerHTML = '';
 					if(resultsDiv){ resultsDiv.style.display = 'none'; if(resultsDiv.dataset) resultsDiv.dataset.reportData = ''; }
 					if(pagination) pagination.style.display = 'none';
+					if(exportBtn) exportBtn.style.display = 'none';
 					virtualWebRows = [];
 					lastReportData = null;
 					currentFilters = null;
@@ -1138,6 +1142,18 @@ try {
 			return num.toLocaleString('en-US');
 		}
 
+		function formatFilterCardDate(value) {
+			const raw = String(value || '').trim();
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+			if (!match) return raw;
+			const monthIndex = Number(match[2]) - 1;
+			const day = Number(match[3]);
+			const year = Number(match[1]);
+			const date = new Date(year, monthIndex, day);
+			if (isNaN(date.getTime())) return raw;
+			return date.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+		}
+
 		function updateFilterResultsCard(data) {
 			if (!data) return;
 			const typeValue = String(data.type || '').trim();
@@ -1146,11 +1162,13 @@ try {
 			const endDate = String(data.end_date || '').trim();
 			let dateRange = 'ALL';
 			if (startDate && endDate) {
-				dateRange = `${startDate} to ${endDate}`;
+				dateRange = startDate === endDate
+					? formatFilterCardDate(startDate)
+					: `${formatFilterCardDate(startDate)} to ${formatFilterCardDate(endDate)}`;
 			} else if (startDate) {
-				dateRange = `from ${startDate}`;
+				dateRange = `from ${formatFilterCardDate(startDate)}`;
 			} else if (endDate) {
-				dateRange = `until ${endDate}`;
+				dateRange = `until ${formatFilterCardDate(endDate)}`;
 			}
 
 			if (filterCard.partner) filterCard.partner.textContent = data.partner || 'ALL';
@@ -1158,8 +1176,14 @@ try {
 			if (filterCard.type) filterCard.type.textContent = typeValue ? typeValue.toUpperCase() : 'ALL';
 			if (filterCard.currency) filterCard.currency.textContent = currencyValue || 'ALL';
 			if (filterCard.volume) filterCard.volume.textContent = formatNumber(data.count || 0);
-			if (filterCard.principalPhp) filterCard.principalPhp.textContent = `- PHP: ${formatCurrency(Math.abs(Number(data.php_total || 0)), 'PHP')}`;
-			if (filterCard.principalUsd) filterCard.principalUsd.textContent = `- USD: ${formatCurrency(Math.abs(Number(data.usd_total || 0)), 'USD')}`;
+			if (filterCard.principalPhp) {
+				filterCard.principalPhp.textContent = `PHP: ${formatCurrency(Math.abs(Number(data.php_total || 0)), 'PHP')}`;
+				filterCard.principalPhp.style.display = currencyValue === 'USD' ? 'none' : '';
+			}
+			if (filterCard.principalUsd) {
+				filterCard.principalUsd.textContent = `USD: ${formatCurrency(Math.abs(Number(data.usd_total || 0)), 'USD')}`;
+				filterCard.principalUsd.style.display = currencyValue === 'PHP' ? 'none' : '';
+			}
 		}
 
 		function getAppBasePath() {
@@ -1350,6 +1374,7 @@ try {
 				const td = document.createElement('td');
 				td.style.padding = '0.75rem';
 				td.style.color = '#1f2937';
+				td.style.whiteSpace = 'nowrap';
 				if (cellIdx === 6 || (isSendout && cellIdx === 7)) {
 					td.style.textAlign = 'right';
 					td.style.fontFamily = 'monospace';
@@ -1557,12 +1582,14 @@ try {
 			virtualWebRows = [];
 
 			if (!data.rows || data.rows.length === 0) {
+				if (exportBtn) exportBtn.style.display = 'none';
 				resultsBody.innerHTML = `<tr><td colspan="${isSendout ? 13 : 12}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
 				return;
 			}
 
+			if (exportBtn) exportBtn.style.display = '';
 			virtualWebRows = data.rows || [];
 			virtualWebIsSendout = isSendout;
 			if (resultsWrap) resultsWrap.scrollTop = 0;

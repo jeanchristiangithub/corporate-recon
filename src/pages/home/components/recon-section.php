@@ -1128,6 +1128,7 @@ try {
             const filterEl = modal.querySelector('[data-role="resultFilter"]');
             const partnersScroll = modal.querySelector('[data-role="partnersScroll"]');
             const webScroll = modal.querySelector('[data-role="webScroll"]');
+            const isCombinedMoneygramTable = !!modal.querySelector('.moneygram-table--combined');
 
             if(!partnersBody || !webBody || !partnersScroll || !webScroll){
                 if(loadingEl) loadingEl.style.display = 'none';
@@ -1220,14 +1221,69 @@ try {
                 return tr;
             };
 
-            const createDateSeparatorRow = function(isoDate, colspan, showDetailsNotice){
+            const createCombinedMoneygramRow = function(pair){
+                const partnerObj = pair.partnerObj || null;
+                const webObj = pair.webObj || null;
+                const partnerDate = partnerObj ? formatDateLongMonth(normalizeIsoDate(partnerObj.pDate || '') || partnerObj.pDate || '') : '';
+                const partnerAmount = partnerObj ? toMoneygramAmount(partnerObj.pAmt) : 0;
+                const partnerCommission = partnerObj ? toMoneygramAmount(partnerObj.pComm) : 0;
+                const partnerCurrency = partnerObj ? String(partnerObj.pCoin || '').trim() : '';
+                const webDate = webObj ? formatDateLongMonth(normalizeIsoDate(webObj.wDateRaw || '') || webObj.wDateRaw || '') : '';
+                const webAmount = webObj ? toMoneygramAmount(webObj.wAmt) : 0;
+                const webCurrency = webObj ? String(webObj.wCurrency || '').trim() : '';
+                const tr = document.createElement('tr');
+                let statusClass = 'moneygram-status-icon--matched';
+                let statusSymbol = '&#10003;';
+                let statusLabel = 'Matched';
+                if(pair.isDuplicate){
+                    statusClass = 'moneygram-status-icon--duplicate';
+                    statusSymbol = '&#9888;';
+                    statusLabel = 'Duplicate';
+                } else if(pair.isMismatch){
+                    statusClass = 'moneygram-status-icon--mismatch';
+                    statusSymbol = '&#10005;';
+                    statusLabel = 'Mismatch';
+                }
+
+                tr.dataset.ref = partnerObj && partnerObj.tx ? String(partnerObj.tx) : '';
+                tr.dataset.webRef = webObj && webObj.wRef ? String(webObj.wRef) : '';
+                tr.dataset.amount = String(partnerAmount);
+                tr.dataset.commission = String(partnerCommission);
+                tr.dataset.currency = partnerCurrency;
+                tr.dataset.webAmount = String(webAmount);
+                tr.dataset.webCurrency = webCurrency;
+                tr.dataset.isoDate = pair.pairDateIso || '';
+                if(pair.partnerId) tr.dataset.partnerId = pair.partnerId;
+
+                tr.innerHTML =
+                    '<td class="moneygram-cell-center">' + partnerDate + '</td>' +
+                    '<td class="highlight-ref moneygram-cell-center"><span class="moneygram-ref-text">' + (partnerObj ? String(partnerObj.tx || '') : '') + '</span></td>' +
+                    '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
+                    '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerCommission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
+                    '<td class="moneygram-cell-center">' + partnerCurrency + '</td>' +
+                    '<td class="moneygram-cell-center">' + webDate + '</td>' +
+                    '<td class="moneygram-cell-center">' + (webObj ? String(webObj.wKptn || '').trim() : '') + '</td>' +
+                    '<td class="highlight-ref moneygram-cell-center">' + (webObj ? String(webObj.wRef || '') : '') + '</td>' +
+                    '<td class="moneygram-cell-number">' + (webObj ? Math.abs(webAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
+                    '<td class="moneygram-cell-center">' + webCurrency + '</td>' +
+                    '<td class="moneygram-status-cell"><span class="moneygram-status-icon ' + statusClass + '" title="' + statusLabel + '" aria-label="' + statusLabel + '">' + statusSymbol + '</span></td>';
+
+                return tr;
+            };
+
+            const createDateSeparatorRow = function(isoDate, colspan, showDetailsNotice, showLockIcon){
                 const tr = document.createElement('tr');
                 tr.className = 'date-sep-row';
                 tr.setAttribute('data-role', 'date-separator');
                 tr.setAttribute('data-date', isoDate || '');
                 const label = formatDateLongMonth(isoDate || '') || 'NO DATE';
+                const lockIcon = showLockIcon ? '<span class="moneygram-date-lock" title="Locked" aria-label="Locked">&#128274;</span>' : '';
                 const notice = showDetailsNotice ? ' <span style="margin-left:12px;color:#64748b;font-weight:600;font-size:0.78rem;"><span class="material-icons" aria-hidden="true" style="font-size:0.9rem;vertical-align:-2px;margin-right:4px;color:#f59e0b;">info</span>Double click row to show transaction details</span>' : '';
-                tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">' + label + notice + '</td>';
+                if((colspan || 4) === 11){
+                    tr.innerHTML = '<td colspan="10" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;text-align:center;">' + label + notice + '</td><td class="moneygram-date-lock-cell">' + lockIcon + '</td>';
+                } else {
+                    tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">' + label + (lockIcon ? ' ' + lockIcon : '') + notice + '</td>';
+                }
                 return tr;
             };
 
@@ -1405,17 +1461,17 @@ try {
             const applyPairClasses = function(pair, partnerRow, webRow){
                 if(pair.isDuplicate){
                     partnerRow.classList.add('dup-row');
-                    webRow.classList.add('row-duplicate');
+                    if(webRow) webRow.classList.add('row-duplicate');
                 } else if(!pair.isMismatch){
                     partnerRow.classList.add('matched-row');
-                    webRow.classList.add('row-match');
+                    if(webRow) webRow.classList.add('row-match');
                     if(pair.locked){
                         partnerRow.classList.add('locked-row');
                         partnerRow.classList.add('is-locked-row');
                     }
                 } else {
                     partnerRow.classList.add('mismatch-row');
-                    webRow.classList.add('row-mismatch');
+                    if(webRow) webRow.classList.add('row-mismatch');
                 }
             };
 
@@ -1432,11 +1488,14 @@ try {
                 let currentDate = null;
                 const showDuplicateDetailsNotice = filterEl && String(filterEl.value || '') === 'duplicates';
                 const duplicateDates = new Set(filteredPairs.filter((pair) => pair.isDuplicate).map((pair) => pair.pairDateIso || ''));
+                const lockedDatesInView = new Set(filteredPairs.filter((pair) => pair.locked).map((pair) => pair.pairDateIso || ''));
+                const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
+                const modalShowsLocked = lockBtn && String(lockBtn.textContent || '').trim().toUpperCase().indexOf('UNLOCK') !== -1;
                 filteredPairs.forEach((pair) => {
                     const pairDate = pair.pairDateIso || '';
                     if(pairDate !== currentDate){
                         currentDate = pairDate;
-                        virtualRows.push({ type: 'date', date: currentDate, hasDuplicate: showDuplicateDetailsNotice && duplicateDates.has(currentDate) });
+                        virtualRows.push({ type: 'date', date: currentDate, hasDuplicate: showDuplicateDetailsNotice && duplicateDates.has(currentDate), locked: lockedDatesInView.has(currentDate) || lockedDateSet.has(currentDate) || modalShowsLocked });
                     }
                     virtualRows.push({ type: 'pair', pair: pair });
                 });
@@ -1463,12 +1522,12 @@ try {
                     if(virtualRows.length === 0){
                         const emptyPartner = document.createElement('tr');
                         emptyPartner.className = 'empty-row';
-                        emptyPartner.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
+                        emptyPartner.innerHTML = '<td colspan="' + (isCombinedMoneygramTable ? 11 : 5) + '" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
                         const emptyWeb = document.createElement('tr');
                         emptyWeb.className = 'empty-row';
                         emptyWeb.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
                         partnersBody.appendChild(emptyPartner);
-                        webBody.appendChild(emptyWeb);
+                        if(!isCombinedMoneygramTable) webBody.appendChild(emptyWeb);
                         return;
                     }
 
@@ -1477,32 +1536,38 @@ try {
                     const partnerFrag = document.createDocumentFragment();
                     const webFrag = document.createDocumentFragment();
                     if(topHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(topHeight, 5));
-                        webFrag.appendChild(createSpacerRow(topHeight, 5));
+                        partnerFrag.appendChild(createSpacerRow(topHeight, isCombinedMoneygramTable ? 11 : 5));
+                        if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(topHeight, 5));
                     }
 
                     for(let i = start; i < end; i++){
                         const item = virtualRows[i];
                         if(item.type === 'date'){
-                            partnerFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate));
-                            webFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate));
+                            partnerFrag.appendChild(createDateSeparatorRow(item.date, isCombinedMoneygramTable ? 11 : 5, item.hasDuplicate, item.locked));
+                            if(!isCombinedMoneygramTable) webFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate, item.locked));
                             continue;
                         }
                         const pair = item.pair;
-                        const partnerRow = createPartnerRow(pair.partnerObj || { placeholder: true });
-                        const webRow = createWebRow(pair.webObj || { placeholder: true });
-                        applyPairClasses(pair, partnerRow, webRow);
-                        partnerFrag.appendChild(partnerRow);
-                        webFrag.appendChild(webRow);
+                        if(isCombinedMoneygramTable){
+                            const combinedRow = createCombinedMoneygramRow(pair);
+                            applyPairClasses(pair, combinedRow, null);
+                            partnerFrag.appendChild(combinedRow);
+                        } else {
+                            const partnerRow = createPartnerRow(pair.partnerObj || { placeholder: true });
+                            const webRow = createWebRow(pair.webObj || { placeholder: true });
+                            applyPairClasses(pair, partnerRow, webRow);
+                            partnerFrag.appendChild(partnerRow);
+                            webFrag.appendChild(webRow);
+                        }
                     }
 
                     if(bottomHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(bottomHeight, 5));
-                        webFrag.appendChild(createSpacerRow(bottomHeight, 5));
+                        partnerFrag.appendChild(createSpacerRow(bottomHeight, isCombinedMoneygramTable ? 11 : 5));
+                        if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(bottomHeight, 5));
                     }
 
                     partnersBody.appendChild(partnerFrag);
-                    webBody.appendChild(webFrag);
+                    if(!isCombinedMoneygramTable) webBody.appendChild(webFrag);
                 });
             };
 

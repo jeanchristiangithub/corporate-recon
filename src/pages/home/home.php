@@ -397,6 +397,19 @@ if ($currentUserId !== '') {
         navEl.addEventListener('click', function(e){
             try {
                 e.preventDefault();
+                if (id === 'navWebDataCancellation' || id === 'navUploadedFileLogs') {
+                    if (window.Swal) {
+                        Swal.fire({
+                            title: 'Under Maintenance',
+                            icon: 'info',
+                            confirmButtonColor: '#dc3545',
+                            heightAuto: false
+                        });
+                    } else {
+                        alert('Under Maintenance');
+                    }
+                    return;
+                }
                 if (id === 'navHome') {
                     collapseSidebarSubmenus();
                     dismissUserCreateAlert();
