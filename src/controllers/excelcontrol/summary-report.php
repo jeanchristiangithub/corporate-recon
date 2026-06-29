@@ -361,11 +361,13 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
     ]];
 }
 
-function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily): array
+function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily, array $partnerCancelledDaily = []): array
 {
     $rows = [];
     $totals = [
         'partner' => summary_empty_amounts(),
+        'partner_cancelled' => summary_empty_amounts(),
+        'net_partner' => summary_empty_amounts(),
         'web' => summary_empty_amounts(),
         'cancelled' => summary_empty_amounts(),
         'duplicates' => summary_empty_amounts(),
@@ -378,6 +380,8 @@ function summary_build_rows_and_totals(DateTime $startObj, string $endDate, arra
     while ($cursor->format('Y-m-d') <= $endDate) {
         $date = $cursor->format('Y-m-d');
         $partnerAmounts = $partnerDaily[$date] ?? summary_empty_amounts();
+        $partnerCancelledAmounts = $partnerCancelledDaily[$date] ?? summary_empty_amounts();
+        $netPartnerAmounts = summary_subtract_amounts($partnerAmounts, $partnerCancelledAmounts);
         $webAmounts = $webDaily[$date] ?? summary_empty_amounts();
         $cancelledAmounts = summary_empty_amounts();
         $duplicateAmounts = $duplicateDaily[$date] ?? summary_empty_amounts();
@@ -388,6 +392,9 @@ function summary_build_rows_and_totals(DateTime $startObj, string $endDate, arra
         $row = [
             'date' => $date,
             'partner' => $partnerAmounts,
+            'partner_cancelled' => $partnerCancelledAmounts,
+            'refund' => $partnerCancelledAmounts,
+            'net_partner' => $netPartnerAmounts,
             'web' => $webAmounts,
             'cancelled' => $cancelledAmounts,
             'duplicates' => $duplicateAmounts,
@@ -396,7 +403,7 @@ function summary_build_rows_and_totals(DateTime $startObj, string $endDate, arra
             'deposit' => ['debit' => 0.0, 'credit' => 0.0, 'variance' => $depositVariance],
         ];
 
-        foreach (['partner', 'web', 'cancelled', 'duplicates', 'net_web', 'variance'] as $key) {
+        foreach (['partner', 'partner_cancelled', 'net_partner', 'web', 'cancelled', 'duplicates', 'net_web', 'variance'] as $key) {
             $totals[$key] = summary_add_amounts($totals[$key], $row[$key]);
         }
         $totals['deposit']['variance'] += $depositVariance;
@@ -447,13 +454,18 @@ try {
         $currencyReports = [];
         $sendoutReports = [];
         $payoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'REC');
+        $payoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RRC');
         $sendoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'SEN');
+        $sendoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RSN');
         $payoutWebWhere = summary_column_is_nullish_where($webColumns, ['date_send']);
         $sendoutWebWhere = summary_column_is_not_nullish_where($webColumns, ['date_send']);
 
         foreach (['PHP', 'USD'] as $currencyCode) {
             $payoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
                 'where' => $payoutPartnerWhere,
+            ]);
+            $payoutCancelledPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
+                'where' => $payoutCancelledPartnerWhere,
             ]);
             $payoutWebDaily = summary_fetch_daily($pdo, 'ml_web_data', $webColumns, $aliases, $startDate, $endDate, true, $currencyCode, [
                 'date_candidates' => ['date_claimed', 'date'],
@@ -467,11 +479,14 @@ try {
                 'commission_candidates' => ['ctp', 'commission', 'in_php'],
                 'where' => $payoutWebWhere,
             ]);
-            $currencyReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $payoutPartnerDaily, $payoutWebDaily, $payoutDuplicateDaily);
+            $currencyReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $payoutPartnerDaily, $payoutWebDaily, $payoutDuplicateDaily, $payoutCancelledPartnerDaily);
             $currencyReports[strtolower($currencyCode)]['currency'] = $currencyCode;
 
             $sendoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
                 'where' => $sendoutPartnerWhere,
+            ]);
+            $sendoutCancelledPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
+                'where' => $sendoutCancelledPartnerWhere,
             ]);
             $sendoutWebDaily = summary_fetch_daily($pdo, 'ml_web_data', $webColumns, $aliases, $startDate, $endDate, true, $currencyCode, [
                 'date_candidates' => ['date_send', 'date_claimed', 'date'],
@@ -485,7 +500,7 @@ try {
                 'commission_candidates' => ['charge', 'ctp', 'commission', 'in_php'],
                 'where' => $sendoutWebWhere,
             ]);
-            $sendoutReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $sendoutPartnerDaily, $sendoutWebDaily, $sendoutDuplicateDaily);
+            $sendoutReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $sendoutPartnerDaily, $sendoutWebDaily, $sendoutDuplicateDaily, $sendoutCancelledPartnerDaily);
             $sendoutReports[strtolower($currencyCode)]['currency'] = $currencyCode;
         }
 

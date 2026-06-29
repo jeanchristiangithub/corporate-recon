@@ -410,7 +410,9 @@ try {
 					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="">ALL</option>
 						<option value="payout">PAYOUT</option>
+						<option value="payout-cancelled">PAYOUT CANCELLED</option>
 						<option value="sendout">SENDOUT</option>
+						<option value="sendout-cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
@@ -1081,7 +1083,7 @@ try {
 			});
 		}
 
-		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','product','tran_type','tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt','settlement_currency','orig_cntry','rcv_cntry'];
+		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','tran_type','tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt','settlement_currency','orig_cntry','rcv_cntry'];
 		const moneygramAmtCols = new Set(['fx_rev_share_amt','base_amt','comm_amt']);
 
 		function createPartnerSpacerRow(height, colSpan) {
@@ -1300,7 +1302,7 @@ try {
 			}
 
 			if(isMoneygram){
-				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Product','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Base Amt','Comm Amt','Settlement Currency','Orig Cntry','Rcv Cntry','Details'];
+				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Base Amt','Comm Amt','Settlement Currency','Orig Cntry','Rcv Cntry','Details'];
 				const mgNumericCols = new Set(['tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt']);
 				const thead = document.querySelector('#rpdResultsTable thead');
 				if(thead){

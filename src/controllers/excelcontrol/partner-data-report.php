@@ -62,6 +62,12 @@ function numeric_sql_expr(string $column): string
 function moneygram_transaction_type_prefix(string $type): string
 {
     $normalized = strtolower(trim($type));
+    if ($normalized === 'payout-cancelled' || $normalized === 'rrc') {
+        return 'RRC';
+    }
+    if ($normalized === 'sendout-cancelled' || $normalized === 'rsn') {
+        return 'RSN';
+    }
     if ($normalized === 'payout' || $normalized === 'rec' || $normalized === 'receive') {
         return 'REC';
     }
@@ -69,6 +75,18 @@ function moneygram_transaction_type_prefix(string $type): string
         return 'SEN';
     }
     return '';
+}
+
+function moneygram_transaction_type_codes(string $type): array
+{
+    $prefix = moneygram_transaction_type_prefix($type);
+    if ($prefix !== '') {
+        return [$prefix];
+    }
+    if (trim($type) === '') {
+        return ['REC', 'SEN', 'RRC', 'RSN'];
+    }
+    return [];
 }
 
 function build_partner_totals(PDO $pdo, string $table, string $whereSql, array $params, array $existing): array
@@ -275,18 +293,19 @@ try {
     }
 
     $typeFilter = isset($_GET['type']) ? trim((string)$_GET['type']) : (isset($_GET['tran_type']) ? trim((string)$_GET['tran_type']) : '');
-    if ($typeFilter !== '') {
-        if (isset($existing['tran_type'])) {
-            if ($table === 'moneygram_partner_data') {
-                $moneygramTypePrefix = moneygram_transaction_type_prefix($typeFilter);
-                if ($moneygramTypePrefix !== '') {
-                    $whereParts[] = 'UPPER(TRIM(tran_type)) LIKE ?';
-                    $params[] = $moneygramTypePrefix . '%';
+    if (isset($existing['tran_type'])) {
+        if ($table === 'moneygram_partner_data') {
+            $moneygramTypeCodes = moneygram_transaction_type_codes($typeFilter);
+            if (!empty($moneygramTypeCodes)) {
+                $placeholders = implode(',', array_fill(0, count($moneygramTypeCodes), '?'));
+                $whereParts[] = 'UPPER(TRIM(tran_type)) IN (' . $placeholders . ')';
+                foreach ($moneygramTypeCodes as $code) {
+                    $params[] = $code;
                 }
-            } else {
+            }
+        } elseif ($typeFilter !== '') {
                 $whereParts[] = 'tran_type = ?';
                 $params[] = $typeFilter;
-            }
         }
     }
 

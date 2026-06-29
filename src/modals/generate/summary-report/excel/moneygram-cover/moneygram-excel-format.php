@@ -206,7 +206,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
         ['label' => 'KPX', 'span' => 3],
         ['label' => 'CANCELLED', 'span' => 4],
         ['label' => 'NET', 'span' => 3],
-        ['label' => 'MONEYGRAM DATA vs KPX DATA', 'span' => 3],
+        ['label' => 'MONEYGRAM vs KPX WEB', 'span' => 3],
     ], 2);
     moneygram_summary_write_values($sheet, MONEYGRAM_SUMMARY_COLUMN_HEADER_ROW, [
         'Volume', 'Principal', 'Rev Share', 'Comm',
@@ -221,7 +221,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
     $rowNumber = MONEYGRAM_SUMMARY_FIRST_DATA_ROW;
     foreach (($report['rows'] ?? []) as $row) {
         $partner = moneygram_summary_amount($row, 'partner');
-        $cancelled = moneygram_summary_amount($row, 'cancelled');
+        $cancelled = moneygram_summary_amount($row, 'partner_cancelled');
         $web = moneygram_summary_amount($row, 'web');
         $netWeb = moneygram_summary_amount($row, 'net_web');
         $variance = moneygram_summary_amount($row, 'variance');
@@ -269,12 +269,12 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
     ]);
     moneygram_summary_set_group_headers($sheet, [
         ['label' => $currency === 'USD' ? 'GROSS' : 'MONEYGRAM', 'span' => 4],
-        ['label' => 'REFUND', 'span' => 4],
+        ['label' => 'CANCELLED', 'span' => 4],
         ['label' => 'NET', 'span' => 4],
         ['label' => 'KPX', 'span' => 3],
         ['label' => 'CANCELLED', 'span' => 4],
         ['label' => 'NET', 'span' => 3],
-        ['label' => 'MONEYGRAM DATA vs KPX DATA', 'span' => 4],
+        ['label' => 'MONEYGRAM vs KPX WEB', 'span' => 4],
     ], 2);
     moneygram_summary_write_values($sheet, MONEYGRAM_SUMMARY_COLUMN_HEADER_ROW, [
         'Volume', 'Principal', 'Rev Share', 'Comm',
@@ -298,7 +298,7 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
     foreach (($report['rows'] ?? []) as $row) {
         $date = (string) ($row['date'] ?? '');
         $partner = moneygram_summary_amount($row, 'partner');
-        $refund = moneygram_summary_amount($row, 'refund');
+        $refund = moneygram_summary_amount($row, 'partner_cancelled');
         $netPartner = isset($row['net_partner']) && is_array($row['net_partner']) ? $row['net_partner'] : $partner;
         $web = moneygram_summary_amount($row, 'web');
         $cancelled = moneygram_summary_amount($row, 'cancelled');

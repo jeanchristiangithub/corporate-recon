@@ -691,7 +691,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function payoutRow(row) {
         const partner = amountGroup(row, 'partner');
-        const cancelled = amountGroup(row, 'cancelled');
+        const cancelled = amountGroup(row, 'partner_cancelled');
         const web = amountGroup(row, 'web');
         const netWeb = amountGroup(row, 'net_web');
         const variance = amountGroup(row, 'variance');
@@ -709,7 +709,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function payoutTotalRow(totals) {
         const partner = totals.partner || {};
-        const cancelled = totals.cancelled || {};
+        const cancelled = totals.partner_cancelled || {};
         const web = totals.web || {};
         const netWeb = totals.net_web || {};
         const variance = totals.variance || {};
@@ -736,7 +736,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function sendoutRow(row, payoutRowForDate) {
         const partner = amountGroup(row, 'partner');
-        const refund = amountGroup(row, 'refund');
+        const refund = amountGroup(row, 'partner_cancelled');
         const netPartner = row && row.net_partner ? row.net_partner : partner;
         const web = amountGroup(row, 'web');
         const cancelled = amountGroup(row, 'cancelled');
@@ -758,7 +758,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function sendoutTotalRow(totals, payoutTotals) {
         const partner = totals.partner || {};
-        const refund = totals.refund || {};
+        const refund = totals.partner_cancelled || {};
         const netPartner = totals.net_partner || partner;
         const web = totals.web || {};
         const cancelled = totals.cancelled || {};
@@ -821,7 +821,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
             { label: 'NET', span: 3 },
-            { label: `${partnerLabel} DATA vs KPX DATA`, span: 3 }
+            { label: `${partnerLabel} vs KPX WEB`, span: 3 }
         ];
         const payoutLabels = [
             'Volume', 'Principal', 'Rev Share', 'Comm',
@@ -841,12 +841,12 @@ $partnerInputChars = min($partnerInputChars, 90);
         ];
         const sendoutGroups = [
             { label: selectedCurrency === 'usd' ? 'GROSS' : partnerLabel, span: 4 },
-            { label: 'REFUND', span: 4 },
+            { label: 'CANCELLED', span: 4 },
             { label: 'NET', span: 4 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
             { label: 'NET', span: 3 },
-            { label: `${partnerLabel} DATA vs KPX DATA`, span: 4 }
+            { label: `${partnerLabel} vs KPX WEB`, span: 4 }
         ];
         const sendoutLabels = [
             'Volume', 'Principal', 'Rev Share', 'Comm',

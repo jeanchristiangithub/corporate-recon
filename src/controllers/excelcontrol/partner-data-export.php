@@ -182,14 +182,14 @@ try {
     $sheet->setCellValue('A7', 'Commission: PHP: ' . number_format(abs((float)($totRow['php_commission_total'] ?? 0)), 2, '.', ',') . ' USD: ' . number_format(abs((float)($totRow['usd_commission_total'] ?? 0)), 2, '.', ','));
 
     $headerRow = 9;
-    $headers = ['Tran Date', 'Agent Name', 'Legacy ID', 'Account Number', 'Reference ID', 'Product', 'Tran Type', 'Tran Fx Rate', 'Fx Rev Share Amt', 'Base Amt', 'Comm Amt', 'Settlement Currency', 'Orig Cntry', 'Rcv Cntry'];
+    $headers = ['Tran Date', 'Agent Name', 'Legacy ID', 'Account Number', 'Reference ID', 'Tran Type', 'Tran Fx Rate', 'Fx Rev Share Amt', 'Base Amt', 'Comm Amt', 'Settlement Currency', 'Orig Cntry', 'Rcv Cntry'];
     $col = 'A';
     foreach ($headers as $h) {
         $sheet->setCellValue($col . $headerRow, $h);
         $col++;
     }
 
-    $lastCol = 'N';
+    $lastCol = 'M';
     $sheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->getFont()->setBold(true);
     $sheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     $sheet->freezePane('A' . ($headerRow + 1));
@@ -206,15 +206,14 @@ try {
         $sheet->setCellValue('C' . $rowIndex, moneygram_export_pick($r, ['legacy_id']));
         $sheet->setCellValue('D' . $rowIndex, moneygram_export_pick($r, ['account_number']));
         $sheet->setCellValue('E' . $rowIndex, moneygram_export_pick($r, ['reference_id']));
-        $sheet->setCellValue('F' . $rowIndex, moneygram_export_pick($r, ['product']));
-        $sheet->setCellValue('G' . $rowIndex, $tranType);
-        $sheet->setCellValue('H' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['tran_fx_rate', 'fx_rate_trn'])));
-        $sheet->setCellValue('I' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['fx_rev_share_amt', 'fx_rev_share_tran_amt'])));
-        $sheet->setCellValue('J' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['base_amt'])));
-        $sheet->setCellValue('K' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['comm_amt', 'comm_tran_amt'])));
-        $sheet->setCellValue('L' . $rowIndex, moneygram_export_pick($r, ['settlement_currency']));
-        $sheet->setCellValue('M' . $rowIndex, moneygram_export_pick($r, ['orig_cntry']));
-        $sheet->setCellValue('N' . $rowIndex, moneygram_export_pick($r, ['rcv_cntry']));
+        $sheet->setCellValue('F' . $rowIndex, $tranType);
+        $sheet->setCellValue('G' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['tran_fx_rate', 'fx_rate_trn'])));
+        $sheet->setCellValue('H' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['fx_rev_share_amt', 'fx_rev_share_tran_amt'])));
+        $sheet->setCellValue('I' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['base_amt'])));
+        $sheet->setCellValue('J' . $rowIndex, moneygram_export_float(moneygram_export_pick($r, ['comm_amt', 'comm_tran_amt'])));
+        $sheet->setCellValue('K' . $rowIndex, moneygram_export_pick($r, ['settlement_currency']));
+        $sheet->setCellValue('L' . $rowIndex, moneygram_export_pick($r, ['orig_cntry']));
+        $sheet->setCellValue('M' . $rowIndex, moneygram_export_pick($r, ['rcv_cntry']));
         $rowIndex++;
     }
 
@@ -224,7 +223,7 @@ try {
 
     $lastDataRow = max($headerRow, $rowIndex - 1);
     if ($lastDataRow >= $headerRow + 1) {
-        $sheet->getStyle("H" . ($headerRow + 1) . ":K{$lastDataRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle("G" . ($headerRow + 1) . ":J{$lastDataRow}")->getNumberFormat()->setFormatCode('#,##0.00');
         $sheet->getStyle("C" . ($headerRow + 1) . ":C{$lastDataRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
     $sheet->getStyle("A{$headerRow}:{$lastCol}{$lastDataRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);

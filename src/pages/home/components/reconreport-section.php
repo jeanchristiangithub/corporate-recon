@@ -641,6 +641,13 @@ $reconReportControllerMap = [
     function setEmptyRow(message) {
         if (!tbody) return;
         tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="11">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
+        updateExportButtonVisibility();
+    }
+
+    function updateExportButtonVisibility() {
+        if (!exportBtn) return;
+        const hasVisibleRows = visibleRows().length > 0;
+        exportBtn.hidden = !hasVisibleRows;
     }
 
     function statusLabel(status) {
@@ -719,6 +726,7 @@ $reconReportControllerMap = [
 
         tbody.innerHTML = '';
         tbody.appendChild(fragment);
+        updateExportButtonVisibility();
     }
 
     function visibleRows() {
@@ -807,6 +815,7 @@ $reconReportControllerMap = [
 
         updateDateSeparatorVisibility();
         updateSummary();
+        updateExportButtonVisibility();
     }
 
     async function generateReport() {
