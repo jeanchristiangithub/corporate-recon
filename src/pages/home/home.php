@@ -390,6 +390,11 @@ if ($currentUserId !== '') {
         if (typeof updateHeaderPosition === 'function') updateHeaderPosition();
     }catch(e){}
 
+    // list of nav ids that are under maintenance
+    const underMaintenanceNavIds = [
+        'navUploadedFileLogs'
+    ];
+
     // wire nav links
     ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
@@ -397,7 +402,7 @@ if ($currentUserId !== '') {
         navEl.addEventListener('click', function(e){
             try {
                 e.preventDefault();
-                if (id === 'navWebDataCancellation' || id === 'navUploadedFileLogs') {
+                if (underMaintenanceNavIds.includes(id)) {
                     if (window.Swal) {
                         Swal.fire({
                             title: 'Under Maintenance',
@@ -470,6 +475,44 @@ if ($currentUserId !== '') {
                 if (menu) menu.style.display = open ? 'block' : 'none';
                 btn.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
+        });
+    } catch (e) { /* ignore */ }
+
+    try {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'sidebar-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        document.body.appendChild(tooltip);
+
+        function getTooltipText(item) {
+            const label = item ? item.querySelector('.label') : null;
+            return label ? label.textContent.trim() : '';
+        }
+
+        function showSidebarTooltip(item) {
+            if (!item || sb.classList.contains('is-open')) return;
+            const text = getTooltipText(item);
+            if (!text) return;
+            const rect = item.getBoundingClientRect();
+            tooltip.textContent = text;
+            tooltip.classList.add('is-visible');
+            tooltip.style.left = (rect.right + 10) + 'px';
+            tooltip.style.top = (rect.top + (rect.height / 2)) + 'px';
+        }
+
+        function hideSidebarTooltip() {
+            tooltip.classList.remove('is-visible');
+        }
+
+        sb.querySelectorAll('.sidebar-nav a, .sidebar-nav .nav-group-toggle').forEach(function(item) {
+            item.addEventListener('mouseenter', function(){ showSidebarTooltip(item); });
+            item.addEventListener('focus', function(){ showSidebarTooltip(item); });
+            item.addEventListener('mouseleave', hideSidebarTooltip);
+            item.addEventListener('blur', hideSidebarTooltip);
+        });
+
+        sb.addEventListener('transitionend', function(){
+            if (sb.classList.contains('is-open')) hideSidebarTooltip();
         });
     } catch (e) { /* ignore */ }
 })();

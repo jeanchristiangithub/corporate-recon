@@ -55,6 +55,18 @@ try {
         </div>
     </div>
 
+    <div id="wdcPreviewModal" class="wdc-preview-modal" role="dialog" aria-modal="true" aria-labelledby="wdcPreviewModalTitle" aria-hidden="true">
+        <div class="wdc-preview-modal__panel">
+            <div class="wdc-preview-modal__header">
+                <h3 id="wdcPreviewModalTitle" class="wdc-preview-modal__title"></h3>
+                <button type="button" id="wdcPreviewModalClose" class="wdc-preview-modal__close" aria-label="Close">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <div class="wdc-preview-modal__body"></div>
+        </div>
+    </div>
+
     <script>
     (function(){
         const company = document.getElementById('wdcCompany');
@@ -63,8 +75,13 @@ try {
         const dropzone = document.getElementById('wdcDropzone');
         const fileInput = document.getElementById('wdcFiles');
         const fileList = document.getElementById('wdcFileList');
+        const previewModal = document.getElementById('wdcPreviewModal');
+        const previewModalTitle = document.getElementById('wdcPreviewModalTitle');
+        const previewModalClose = document.getElementById('wdcPreviewModalClose');
+        const previewModalBody = previewModal.querySelector('.wdc-preview-modal__body');
         const partners = <?= json_encode($webdataCancellationPartners, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
         let files = [];
+        let fileRowCounts = new Map();
         let companyFocused = false;
 
         function selectedPartnerIsValid(){
@@ -72,6 +89,13 @@ try {
             return partners.some(function(partner){
                 return String(partner.label || '').toLowerCase() === value;
             });
+        }
+
+        function selectedPartner(){
+            const value = company.value.trim().toLowerCase();
+            return partners.find(function(partner){
+                return String(partner.label || '').toLowerCase() === value;
+            }) || null;
         }
 
         function updateReadyState(){
@@ -152,7 +176,7 @@ try {
             }
 
             fileList.style.display = '';
-            fileList.innerHTML = '<div class="wdc-filecount">' + files.length + ' file(s) selected</div>';
+            fileList.innerHTML = '';
             const list = document.createElement('ul');
             list.className = 'wdc-files-ul';
             files.forEach(function(file, index){
@@ -163,10 +187,15 @@ try {
                         '<span class="material-icons" aria-hidden="true">description</span>' +
                         '<div class="wdc-file-meta">' +
                             '<span class="wdc-file-name">' + escapeHtml(file.name) + '</span>' +
-                            '<span class="wdc-file-size">' + formatFileSize(file.size) + '</span>' +
+                            '<span class="wdc-file-size">' + getFileRowCountLabel(index, file) + '</span>' +
                         '</div>' +
                     '</div>' +
-                    '<button type="button" class="wdc-remove" data-index="' + index + '" aria-label="Remove ' + escapeHtml(file.name) + '">Remove</button>';
+                    '<div class="wdc-file-actions">' +
+                        '<button type="button" class="wdc-view" data-index="' + index + '" aria-label="View ' + escapeHtml(file.name) + '" title="View file">' +
+                            '<span class="material-icons" aria-hidden="true">visibility</span>' +
+                        '</button>' +
+                        '<button type="button" class="wdc-remove" data-index="' + index + '" aria-label="Remove ' + escapeHtml(file.name) + '">Remove</button>' +
+                    '</div>';
                 list.appendChild(item);
             });
             fileList.appendChild(list);
@@ -175,7 +204,113 @@ try {
 
         function setFiles(fileCollection){
             files = Array.from(fileCollection || []);
+            fileRowCounts = new Map();
             renderFileList();
+            files.forEach(function(file, index){
+                detectCancellationRowCount(file).then(function(count){
+                    if(files[index] !== file) return;
+                    fileRowCounts.set(file, count);
+                    renderFileList();
+                }).catch(function(error){
+                    console.warn('[webdata-cancellation] failed to detect row count', error);
+                });
+            });
+        }
+
+        function getFileRowCountLabel(index, file){
+            if(fileRowCounts.has(file)){
+                const count = fileRowCounts.get(file);
+                return count === 1 ? '1 row' : count + ' rows';
+            }
+            return 'Counting rows...';
+        }
+
+        function parseCsvLine(line, delimiter){
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for(let i = 0; i < line.length; i++){
+                const character = line[i];
+                const next = line[i + 1];
+                if(character === '"'){
+                    if(inQuotes && next === '"'){
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if(character === delimiter && !inQuotes){
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += character;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        function detectCsvDelimiter(text){
+            const delimiters = [',', ';', '\t', '|'];
+            const counts = new Map(delimiters.map(function(delimiter){ return [delimiter, 0]; }));
+            text.split(/\r\n|\r|\n/).slice(0, 10).forEach(function(line){
+                if(!line.trim()) return;
+                delimiters.forEach(function(delimiter){
+                    counts.set(delimiter, counts.get(delimiter) + (line.split(delimiter).length - 1));
+                });
+            });
+            return delimiters.sort(function(a, b){ return counts.get(b) - counts.get(a); })[0] || ',';
+        }
+
+        async function detectCancellationRowCount(file){
+            if(!/\.csv$/i.test(file.name || '')) return 0;
+            const text = await file.text();
+            const delimiter = detectCsvDelimiter(text);
+            const lines = text.split(/\r\n|\r|\n/);
+            const rowFour = parseCsvLine(lines[3] || '', delimiter);
+            const detectedHeader = String(rowFour[3] || '').trim().toUpperCase();
+            if(detectedHeader !== 'DATE CLAIMED' && detectedHeader !== 'DATE SEND') return 0;
+
+            let count = 0;
+            for(let index = 4; index < lines.length; index++){
+                const values = parseCsvLine(lines[index] || '', delimiter);
+                const hasValue = values.some(function(value){ return String(value || '').trim() !== ''; });
+                if(!hasValue) break;
+                count++;
+            }
+            return count;
+        }
+
+        async function openPreviewModal(file){
+            previewModalTitle.textContent = file && file.name ? file.name : '';
+            previewModalBody.innerHTML = '<div class="wdc-preview-modal__loading">Loading system table...</div>';
+            previewModal.classList.add('is-open');
+            previewModal.setAttribute('aria-hidden', 'false');
+            try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            previewModalClose.focus();
+
+            try{
+                const formData = new FormData();
+                formData.append('file', file);
+                const url = (window.autoreconBaseUrl || '') + '/src/controllers/excelcontrol/cancellation/moneygram/moneygram-cancellation-viewer.php';
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                });
+                previewModalBody.innerHTML = await response.text();
+            }catch(error){
+                console.error('[webdata-cancellation] failed to load cancellation viewer', error);
+                previewModalBody.innerHTML = '<div class="wdc-preview-modal__error">Failed to load system table result.</div>';
+            }
+        }
+
+        function closePreviewModal(){
+            previewModal.classList.remove('is-open');
+            previewModal.setAttribute('aria-hidden', 'true');
+            previewModalTitle.textContent = '';
+            previewModalBody.innerHTML = '';
+            try{ document.body.style.overflow = ''; }catch(e){}
         }
 
         company.addEventListener('input', function(){
@@ -215,6 +350,14 @@ try {
             setFiles(fileInput.files);
         });
         fileList.addEventListener('click', function(event){
+            const viewBtn = event.target.closest && event.target.closest('.wdc-view');
+            if(viewBtn){
+                const index = parseInt(viewBtn.dataset.index, 10);
+                if(Number.isNaN(index) || !files[index]) return;
+                openPreviewModal(files[index]);
+                return;
+            }
+
             const removeBtn = event.target.closest && event.target.closest('.wdc-remove');
             if(!removeBtn) return;
             const index = parseInt(removeBtn.dataset.index, 10);
@@ -224,13 +367,92 @@ try {
             renderFileList();
         });
 
-        uploadBtn.addEventListener('click', function(){
+        function showUploadLoading(){
+            if(window.Swal){
+                Swal.fire({
+                    title: 'Uploading...',
+                    html: '<div class="wdc-upload-progress"><div></div></div>',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: function(){ Swal.showLoading(); }
+                });
+            }
+        }
+
+        function showUploadComplete(inserted){
+            if(window.Swal){
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Completed Successfully',
+                    text: inserted + (inserted === 1 ? ' row uploaded.' : ' rows uploaded.'),
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                alert('Completed Successfully');
+            }
+        }
+
+        function showUploadFailed(message){
+            if(window.Swal){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Upload Failed',
+                    text: message || 'Please try again.',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                alert('Upload Failed: ' + (message || 'Please try again.'));
+            }
+        }
+
+        async function uploadCancellationFiles(){
             if(uploadBtn.disabled) return;
-            console.log('[webdata-cancellation] upload pending implementation', {
-                company: company.value,
-                partner: partners.find(function(partner){ return partner.label === company.value; }) || null,
-                files: files.map(function(file){ return file.name; })
-            });
+            const partner = selectedPartner();
+            if(!partner){
+                showUploadFailed('Please select a valid corporate partner.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('partner_id', partner.id || '');
+            formData.append('partnerName', partner.name || '');
+            files.forEach(function(file){ formData.append('files[]', file); });
+
+            uploadBtn.disabled = true;
+            showUploadLoading();
+            try{
+                const response = await fetch((window.autoreconBaseUrl || '') + '/src/controllers/excelcontrol/cancellation/moneygram/moneygram-cancellation-upload.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                });
+                const json = await response.json().catch(function(){ return null; });
+                if(!response.ok || !json || !json.success){
+                    throw new Error((json && json.error) ? json.error : 'Upload failed.');
+                }
+                files = [];
+                fileInput.value = '';
+                fileRowCounts = new Map();
+                renderFileList();
+                showUploadComplete(Number(json.inserted || 0));
+            }catch(error){
+                console.error('[webdata-cancellation] upload failed', error);
+                showUploadFailed(error && error.message ? error.message : 'Upload failed.');
+            }finally{
+                updateReadyState();
+            }
+        }
+
+        uploadBtn.addEventListener('click', function(){
+            uploadCancellationFiles();
+        });
+        previewModalClose.addEventListener('click', closePreviewModal);
+        previewModal.addEventListener('click', function(event){
+            if(event.target === previewModal) closePreviewModal();
+        });
+        document.addEventListener('keydown', function(event){
+            if(event.key === 'Escape' && previewModal.classList.contains('is-open')) closePreviewModal();
         });
 
         updateReadyState();

@@ -72,6 +72,30 @@
     width: 220px;
 }
 
+.sidebar-tooltip {
+    position: fixed;
+    z-index: 2000;
+    max-width: 220px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #182235;
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(-4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    white-space: nowrap;
+}
+
+.sidebar-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
 /* ─── Burger button ───────────────────────────────────────────────── */
 .sidebar-burger {
     position: absolute;
