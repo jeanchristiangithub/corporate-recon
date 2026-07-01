@@ -25,7 +25,7 @@ try {
     </div>
 </div>
 
-<section id="homeSection" class="home-section" aria-label="Home Statistics">
+<section id="homeSection" class="home-section" aria-label="Process Recon" style="display:none;">
     <div class="home-section__inner">
         <div class="home-section__header">
             <h2 class="home-section__title">Process Recon</h2>

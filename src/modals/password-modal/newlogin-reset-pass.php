@@ -94,7 +94,7 @@ bootSecureSession();
             if(newPass && confirmPass){
                 if(newPass.value === DEFAULT_PASSWORD){
                     e.preventDefault();
-                    if(errorBox){ errorBox.textContent = 'Use another password.'; errorBox.style.display = 'block'; }
+                    if(errorBox){ errorBox.textContent = 'Not allowed default password.'; errorBox.style.display = 'block'; }
                     newPass.focus();
                     return false;
                 }

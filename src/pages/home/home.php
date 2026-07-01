@@ -54,6 +54,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/profile-settings/user-profile-settings.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/debug/error-debug-modal.css">
         <link rel="icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
@@ -86,9 +87,10 @@ if ($currentUserId !== '') {
                 <?php endif; ?>
             </button>
             <div class="avatar-menu" role="menu" aria-label="Profile photo menu">
-                <button type="button" data-avatar-action="show" role="menuitem">Show</button>
+                <button type="button" data-avatar-action="profile-settings" role="menuitem">Profile Settings</button>
+                <!-- <button type="button" data-avatar-action="show" role="menuitem">Show</button>
                 <button type="button" data-avatar-action="change" role="menuitem">Change</button>
-                <button type="button" data-avatar-action="default" role="menuitem">Default</button>
+                <button type="button" data-avatar-action="default" role="menuitem">Default</button> -->
             </div>
             <input type="hidden" name="profile_photo_action" value="upload">
             <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Change profile photo">
@@ -235,6 +237,10 @@ if ($currentUserId !== '') {
         <?php include __DIR__ . '/components/reconreport-section.php'; ?>
     </section>
 
+    <section id="profileSettingsSection" class="profile-settings-section" aria-label="Profile Settings" style="display:none; padding:1rem">
+        <?php include __DIR__ . '/components/profile-settings/user-profile-settings.php'; ?>
+    </section>
+
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
     <?php include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
@@ -327,6 +333,23 @@ if ($currentUserId !== '') {
         }catch(e){}
     }
 
+    window.showHomeSection = function(sectionId) {
+        try {
+            const target = sectionId ? document.getElementById(sectionId) : null;
+            if (!target) return false;
+            hideAllSectionTargets();
+            target.style.display = 'block';
+            target.classList.add('is-visible');
+            setActiveNavFor(sectionId);
+            setTimeout(function(){
+                try { target.scrollIntoView({behavior:'auto', block:'start'}); } catch (e) {}
+            }, 40);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    };
+
     function setActiveNavFor(sectionId){
         try{
             const links = document.querySelectorAll('.sidebar-nav a');
@@ -370,6 +393,7 @@ if ($currentUserId !== '') {
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
+                profilesettings: 'profileSettingsSection',
                 maintenance: 'maintenanceSection',
                 uploadedfilelogs: 'uploadedFileLogsSection',
                 recon: 'homeSection'
@@ -392,7 +416,8 @@ if ($currentUserId !== '') {
 
     // list of nav ids that are under maintenance
     const underMaintenanceNavIds = [
-        'navUploadedFileLogs'
+        'navUploadedFileLogs',
+        'navWebDataCancellation'
     ];
 
     // wire nav links
@@ -570,6 +595,11 @@ window.addEventListener('DOMContentLoaded', function(){
 
         var action = actionButton.getAttribute('data-avatar-action');
         closeMenu();
+
+        if (action === 'profile-settings') {
+            if (typeof window.showHomeSection === 'function') window.showHomeSection('profileSettingsSection');
+            return;
+        }
 
         if (action === 'change') {
             if (actionInput) actionInput.value = 'upload';

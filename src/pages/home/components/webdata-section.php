@@ -23,7 +23,7 @@ try {
     $partnerIds = [];
 }
 ?>
-<section id="webdataSection" class="webdata-section" aria-label="KPX Web Data Uploader">
+<section id="webdataSection" class="webdata-section" aria-label="KPX Web Data Uploader" style="display:none; padding:1rem">
     <div class="webdata-inner">
         <h2 class="webdata-title">KPX Web Data Uploader</h2>
 

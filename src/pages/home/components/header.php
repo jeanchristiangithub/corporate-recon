@@ -20,7 +20,7 @@
             <span class="material-icons">warning_amber</span>
         </div>
         <h2 id="logout-modal-title">Confirm Logout</h2>
-        <p id="logout-modal-message">Are you sure you want to logout?</p>
+        <!-- <p id="logout-modal-message">Are you sure you want to logout?</p> -->
         <div id="logout-pending-summary" class="logout-modal__summary" hidden></div>
         <p id="logout-modal-question" class="logout-modal__question" hidden>Do you want to continue?</p>
         <div class="logout-modal__actions">

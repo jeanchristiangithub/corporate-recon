@@ -393,9 +393,10 @@ try {
         }
 
         function syncUi(){
-            fileCount.textContent = selectedFiles.length + (selectedFiles.length === 1 ? ' file' : ' files');
-            uploadBtn.disabled = busy || selectedFiles.length === 0;
-            exportBtn.disabled = busy || !exportUrl;
+            if(fileCount) fileCount.textContent = selectedFiles.length + (selectedFiles.length === 1 ? ' file' : ' files');
+            if(uploadBtn) uploadBtn.disabled = busy || selectedFiles.length === 0;
+            if(exportBtn) exportBtn.disabled = busy || !exportUrl;
+            if(!emptyState || !fileList) return;
             if(selectedFiles.length === 0){
                 emptyState.hidden = false;
                 fileList.hidden = true;
@@ -428,6 +429,7 @@ try {
         }
 
         function addFiles(files){
+            if(!fileList || !emptyState) return;
             const incoming = Array.from(files || []);
             if(incoming.length === 0) return;
             exportUrl = '';
@@ -443,6 +445,7 @@ try {
         }
 
         async function uploadFiles(){
+            if(!fileInput || !fileList || !emptyState) return;
             if(busy || selectedFiles.length === 0) return;
             busy = true;
             syncUi();
@@ -602,7 +605,9 @@ try {
             });
         }
 
-        syncUi();
+        if(fileCount || fileList || emptyState || uploadBtn || exportBtn){
+            syncUi();
+        }
     })();
     </script>
 </section>

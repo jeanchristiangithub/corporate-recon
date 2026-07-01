@@ -95,6 +95,6 @@ if (! $isAdmin && ! $isPublic) {
 
 $controller->markLoginAndEnsureLog((string) $user['id_number']);
 
-// Default: go to home for Admin and Public users
-header('Location: ../pages/home/home.php');
+// Default: go to the Home dashboard for Admin and Public users.
+header('Location: ../pages/home/home.php?section=dashboard');
 exit;

@@ -25,7 +25,7 @@ try {
     $partnerIds = [];
 }
 ?>
-<section id="partnerdataSection" class="partnerdata-section" aria-label="Partner Data Uploader">
+<section id="partnerdataSection" class="partnerdata-section" aria-label="Partner Data Uploader" style="display:none; padding:1rem">
     <div class="partnerdata-inner">
         <h2 class="partnerdata-title">Partner Data Uploader</h2>
 

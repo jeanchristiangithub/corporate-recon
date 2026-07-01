@@ -161,7 +161,40 @@ class UserController
     public function getAllUsers(): array
     {
         $stmt = $this->userConn->prepare(
-            'SELECT id_number, username, firstname, middlename, lastname, role, dateCreated FROM users ORDER BY dateCreated DESC'
+            'SELECT
+                u.id_number,
+                u.username,
+                u.firstname,
+                u.middlename,
+                u.lastname,
+                u.role,
+                ul.status,
+                u.dateCreated
+            FROM
+                filerecondb.users u
+            JOIN
+                filerecondb.userlogs ul
+            ON
+                u.id_number = ul.id_number
+            UNION
+            SELECT
+                u.id_number,
+                u.username,
+                u.firstname,
+                u.middlename,
+                u.lastname,
+                u.role,
+                \'active\' AS status,
+                u.dateCreated
+            FROM
+                filerecondb.users u
+            WHERE
+                NOT EXISTS (
+                    SELECT 1
+                    FROM filerecondb.userlogs ul
+                    WHERE ul.id_number = u.id_number
+                )
+            ORDER BY dateCreated DESC'
         );
         $stmt->execute();
         $rows = $stmt->fetchAll();
