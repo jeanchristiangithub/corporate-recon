@@ -400,7 +400,8 @@ try {
 				<label for="rpdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
 					<select id="rpdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
-						<option value="">ALL</option>
+						<option value="" selected>Select Currency</option>
+						<!-- <option value="">ALL</option> -->
 						<option value="PHP">PHP</option>
 						<option value="USD">USD</option>
 					</select>
@@ -408,7 +409,8 @@ try {
 				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
 					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
-						<option value="">ALL</option>
+						<option value="" selected>Select Transaction Type</option>
+						<!-- <option value="">ALL</option> -->
 						<option value="payout">PAYOUT</option>
 						<option value="payout-cancelled">PAYOUT CANCELLED</option>
 						<option value="sendout">SENDOUT</option>
@@ -544,7 +546,7 @@ try {
 		const cardCommissionPhp = document.getElementById('rpdCardCommissionPhp');
 		const cardCommissionUsd = document.getElementById('rpdCardCommissionUsd');
 		const partners = <?= json_encode($partners) ?>;
-		const PAGE_SIZE = 10000;
+		const DEFAULT_PAGE_SIZE = 10000;
 		const VIRTUAL_ROW_HEIGHT = 48;
 		const VIRTUAL_BUFFER_ROWS = 12;
 		let currentFilters = null;
@@ -561,8 +563,8 @@ try {
 				? (startDate === endDate ? formatDateLong(startDate) : `${formatDateLong(startDate)} to ${formatDateLong(endDate)}`)
 				: (startDate ? `From ${formatDateLong(startDate)}` : (endDate ? `Until ${formatDateLong(endDate)}` : '-'));
 			const transactionType = filters.type ? String(filters.type).toUpperCase() : 'ALL';
-			const selectedCurrency = currencyFilter && currencyFilter.value ? currencyFilter.value : 'ALL';
-			const count = Number(data && data.count ? data.count : 0);
+			const selectedCurrency = filters.currency || 'ALL';
+			const count = Number(data && data.page_count !== undefined ? data.page_count : (data && data.count ? data.count : 0));
 			if (cardPartner) cardPartner.textContent = (data && data.partner) || filters.partner || '-';
 			if (cardTransactionDate) cardTransactionDate.textContent = transactionDate;
 			if (cardTransactionType) cardTransactionType.textContent = transactionType;
@@ -904,7 +906,7 @@ try {
 					type: currentFilters.type || '',
 					settlement_currency: currentFilters.currency || '',
 					page: String(page),
-					per_page: String(PAGE_SIZE)
+					per_page: String(DEFAULT_PAGE_SIZE)
 				});
 
 				const response = await fetch(`${getAppBasePath()}/src/controllers/excelcontrol/partner-data-report.php?${params.toString()}`);
@@ -966,21 +968,7 @@ try {
 			await runReport();
 		});
 
-		if (currencyFilter) {
-			currencyFilter.addEventListener('change', function() {
-				if (!currentFilters) return;
-				currentFilters.currency = currencyFilter.value || '';
-				fetchTransactions(1);
-			});
-		}
-
-		if (typeFilter) {
-			typeFilter.addEventListener('change', function() {
-				if (!currentFilters) return;
-				currentFilters.type = typeFilter.value || '';
-				fetchTransactions(1);
-			});
-		}
+		// Currency and transaction type are applied only when View transactions is clicked.
 
 		function isWorldcomPartner(name) {
 			return /worldcom|\bwic\b/i.test(String(name || ''));
@@ -1083,7 +1071,7 @@ try {
 			});
 		}
 
-		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','tran_type','tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt','settlement_currency','orig_cntry','rcv_cntry'];
+		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','tran_type','tran_fx_rate','fx_rev_share_amt','settlement_currency','base_amt','comm_amt','orig_cntry','rcv_cntry'];
 		const moneygramAmtCols = new Set(['fx_rev_share_amt','base_amt','comm_amt']);
 
 		function createPartnerSpacerRow(height, colSpan) {
@@ -1282,7 +1270,7 @@ try {
 			if(!isMoneygram){
 				applyPartnerColumnConfig(data.partner);
 			}
-			const visibleColCount = isMoneygram ? 15 : (isWic ? 4 : 10);
+			const visibleColCount = isMoneygram ? 14 : (isWic ? 4 : 10);
 			const rowsForDisplay = isMoneygram ? (Array.isArray(data.moneygram_rows) ? data.moneygram_rows : []) : (Array.isArray(data.rows) ? data.rows : []);
 
 			// Clear table
@@ -1302,7 +1290,7 @@ try {
 			}
 
 			if(isMoneygram){
-				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Base Amt','Comm Amt','Settlement Currency','Orig Cntry','Rcv Cntry','Details'];
+				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Settlement Currency','Base Amt','Comm Amt','Orig Cntry','Rcv Cntry','Details'];
 				const mgNumericCols = new Set(['tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt']);
 				const thead = document.querySelector('#rpdResultsTable thead');
 				if(thead){
@@ -1327,7 +1315,7 @@ try {
 				}
 				virtualPartnerRows = rowsForDisplay;
 				virtualPartnerMode = 'moneygram';
-				virtualPartnerColCount = 15;
+				virtualPartnerColCount = 14;
 			} else {
 				virtualPartnerRows = rowsForDisplay;
 				virtualPartnerMode = isMbtc ? 'mbtc' : (isWic ? 'wic' : 'standard');
@@ -1344,7 +1332,7 @@ try {
 			}
 
 			const page = Number(data.page || 1);
-			const perPage = Number(data.per_page || PAGE_SIZE);
+			const perPage = Number(data.per_page || DEFAULT_PAGE_SIZE);
 			const totalPages = Number(data.total_pages || 1);
 			const totalCount = Number(data.count || 0);
 			const startRow = totalCount === 0 ? 0 : ((page - 1) * perPage) + 1;

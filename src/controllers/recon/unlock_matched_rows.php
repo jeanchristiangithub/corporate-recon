@@ -34,14 +34,31 @@ if ($partner === '' || $date === '' || empty($refs) || empty($dates)) {
 
 try {
     $pdo = reconDaycardLocksDb();
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS recon_row_locks (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            corporate_partner VARCHAR(100) NOT NULL,
+            recon_date DATE NOT NULL,
+            ref VARCHAR(255) NOT NULL,
+            is_locked TINYINT(1) NOT NULL DEFAULT 1,
+            locked_by VARCHAR(100) NULL,
+            locked_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_row_lock (corporate_partner, recon_date, ref)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $reconDates = reconDaycardLocksNormalizeDateList(array_merge([$date], $dates));
     // delete matching row locks
     $chunks = array_chunk($refs, 500);
     $deleted = 0;
     foreach ($chunks as $chunk) {
-        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
-        $sql = 'DELETE FROM recon_row_locks WHERE corporate_partner = ? AND recon_date = ? AND ref IN (' . $placeholders . ')';
+        $datePlaceholders = implode(',', array_fill(0, count($reconDates), '?'));
+        $refPlaceholders = implode(',', array_fill(0, count($chunk), '?'));
+        $sql = 'DELETE FROM recon_row_locks WHERE corporate_partner = ? AND recon_date IN (' . $datePlaceholders . ') AND ref IN (' . $refPlaceholders . ')';
         $stmt = $pdo->prepare($sql);
-        $params = array_merge([$partner, $date], array_map('strval', $chunk));
+        $params = array_merge([$partner], $reconDates, array_map('strval', $chunk));
         $stmt->execute($params);
         $deleted += $stmt->rowCount();
     }
@@ -60,6 +77,7 @@ try {
         'partner' => $partner,
         'date' => $date,
         'deleted' => $deleted,
+        'row_lock_dates' => $reconDates,
         'unlocked_dates' => $dates,
     ]);
     exit;

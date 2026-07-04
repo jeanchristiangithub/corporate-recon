@@ -291,6 +291,38 @@ try {
                 '<span class="recon-summary__item">Duplicates: ' + duplicates.toLocaleString() + ' ' + duplicateLabel + '</span>';
         }
 
+        function updateReconStatusHeaders(modal, filterValue){
+            if(!modal) return;
+            const statusHeaders = modal.querySelectorAll('th.moneygram-status-header:not(.moneygram-status-header--group)');
+            if(!statusHeaders.length) return;
+            statusHeaders.forEach((th) => {
+                th.textContent = 'MATCH';
+            });
+        }
+
+        function updateMoneygramLockHeaders(modal, lockedState){
+            if(!modal) return;
+            const lockHeaders = modal.querySelectorAll('th.moneygram-lock-header:not(.moneygram-status-header--group)');
+            if(!lockHeaders.length) return;
+            let isLocked = !!lockedState;
+            if(arguments.length < 2){
+                const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
+                isLocked = lockBtn && String(lockBtn.textContent || '').trim().toUpperCase().indexOf('UNLOCK') !== -1;
+            }
+            lockHeaders.forEach((th) => {
+                th.textContent = isLocked ? 'LOCKED' : 'UNLOCK';
+            });
+        }
+        window.updateMoneygramLockHeaders = updateMoneygramLockHeaders;
+
+        function renderMoneygramLockIcon(isLocked){
+            if(isLocked){
+                return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--locked" title="Locked" aria-label="Locked"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#1f1f1f" aria-hidden="true" focusable="false"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm296.5-223.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg></span>';
+            }
+            return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--unlock" title="Unlock" aria-label="Unlock"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#1f1f1f" aria-hidden="true" focusable="false"><path d="M536.5-303.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z"/></svg></span>';
+        }
+        window.renderMoneygramLockIcon = renderMoneygramLockIcon;
+
         function getKpxWebDate(row, fallbackDate){
             return row && (row.web_date_claimed || row.web_date || row.web_date_claim || row.date_claimed || row.date || fallbackDate || '');
         }
@@ -307,6 +339,49 @@ try {
             const php = Number(phpTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const usd = Number(usdTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             return 'Principal: PHP: ' + php + ' USD: ' + usd;
+        }
+
+        function formatPrincipalPhpOnly(phpTotal){
+            const php = Number(phpTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return 'Principal: PHP: ' + php;
+        }
+
+        function formatUsdOnly(usdTotal){
+            const usd = Number(usdTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return 'USD: ' + usd;
+        }
+
+        function formatCommissionSummary(phpTotal, usdTotal){
+            const php = Number(phpTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const usd = Number(usdTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return 'Commission: PHP: ' + php + ' USD: ' + usd;
+        }
+
+        function setMoneygramMetricBreakdown(el, label, phpTotal, usdTotal){
+            if(!el) return;
+            const php = Number(phpTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const usd = Number(usdTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const labelEl = el.querySelector && el.querySelector('[data-part="label"]');
+            const phpEl = el.querySelector && el.querySelector('[data-part="php"]');
+            const usdEl = el.querySelector && el.querySelector('[data-part="usd"]');
+            if(labelEl && phpEl && usdEl){
+                labelEl.innerHTML = '<span class="moneygram-metric-label">' + label + ':</span>';
+                phpEl.textContent = 'PHP: ' + php;
+                usdEl.textContent = 'USD: ' + usd;
+                return;
+            }
+            el.textContent = label + ': PHP: ' + php + ' USD: ' + usd;
+        }
+
+        function setMoneygramVolume(el, value){
+            if(!el) return;
+            const count = Number(value || 0).toLocaleString();
+            const valueEl = el.querySelector && el.querySelector('[data-part="value"]');
+            if(valueEl){
+                valueEl.textContent = count;
+                return;
+            }
+            el.textContent = 'Volume: ' + count;
         }
 
         function formatOptionalTwoDecimalAmount(value){
@@ -1121,6 +1196,7 @@ try {
             const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
             const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
             const partnersPrincipalUsdEl = modal.querySelector('[data-role="partnersPrincipalUsd"]');
+            const partnersCommissionEl = modal.querySelector('[data-role="partnersCommission"]');
             const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
             const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
             const searchEl = modal.querySelector('[data-role="resultSearch"]');
@@ -1235,6 +1311,7 @@ try {
                 let statusClass = 'moneygram-status-icon--matched';
                 let statusSymbol = '&#10003;';
                 let statusLabel = 'Matched';
+                let lockIcon = renderMoneygramLockIcon(!!pair.locked && !pair.isMismatch && !pair.isDuplicate);
                 if(pair.isDuplicate){
                     statusClass = 'moneygram-status-icon--duplicate';
                     statusSymbol = '&#9888;';
@@ -1266,7 +1343,8 @@ try {
                     '<td class="highlight-ref moneygram-cell-center">' + (webObj ? String(webObj.wRef || '') : '') + '</td>' +
                     '<td class="moneygram-cell-number">' + (webObj ? Math.abs(webAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
                     '<td class="moneygram-cell-center">' + webCurrency + '</td>' +
-                    '<td class="moneygram-status-cell"><span class="moneygram-status-icon ' + statusClass + '" title="' + statusLabel + '" aria-label="' + statusLabel + '">' + statusSymbol + '</span></td>';
+                    '<td class="moneygram-status-cell"><span class="moneygram-status-icon ' + statusClass + '" title="' + statusLabel + '" aria-label="' + statusLabel + '">' + statusSymbol + '</span></td>' +
+                    '<td class="moneygram-lock-cell">' + lockIcon + '</td>';
 
                 return tr;
             };
@@ -1277,11 +1355,11 @@ try {
                 tr.setAttribute('data-role', 'date-separator');
                 tr.setAttribute('data-date', isoDate || '');
                 const label = formatDateLongMonth(isoDate || '') || 'NO DATE';
-                const lockIcon = showLockIcon ? '<span class="moneygram-date-lock" title="Locked" aria-label="Locked">&#128274;</span>' : '';
                 const notice = showDetailsNotice ? ' <span style="margin-left:12px;color:#64748b;font-weight:600;font-size:0.78rem;"><span class="material-icons" aria-hidden="true" style="font-size:0.9rem;vertical-align:-2px;margin-right:4px;color:#f59e0b;">info</span>Double click row to show transaction details</span>' : '';
-                if((colspan || 4) === 11){
-                    tr.innerHTML = '<td colspan="10" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;text-align:center;">' + label + notice + '</td><td class="moneygram-date-lock-cell">' + lockIcon + '</td>';
+                if((colspan || 4) === 12){
+                    tr.innerHTML = '<td colspan="11" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;text-align:center;">' + label + notice + '</td><td class="moneygram-date-lock-cell"></td>';
                 } else {
+                    const lockIcon = showLockIcon ? '<span class="moneygram-date-lock" title="Locked" aria-label="Locked">&#128274;</span>' : '';
                     tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">' + label + (lockIcon ? ' ' + lockIcon : '') + notice + '</td>';
                 }
                 return tr;
@@ -1317,7 +1395,7 @@ try {
                     webAmount: webObj ? toMoneygramAmount(webObj.wAmt) : 0,
                     partnerCurrency: partnerObj ? String(partnerObj.pCoin || '').trim() : '',
                     webCurrency: webObj ? String(webObj.wCurrency || '').trim() : '',
-                    locked: lockedDateSet.has(pairDateIso)
+                    locked: lockedDateSet.has(pairDateIso) && isMatch && !isDuplicate
                 });
             };
 
@@ -1522,7 +1600,7 @@ try {
                     if(virtualRows.length === 0){
                         const emptyPartner = document.createElement('tr');
                         emptyPartner.className = 'empty-row';
-                        emptyPartner.innerHTML = '<td colspan="' + (isCombinedMoneygramTable ? 11 : 5) + '" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
+                        emptyPartner.innerHTML = '<td colspan="' + (isCombinedMoneygramTable ? 12 : 5) + '" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
                         const emptyWeb = document.createElement('tr');
                         emptyWeb.className = 'empty-row';
                         emptyWeb.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
@@ -1536,14 +1614,14 @@ try {
                     const partnerFrag = document.createDocumentFragment();
                     const webFrag = document.createDocumentFragment();
                     if(topHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(topHeight, isCombinedMoneygramTable ? 11 : 5));
+                        partnerFrag.appendChild(createSpacerRow(topHeight, isCombinedMoneygramTable ? 12 : 5));
                         if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(topHeight, 5));
                     }
 
                     for(let i = start; i < end; i++){
                         const item = virtualRows[i];
                         if(item.type === 'date'){
-                            partnerFrag.appendChild(createDateSeparatorRow(item.date, isCombinedMoneygramTable ? 11 : 5, item.hasDuplicate, item.locked));
+                            partnerFrag.appendChild(createDateSeparatorRow(item.date, isCombinedMoneygramTable ? 12 : 5, item.hasDuplicate, item.locked));
                             if(!isCombinedMoneygramTable) webFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate, item.locked));
                             continue;
                         }
@@ -1562,7 +1640,7 @@ try {
                     }
 
                     if(bottomHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(bottomHeight, isCombinedMoneygramTable ? 11 : 5));
+                        partnerFrag.appendChild(createSpacerRow(bottomHeight, isCombinedMoneygramTable ? 12 : 5));
                         if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(bottomHeight, 5));
                     }
 
@@ -1639,16 +1717,12 @@ try {
                     }
                 });
 
-                if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + partnerVisibleCount.toLocaleString();
-                if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + webVisibleCount.toLocaleString();
-                if(partnersPrincipalPhpEl) {
-                    partnersPrincipalPhpEl.innerHTML = formatPrincipalSummary(pPhp, pUsd)
-                        + '<span class="moneygram-summary-gap" aria-hidden="true"></span>Commission: PHP: '
-                        + Number(pCommissionPhp || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        + ' USD: ' + Number(pCommissionUsd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                }
+                setMoneygramVolume(partnersVolumeEl, partnerVisibleCount);
+                setMoneygramVolume(webVolumeEl, webVisibleCount);
+                setMoneygramMetricBreakdown(partnersPrincipalPhpEl, 'Principal', pPhp, pUsd);
+                setMoneygramMetricBreakdown(partnersCommissionEl, 'Commission', pCommissionPhp, pCommissionUsd);
                 if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
-                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                setMoneygramMetricBreakdown(webPrincipalPhpEl, 'Principal', wPhp, wUsd);
                 if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
             };
 
@@ -1668,6 +1742,7 @@ try {
                 const query = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                 const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                updateReconStatusHeaders(modal, filter);
 
                 filteredPairs = sortedPairs.filter((pair) => {
                     const pRef = String(pair.partnerRef || '').toLowerCase();
@@ -1684,6 +1759,9 @@ try {
                     else if(filter === 'matched') show = show && !pair.isMismatch && !pair.isDuplicate;
                     return show;
                 });
+
+                const hasVisibleLockedMatched = filteredPairs.some((pair) => !pair.isMismatch && !pair.isDuplicate && pair.locked);
+                updateMoneygramLockHeaders(modal, hasVisibleLockedMatched);
 
                 // If a specific search query is present, collapse duplicate/secondary
                 // pairs that refer to the same reference. Prefer a finalized valid
@@ -1752,6 +1830,7 @@ try {
                 if(lockBtn){
                     lockBtn.disabled = false;
                     lockBtn.textContent = 'UNLOCK MATCHED TRANSACTIONS';
+                    updateMoneygramLockHeaders(modal, true);
                 }
             }
 
@@ -1943,8 +2022,8 @@ try {
             const webPrincipalEl = modal.querySelector('[data-role="webPrincipal"]');
             if(partnersCountEl) partnersCountEl.textContent = '(' + pVolume.toLocaleString() + ')';
             if(webCountEl) webCountEl.textContent = '(' + wVolume.toLocaleString() + ')';
-            if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pVolume.toLocaleString();
-            if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wVolume.toLocaleString();
+            setMoneygramVolume(partnersVolumeEl, pVolume);
+            setMoneygramVolume(webVolumeEl, wVolume);
             if(partnersPrincipalEl) partnersPrincipalEl.textContent = formatPrincipalSummary(pPhp, pUsd);
             if(webPrincipalEl) webPrincipalEl.textContent = formatPrincipalSummary(wPhp, wUsd);
 
@@ -1954,6 +2033,7 @@ try {
                 const render = function(){
                     const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                    updateReconStatusHeaders(modal, filter);
                     Array.from(partnersBody.querySelectorAll('tr')).forEach((tr) => {
                         if(tr.getAttribute('data-role') === 'date-separator') return;
                         const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[1]?.textContent || '').toLowerCase();
@@ -2041,7 +2121,7 @@ try {
                         const isMultiple = lockedDates.length > 1;
                         const lockedDateList = lockedDates.map(formatDateLongMonth).join('\n');
                         await showAlertModal(
-                            (isMultiple ? 'Selected reconciliation dates are already locked.' : 'Selected reconciliation date is already locked.')
+                            (isMultiple ? 'Selected Transaction Dates are already locked.' : 'Selected Transaction Date is already locked.')
                                 + (lockedDateList ? '\n' + lockedDateList : ''),
                             { title: 'Warning', icon: 'warning' }
                         );
@@ -3153,8 +3233,8 @@ try {
             const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
             const partnersPrincipalEl = modal.querySelector('[data-role="partnersPrincipalPhp"]');
             const webPrincipalEl = modal.querySelector('[data-role="webPrincipalPhp"]');
-            if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
-            if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
+            setMoneygramVolume(partnersVolumeEl, pCount);
+            setMoneygramVolume(webVolumeEl, wCount);
             if(partnersPrincipalEl) partnersPrincipalEl.textContent = formatPrincipalSummary(pPhp, pUsd);
             if(webPrincipalEl) webPrincipalEl.textContent = formatPrincipalSummary(wPhp, wUsd);
 
@@ -3166,6 +3246,7 @@ try {
             const renderRows = function(){
                 const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                updateReconStatusHeaders(modal, filter);
                 Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
                     if(tr.getAttribute('data-role') === 'date-separator' || tr.classList.contains('empty-row')) return;
                     const ref = (tr.querySelector('.highlight-ref')?.textContent || tr.cells[1]?.textContent || '').toLowerCase();
@@ -3606,8 +3687,8 @@ try {
                                     if(cur.indexOf('PHP') !== -1){ wPhp += val; }
                                     else if(cur.indexOf('USD') !== -1){ wUsd += val; }
                                 });
-                                if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + (pCount.toLocaleString());
-                                if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + (wCount.toLocaleString());
+                                setMoneygramVolume(partnersVolumeEl, pCount);
+                                setMoneygramVolume(webVolumeEl, wCount);
                                 if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = 'Principal PHP: ' + pPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
                                 if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.textContent = 'Principal USD: ' + pUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                 if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = 'Principal PHP: ' + wPhp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' pesos';
@@ -3636,6 +3717,7 @@ try {
                                     const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                                     const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
                                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                                    updateReconStatusHeaders(modal, filter);
 
                                     // Show/hide rows according to search + filter
                                     alignedPairs.forEach(pair => {
@@ -3715,8 +3797,8 @@ try {
                                         const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"]');
                                         const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
 
-                                        if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + (partnerVisible.toLocaleString());
-                                        if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + (webVisible.toLocaleString());
+                                        setMoneygramVolume(partnersVolumeEl, partnerVisible);
+                                        setMoneygramVolume(webVolumeEl, webVisible);
 
                                         // recompute principals from visible rows, split by currency
                                         let pPhp = 0, pUsd = 0;
@@ -3962,11 +4044,11 @@ try {
 
                                 if(partnersCountEl) partnersCountEl.textContent = '(' + ((dayObj.partnersCount ?? pCount).toLocaleString()) + ')';
                                 if(webCountEl) webCountEl.textContent = '(' + ((dayObj.webCount ?? wCount).toLocaleString()) + ')';
-                                if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
-                                if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
-                                if(partnersPrincipalPhpEl) partnersPrincipalPhpEl.textContent = formatPrincipalSummary(pPhp, pUsd);
+                                setMoneygramVolume(partnersVolumeEl, pCount);
+                                setMoneygramVolume(webVolumeEl, wCount);
+                                setMoneygramMetricBreakdown(partnersPrincipalPhpEl, 'Principal', pPhp, pUsd);
                                 if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
-                                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                                setMoneygramMetricBreakdown(webPrincipalPhpEl, 'Principal', wPhp, wUsd);
                                 if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
                             }catch(e){ console.warn('Error updating WORLD INTERNATIONAL COMMUNICATIONS counts', e); }
 
@@ -3979,6 +4061,7 @@ try {
                                     const loaderEl = modal.querySelector('.wic-recon-modal__loading'); if(loaderEl) loaderEl.style.display = 'none';
                                     const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                                    updateReconStatusHeaders(modal, filter);
                                     // partners: match Transaction ID (.highlight-ref)
                                     Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
                                         if(tr.getAttribute('data-role') === 'date-separator') return;
@@ -4660,6 +4743,7 @@ try {
                 const webVolumeEl = modal.querySelector('[data-role="webVolume"]');
                 const partnersPrincipalPhpEl = modal.querySelector('[data-role="partnersPrincipalPhp"], [data-role="partnersPrincipal"]');
                 const partnersPrincipalUsdEl = modal.querySelector('[data-role="partnersPrincipalUsd"]');
+                const partnersCommissionEl = modal.querySelector('[data-role="partnersCommission"]');
                 const webPrincipalPhpEl = modal.querySelector('[data-role="webPrincipalPhp"], [data-role="webPrincipal"]');
                 const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
                 const pCount = partnersBody.querySelectorAll('tr:not(.dup-sep):not([data-role="date-separator"])').length || 0;
@@ -4693,15 +4777,12 @@ try {
                                 });
                 if(partnersCountEl) partnersCountEl.textContent = '(' + (pCount).toLocaleString() + ')';
                 if(webCountEl) webCountEl.textContent = '(' + (wCount).toLocaleString() + ')';
-                if(partnersVolumeEl) partnersVolumeEl.textContent = 'Volume: ' + pCount.toLocaleString();
-                if(webVolumeEl) webVolumeEl.textContent = 'Volume: ' + wCount.toLocaleString();
-                if(partnersPrincipalPhpEl) {
-                    partnersPrincipalPhpEl.innerHTML = formatPrincipalSummary(pPhp, pUsd)
-                        + '<span class="mbtc-summary-gap" aria-hidden="true"></span>Commission: PHP: '
-                        + pCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                }
+                setMoneygramVolume(partnersVolumeEl, pCount);
+                setMoneygramVolume(webVolumeEl, wCount);
+                setMoneygramMetricBreakdown(partnersPrincipalPhpEl, 'Principal', pPhp, pUsd);
+                setMoneygramMetricBreakdown(partnersCommissionEl, 'Commission', pCommission, 0);
                 if(partnersPrincipalUsdEl) partnersPrincipalUsdEl.style.display = 'none';
-                if(webPrincipalPhpEl) webPrincipalPhpEl.textContent = formatPrincipalSummary(wPhp, wUsd);
+                setMoneygramMetricBreakdown(webPrincipalPhpEl, 'Principal', wPhp, wUsd);
                 if(webPrincipalUsdEl) webPrincipalUsdEl.style.display = 'none';
             }catch(e){console.warn('Error updating counts', e);} 
 
@@ -4711,6 +4792,7 @@ try {
             function modalRenderRows(){
                 const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
+                updateReconStatusHeaders(modal, filter);
                 // partners: match Part Id / Reference (second column or .highlight-ref)
                 Array.from(partnersBody.querySelectorAll('tr')).forEach(tr => {
                     if(tr.getAttribute('data-role') === 'date-separator') return;

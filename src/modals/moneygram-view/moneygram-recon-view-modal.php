@@ -30,19 +30,37 @@
             <section class="moneygram-recon-modal__combined-section">
                 <div class="moneygram-section-header moneygram-section-header--combined">
                     <div>
-                        <h4>Partners Data</h4>
+                        <h4>Partner Data</h4>
                         <div class="moneygram-section-metrics">
-                            <div class="moneygram-volume" data-role="partnersVolume">Volume: 0</div>
-                            <div class="moneygram-principal" data-role="partnersPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
+                            <div class="moneygram-volume moneygram-metric-breakdown" data-role="partnersVolume">
+                                <p><span class="moneygram-metric-label">Volume:</span> <span data-part="value">0</span></p>
+                            </div>
+                            <div class="moneygram-principal moneygram-metric-breakdown" data-role="partnersPrincipalPhp">
+                                <p data-part="label"><span class="moneygram-metric-label">Principal:</span></p>
+                                <p data-part="php">PHP: 0.00</p>
+                                <p data-part="usd">USD: 0.00</p>
+                            </div>
+                            <div class="moneygram-commission moneygram-metric-breakdown" data-role="partnersCommission">
+                                <p data-part="label"><span class="moneygram-metric-label">Commission:</span></p>
+                                <p data-part="php">PHP: 0.00</p>
+                                <p data-part="usd">USD: 0.00</p>
+                            </div>
                             <div class="moneygram-principal" data-role="partnersPrincipalUsd" style="display:none;"></div>
                         </div>
                     </div>
                     <div>
                         <h4>KPX Web Data</h4>
                         <div class="moneygram-section-metrics">
-                            <div class="moneygram-volume" data-role="webVolume">Volume: 0</div>
-                            <div class="moneygram-principal" data-role="webPrincipalPhp">Principal: PHP: 0.00 USD: 0.00</div>
+                            <div class="moneygram-volume moneygram-metric-breakdown" data-role="webVolume">
+                                <p><span class="moneygram-metric-label">Volume:</span> <span data-part="value">0</span></p>
+                            </div>
+                            <div class="moneygram-principal moneygram-metric-breakdown" data-role="webPrincipalPhp">
+                                <p data-part="label"><span class="moneygram-metric-label">Principal:</span></p>
+                                <p data-part="php">PHP: 0.00</p>
+                                <p data-part="usd">USD: 0.00</p>
+                            </div>
                             <div class="moneygram-principal" data-role="webPrincipalUsd" style="display:none;"></div>
+                            <div class="moneygram-commission" data-role="webCommission" style="display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -61,25 +79,28 @@
                                 <col class="moneygram-col-amount">
                                 <col class="moneygram-col-currency">
                                 <col class="moneygram-col-status">
+                                <col class="moneygram-col-lock">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th colspan="5">PARTNERS DATA</th>
+                                    <th colspan="5">PARTNER DATA</th>
                                     <th colspan="5">KPX WEB DATA</th>
                                     <th class="moneygram-status-header moneygram-status-header--group"></th>
+                                    <th class="moneygram-lock-header moneygram-status-header--group"></th>
                                 </tr>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Reference ID</th>
-                                    <th>Amount</th>
-                                    <th>Commission</th>
+                                    <th>DATE</th>
+                                    <th>REFERENCE ID</th>
+                                    <th>AMOUNT</th>
+                                    <th>COMMISSION</th>
                                     <th>CURRENCY</th>
-                                    <th>Date</th>
+                                    <th>DATE</th>
                                     <th>KPTN</th>
                                     <th>CCREF NO</th>
-                                    <th>Amount</th>
+                                    <th>AMOUNT</th>
                                     <th>CURRENCY</th>
-                                    <th class="moneygram-status-header">Status</th>
+                                    <th class="moneygram-status-header">MATCH</th>
+                                    <th class="moneygram-lock-header"></th>
                                 </tr>
                             </thead>
                             <tbody data-role="partnersBody"></tbody>
@@ -265,6 +286,30 @@ window.showSuccessToast = function(message, timeout){
     const LOCK_LABEL = 'LOCK MATCHED TRANSACTIONS';
     const UNLOCK_LABEL = 'UNLOCK MATCHED TRANSACTIONS';
 
+    function updateLockColumn(lockedState){
+        if(typeof window.updateMoneygramLockHeaders === 'function'){
+            window.updateMoneygramLockHeaders(modal, lockedState);
+        }
+    }
+
+    function lockIconHtml(lockedState){
+        if(typeof window.renderMoneygramLockIcon === 'function'){
+            return window.renderMoneygramLockIcon(lockedState);
+        }
+        return lockedState ? 'Locked' : 'Unlock';
+    }
+
+    function updateVisibleLockCells(lockedState, refs){
+        const refSet = Array.isArray(refs) ? new Set(refs.map(ref => String(ref || '').trim()).filter(Boolean)) : null;
+        Array.from(modal.querySelectorAll('[data-role="partnersBody"] tr:not([data-role="date-separator"])')).forEach(tr => {
+            if(tr.classList.contains('empty-row') || tr.classList.contains('moneygram-virtual-spacer')) return;
+            const ref = String((tr.dataset && tr.dataset.ref) || '').trim();
+            if(refSet && (!ref || !refSet.has(ref))) return;
+            const lockCell = tr.querySelector('.moneygram-lock-cell');
+            if(lockCell) lockCell.innerHTML = lockIconHtml(lockedState);
+        });
+    }
+
     if(exportExcelBtn && exportExcelBtn.dataset.bound !== 'true'){
         exportExcelBtn.dataset.bound = 'true';
         exportExcelBtn.addEventListener('click', function(e){
@@ -434,10 +479,12 @@ window.showSuccessToast = function(message, timeout){
                     if(lockSet.has(String(tr.dataset.ref || '').trim())){
                         tr.classList.add('locked-row');
                         tr.classList.add('is-locked-row');
+                        const lockCell = tr.querySelector('.moneygram-lock-cell');
+                        if(lockCell) lockCell.innerHTML = lockIconHtml(true);
                     }
                 });
             }
-            if(locks.length && lockBtn){ lockBtn.disabled = false; }
+            if(locks.length && lockBtn){ lockBtn.disabled = false; updateLockColumn(true); }
         }catch(e){ console.warn('Failed to fetch row locks', e); }
     }
 
@@ -446,6 +493,7 @@ window.showSuccessToast = function(message, timeout){
             if(lockBtn){
                 lockBtn.disabled = false;
                 lockBtn.textContent = UNLOCK_LABEL;
+                updateLockColumn(true);
             }
             return;
         }
@@ -466,6 +514,7 @@ window.showSuccessToast = function(message, timeout){
             if(lockBtn){
                 lockBtn.disabled = false;
                 lockBtn.textContent = hasActiveLocks ? UNLOCK_LABEL : LOCK_LABEL;
+                updateLockColumn(!!hasActiveLocks);
             }
         }catch(e){ console.warn('Failed to fetch active lock status', e); }
     }
@@ -478,6 +527,7 @@ window.showSuccessToast = function(message, timeout){
                     if(lockBtn){
                         lockBtn.disabled = false;
                         lockBtn.textContent = UNLOCK_LABEL;
+                        updateLockColumn(true);
                     }
                     continue;
                 }
@@ -513,6 +563,7 @@ window.showSuccessToast = function(message, timeout){
                     console.warn('Lock/unlock request failed', res && res.status, txt);
                     await (window.showAlertModal ? showAlertModal('Server error while saving lock state.') : Promise.resolve());
                     lockBtn.disabled = false; lockBtn.textContent = (mode === 'lock' ? LOCK_LABEL : UNLOCK_LABEL);
+                    updateLockColumn(mode !== 'lock');
                     return;
                 }
                 const json = await res.json();
@@ -530,12 +581,17 @@ window.showSuccessToast = function(message, timeout){
                             if(ref && refs.indexOf(ref) !== -1){
                                 tr.classList.add('locked-row');
                                 tr.classList.add('is-locked-row');
+                                const lockCell = tr.querySelector('.moneygram-lock-cell');
+                                if(lockCell) lockCell.innerHTML = lockIconHtml(true);
                             }
                         });
                         lockBtn.textContent = UNLOCK_LABEL;
                         lockBtn.disabled = false;
+                        updateLockColumn(true);
                         window.showSuccessToast && showSuccessToast('Matched transactions locked successfully.');
                     } else {
+                        modal.dataset.lockedView = 'false';
+                        modal.dataset.lockedDates = '';
                         if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)){
                             modal._moneygramVirtual.pairs.forEach(pair => {
                                 if(refs.indexOf(String(pair.partnerRef || '').trim()) !== -1) pair.locked = false;
@@ -550,17 +606,22 @@ window.showSuccessToast = function(message, timeout){
                                 tr.classList.remove('is-locked-row');
                             }
                         });
+                        updateVisibleLockCells(false);
                         lockBtn.textContent = LOCK_LABEL;
                         lockBtn.disabled = false;
+                        updateLockColumn(false);
                         window.showSuccessToast && showSuccessToast('Matched transactions unlocked successfully.');
                     }
-                    fetchActiveLockStatus();
+                    if(mode === 'lock'){
+                        fetchActiveLockStatus();
+                    }
                 } else {
                     console.warn('Lock/unlock service error', json);
                     await (window.showAlertModal ? showAlertModal('Failed to save lock state.') : Promise.resolve());
                     lockBtn.disabled = false; lockBtn.textContent = (mode === 'lock' ? LOCK_LABEL : UNLOCK_LABEL);
+                    updateLockColumn(mode !== 'lock');
                 }
-            }catch(e){ console.error('Error locking/unlocking matched rows', e); await (window.showAlertModal ? showAlertModal('Failed to contact lock service.') : Promise.resolve()); lockBtn.disabled = false; lockBtn.textContent = (mode === 'lock' ? LOCK_LABEL : UNLOCK_LABEL); }
+            }catch(e){ console.error('Error locking/unlocking matched rows', e); await (window.showAlertModal ? showAlertModal('Failed to contact lock service.') : Promise.resolve()); lockBtn.disabled = false; lockBtn.textContent = (mode === 'lock' ? LOCK_LABEL : UNLOCK_LABEL); updateLockColumn(mode !== 'lock'); }
         });
     }
 
