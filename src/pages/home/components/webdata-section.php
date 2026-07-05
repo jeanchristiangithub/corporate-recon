@@ -1045,8 +1045,6 @@ try {
                     let totalInserted = 0;
                     let totalInsertedRegular = 0;
                     let totalInsertedSendout = 0;
-                    let hasMissingMoneygramLegacyId = false;
-                    let missingMoneygramLegacyBranches = [];
                     for(let i=0;i<totalInsertFiles;i++){
                         throwIfUploadCancelled();
                         const pl = payloads[i];
@@ -1065,12 +1063,6 @@ try {
                         totalInserted += Number(ins.inserted || 0);
                         totalInsertedRegular += Number(ins.inserted_regular || 0);
                         totalInsertedSendout += Number(ins.inserted_sendout || 0);
-                        if(ins.moneygram_has_missing_legacy === true){
-                            hasMissingMoneygramLegacyId = true;
-                            if(Array.isArray(ins.moneygram_missing_legacy_branches)){
-                                missingMoneygramLegacyBranches.push(...ins.moneygram_missing_legacy_branches);
-                            }
-                        }
                         // update per-file insert progress
                         progressBar.style.width = Math.round(75 + ((i+1)/Math.max(1,totalInsertFiles))*25) + '%';
                         progressText.textContent = 'Inserting files: ' + (i+1) + ' of ' + totalInsertFiles;
@@ -1086,9 +1078,6 @@ try {
                     // notify user and refresh on confirmation
                     try{
                         await showAlert('Successfully uploaded.', 'Success');
-                        if(hasMissingMoneygramLegacyId){
-                            await showMoneygramLegacyIdNotice(missingMoneygramLegacyBranches);
-                        }
                     }catch(e){}
                     // keep user on the current section after upload
 
@@ -1488,72 +1477,6 @@ try {
                 dialogEl.style.display = 'flex';
                 ok.onclick = function(){ _closeDialog(); resolve(); };
             });
-        }
-        function escapeHtml(value){
-            return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
-                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[ch] || ch;
-            });
-        }
-        function buildMissingMoneygramBranchListHtml(branches){
-            const seen = new Set();
-            const items = (Array.isArray(branches) ? branches : []).map(function(item){
-                const branchName = String(item && item.branch_name ? item.branch_name : '').trim();
-                const branchId = String(item && item.branch_id ? item.branch_id : '').trim();
-                const key = branchId || branchName;
-                if(!key || seen.has(key)) return null;
-                seen.add(key);
-                const label = branchName || (branchId ? ('Branch ID ' + branchId) : 'Unknown branch');
-                return { label, branchId };
-            }).filter(Boolean);
-
-            if(items.length === 0){
-                return '<div style="text-align:left;color:#4b5563;">No branch details returned.</div>';
-            }
-
-            return '<div style="text-align:left;color:#4b5563;font-weight:600;margin:0 0 0.75rem;">Total branches: ' + items.length + '</div>'
-                + '<div style="max-height:340px;overflow:auto;text-align:left;">'
-                + '<ul style="margin:0;padding-left:1.1rem;">'
-                + items.map(function(item){
-                    const idText = item.branchId ? ' <span style="color:#6b7280;font-size:0.85em;">(' + escapeHtml(item.branchId) + ')</span>' : '';
-                    return '<li style="margin:0.35rem 0;">' + escapeHtml(item.label) + idText + '</li>';
-                }).join('')
-                + '</ul></div>';
-        }
-        async function showMoneygramLegacyIdNotice(missingBranches){
-            const message = 'Legacy ID not yet registered, Contact Administrator.';
-            if(window.Swal && typeof window.Swal.fire === 'function'){
-                const setSwalZIndex = function(){
-                    const container = document.querySelector('.swal2-container');
-                    if(container) container.style.zIndex = '12020';
-                };
-                const result = await window.Swal.fire({
-                    title: 'Notice',
-                    text: message,
-                    confirmButtonText: 'View',
-                    confirmButtonColor: '#DC3545',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    allowEnterKey: false,
-                    showCloseButton: false,
-                    didOpen: setSwalZIndex
-                });
-                if(result && result.isConfirmed){
-                    await window.Swal.fire({
-                        title: 'Branches with unregistered Legacy ID',
-                        html: buildMissingMoneygramBranchListHtml(missingBranches),
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#DC3545',
-                        allowOutsideClick: false,
-                        allowEscapeKey: false,
-                        allowEnterKey: false,
-                        showCloseButton: false,
-                        width: 640,
-                        didOpen: setSwalZIndex
-                    });
-                }
-                return;
-            }
-            return showAlert(message, 'Notice');
         }
         function showConfirm(message, title){
             return new Promise((resolve)=>{

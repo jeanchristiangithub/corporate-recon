@@ -438,13 +438,33 @@ try {
             return null;
         };
 
-        $hasRemoteBranchValue = static function(...$values): bool {
-            foreach ($values as $value) {
-                if (trim((string)$value) !== '') {
-                    return true;
-                }
+        $lookupBranchIdByBranchName = static function($branchName): ?string {
+            $value = trim((string)$branchName);
+            if ($value === '') return null;
+
+            try {
+                $masterPdo = masterDataConnection();
+                $stmt = $masterPdo->prepare('SELECT branch_id FROM kpx_branch_masterfile WHERE TRIM(LOWER(branch_name)) = TRIM(LOWER(?)) LIMIT 1');
+                $stmt->execute([$value]);
+                $branchId = $stmt->fetchColumn();
+                if ($branchId === false || $branchId === null) return null;
+
+                $branchId = trim((string)$branchId);
+                return $branchId !== '' ? $branchId : null;
+            } catch (Throwable $e) {
+                return null;
             }
-            return false;
+        };
+
+        $resolveBranchIdForWebRow = static function($controlSeriesNo, $branchName, $remoteOperator, $remoteBranch) use ($extractBranchIdFromControlSeries, $lookupBranchIdByBranchName): ?string {
+            $controlBranchId = $extractBranchIdFromControlSeries($controlSeriesNo);
+            $hasRemoteOperatorAndBranch = trim((string)$remoteOperator) !== '' && trim((string)$remoteBranch) !== '';
+
+            if ($hasRemoteOperatorAndBranch) {
+                return $lookupBranchIdByBranchName($branchName) ?: $controlBranchId;
+            }
+
+            return $controlBranchId;
         };
 
         $extractLockDates = static function(array $payload) use ($buildNormalizedRowMap, $pickValue, $toMysqlDateTime): array {
@@ -505,7 +525,9 @@ try {
         $moneygramComparableBranchIds = [];
         $moneygramMissingLegacyBranches = [];
         $insertedIdsForBranchSync = [];
+        $insertedIdsForUploadAudit = [];
         $now = date('Y-m-d H:i:s');
+        $uploaded_by = trim((string)($_SESSION['user']['id_number'] ?? ''));
         
         $hasBranchIdColumn = false;
         $mlColumns = [];
@@ -528,7 +550,8 @@ try {
             'partner_id', 'partnername', 'no', 'control_series_no', 'branch_id', 'date_claimed', 'date_send', 'kptn',
             'ccref_no', 'currency', 'amount', 'charge', 'ctc', 'ctp', 'sender_name', 'sender_country',
             'beneficiary_receiver', 'receiver_country', 'receiver_name', 'receiver_kyc', 'receiver_phone',
-            'operator', 'branch', 'remote_operator', 'remote_branch_id', 'remote_branch', 'created_at', 'updated_at'
+            'operator', 'branch', 'remote_operator', 'remote_branch_id', 'remote_branch', 'uploaded_by',
+            'created_at', 'updated_at'
         ];
         $mlInsertColumnKeys = [];
         foreach ($mlInsertTargets as $targetKey) {
@@ -599,9 +622,12 @@ try {
                     $remoteOperator = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_operator'], ''));
                     $remoteBranchId = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_branch_id'], ''));
                     $remoteBranch = trim((string)$pickValue($normalizedRow, $sendoutAliases['remote_branch'], ''));
-                    $branchId = $hasRemoteBranchValue($remoteOperator, $remoteBranchId, $remoteBranch)
-                        ? null
-                        : $extractBranchIdFromControlSeries($controlSeries);
+                    $controlBranchId = $extractBranchIdFromControlSeries($controlSeries);
+                    $hasRemoteOperatorAndBranch = $remoteOperator !== '' && $remoteBranch !== '';
+                    $branchId = $resolveBranchIdForWebRow($controlSeries, $pickValue($normalizedRow, $sendoutAliases['branch_name'], ''), $remoteOperator, $remoteBranch);
+                    if ($hasRemoteOperatorAndBranch && $controlBranchId !== null) {
+                        $remoteBranchId = $controlBranchId;
+                    }
                     $dateSend = $toMysqlDateTime($pickValue($normalizedRow, $sendoutAliases['date_send'], $dateStr));
                     $mapped = [
                         'partner_id' => $partnerId,
@@ -627,6 +653,7 @@ try {
                         'remote_operator' => $remoteOperator,
                         'remote_branch_id' => $remoteBranchId,
                         'remote_branch' => $remoteBranch,
+                        'uploaded_by' => $uploaded_by,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];
@@ -640,11 +667,14 @@ try {
                     $rowCount = (int)$stmt->rowCount();
                     $inserted += $rowCount;
                     $insertedSendout += $rowCount;
+                    $insertedId = $rowCount > 0 ? (int)$pdo->lastInsertId() : 0;
+                    if ($insertedId > 0) {
+                        $insertedIdsForUploadAudit[] = $insertedId;
+                    }
                     if ($rowCount > 0 && $hasBranchIdColumn && $branchId !== null && $branchId !== '') {
                         if ($partnerUpper === 'MONEYGRAM') {
                             $moneygramUploadedBranchIds[trim((string)$branchId)] = true;
                         }
-                        $insertedId = (int)$pdo->lastInsertId();
                         if ($insertedId > 0) {
                             $insertedIdsForBranchSync[] = $insertedId;
                         }
@@ -677,9 +707,12 @@ try {
                 $remote_operator = $r['REMOTE OPERATOR'] ?? '';
                 $remote_branch_id = $r['REMOTE BRANCH ID'] ?? ($r['REMOTE_BRANCH_ID'] ?? ($r['REMOTE BRANCH NO'] ?? ''));
                 $remote_branch = $r['REMOTE BRANCH'] ?? '';
-                $branchId = $hasRemoteBranchValue($remote_operator, $remote_branch_id, $remote_branch)
-                    ? null
-                    : $extractBranchIdFromControlSeries($control);
+                $controlBranchId = $extractBranchIdFromControlSeries($control);
+                $hasRemoteOperatorAndBranch = trim((string)$remote_operator) !== '' && trim((string)$remote_branch) !== '';
+                $branchId = $resolveBranchIdForWebRow($control, $branch, $remote_operator, $remote_branch);
+                if ($hasRemoteOperatorAndBranch && $controlBranchId !== null) {
+                    $remote_branch_id = $controlBranchId;
+                }
 
                 $mapped = [
                     'partner_id' => $partnerId,
@@ -704,6 +737,7 @@ try {
                     'remote_operator' => $remote_operator,
                     'remote_branch_id' => $remote_branch_id,
                     'remote_branch' => $remote_branch,
+                    'uploaded_by' => $uploaded_by,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -715,11 +749,14 @@ try {
                 $rowCount = (int)$stmt->rowCount();
                 $inserted += $rowCount;
                 $insertedRegular += $rowCount;
+                $insertedId = $rowCount > 0 ? (int)$pdo->lastInsertId() : 0;
+                if ($insertedId > 0) {
+                    $insertedIdsForUploadAudit[] = $insertedId;
+                }
                 if ($rowCount > 0 && $hasBranchIdColumn && $branchId !== null && $branchId !== '') {
                     if ($partnerUpper === 'MONEYGRAM') {
                         $moneygramUploadedBranchIds[trim((string)$branchId)] = true;
                     }
-                    $insertedId = (int)$pdo->lastInsertId();
                     if ($insertedId > 0) {
                         $insertedIdsForBranchSync[] = $insertedId;
                     }
@@ -727,13 +764,29 @@ try {
             }
         }
 
+        // Ensure uploaded_by is written for every inserted row using the current logged-in user's id_number.
+        if ($uploaded_by !== '' && isset($mlColumns['uploaded_by']) && !empty($insertedIdsForUploadAudit)) {
+            foreach (array_chunk(array_values(array_unique($insertedIdsForUploadAudit)), 1000) as $idChunk) {
+                $placeholders = implode(',', array_fill(0, count($idChunk), '?'));
+                $updateUploadedBySql = 'UPDATE ml_web_data SET `uploaded_by` = ? WHERE `id` IN (' . $placeholders . ')';
+                $updateUploadedByStmt = $pdo->prepare($updateUploadedBySql);
+                $updateUploadedByStmt->execute(array_merge([$uploaded_by], $idChunk));
+            }
+        }
+
         // After upload, enrich inserted ml_web_data rows from masterdata.branch_profile using branch_id.
         if ($hasBranchIdColumn && !empty($insertedIdsForBranchSync)) {
-            $syncTargetColumns = ['mainzone', 'zone', 'area', 'region', 'region_code'];
+            $syncTargetColumns = [
+                'mainzone' => 'mainzone',
+                'zone' => 'zone',
+                'area' => 'area',
+                'region' => 'region',
+                'region_code' => 'region_code',
+            ];
             $availableSyncTargets = [];
-            foreach ($syncTargetColumns as $targetColumn) {
+            foreach ($syncTargetColumns as $targetColumn => $sourceColumn) {
                 if (isset($mlColumns[$targetColumn])) {
-                    $availableSyncTargets[] = $targetColumn;
+                    $availableSyncTargets[$targetColumn] = $sourceColumn;
                 }
             }
 
@@ -750,9 +803,9 @@ try {
                     }
 
                     $usableSyncTargets = [];
-                    foreach ($availableSyncTargets as $targetColumn) {
-                        if (isset($branchProfileColumns[$targetColumn])) {
-                            $usableSyncTargets[] = $targetColumn;
+                    foreach ($availableSyncTargets as $targetColumn => $sourceColumn) {
+                        if (isset($branchProfileColumns[$sourceColumn])) {
+                            $usableSyncTargets[$targetColumn] = $sourceColumn;
                         }
                     }
 
@@ -763,9 +816,10 @@ try {
                         $quotedMasterDbName = '`' . str_replace('`', '``', (string)$masterDbName) . '`';
 
                         $setClauses = [];
-                        foreach ($usableSyncTargets as $targetColumn) {
+                        foreach ($usableSyncTargets as $targetColumn => $sourceColumn) {
                             $quotedColumn = '`' . str_replace('`', '``', $targetColumn) . '`';
-                            $setClauses[] = 'm.' . $quotedColumn . ' = b.' . $quotedColumn;
+                            $quotedSourceColumn = '`' . str_replace('`', '``', $sourceColumn) . '`';
+                            $setClauses[] = 'm.' . $quotedColumn . ' = b.' . $quotedSourceColumn;
                         }
 
                         foreach (array_chunk(array_values(array_unique($insertedIdsForBranchSync)), 1000) as $idChunk) {
