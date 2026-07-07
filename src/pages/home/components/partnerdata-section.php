@@ -1248,10 +1248,6 @@ try {
                 try{
                     const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
                     const totalFiles = payloads.length || 0;
-                    let hasMissingLegacyId = false;
-                    let hasNewMoneygramBranch = false;
-                    let missingLegacyBranches = [];
-                    let newMoneygramBranches = [];
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     await waitForNextFrame();
                     progressBar.style.width = '0%';
@@ -1315,28 +1311,6 @@ try {
                         progressText.textContent = 'Deleting existing records: ' + deletedCount + ' of ' + delCount;
                     }
 
-                    progressBar.style.width = '72%';
-                    progressText.textContent = 'Checking Legacy ID registration...';
-                    throwIfUploadCancelled();
-                    const legacyResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'precheck_partner_legacy', payloads: payloads }) });
-                    const legacyTxt = await legacyResRaw.text();
-                    throwIfUploadCancelled();
-                    let legacyCheck;
-                    try{ legacyCheck = JSON.parse(legacyTxt); }catch(e){ console.error('Legacy ID precheck returned non-JSON', legacyTxt); await showAlert('Legacy ID check failed: '+legacyTxt); hideProcessingOverlay(); return; }
-                    if(!legacyResRaw.ok || !(legacyCheck && legacyCheck.success)){
-                        await showAlert('Legacy ID check failed: ' + (legacyCheck && legacyCheck.error ? legacyCheck.error : 'unknown'), 'Notice');
-                        hideProcessingOverlay();
-                        return;
-                    }
-                    if(legacyCheck && legacyCheck.has_missing_legacy === true){
-                        hasMissingLegacyId = true;
-                        missingLegacyBranches = legacyCheck.missing_branches || [];
-                    }
-                    if(legacyCheck && legacyCheck.has_new_branch === true){
-                        hasNewMoneygramBranch = true;
-                        newMoneygramBranches = legacyCheck.new_branches || [];
-                    }
-
                     let totalInserted = 0;
                     progressBar.style.width = '75%';
                     progressText.textContent = 'Inserting files: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
@@ -1372,12 +1346,6 @@ try {
                     refreshState();
                     throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                    if(hasNewMoneygramBranch){
-                        await showMoneygramNewBranchNotice(newMoneygramBranches);
-                    }
-                    if(hasMissingLegacyId){
-                        await showMoneygramLegacyIdNotice(missingLegacyBranches);
-                    }
                 }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
