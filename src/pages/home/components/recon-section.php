@@ -284,11 +284,11 @@ try {
             const unmatchedLabel = unmatched === 1 ? 'transaction' : 'transactions';
             const duplicateLabel = duplicates === 1 ? 'transaction' : 'transactions';
             summaryEl.innerHTML =
-                '<span class="recon-summary__item">Matched: ' + matched.toLocaleString() + ' ' + matchedLabel + '</span>' +
+                '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matched.toLocaleString() + ' ' + matchedLabel + '</span>' +
                 '<span class="recon-summary__sep">|</span>' +
-                '<span class="recon-summary__item">Not Matched: ' + unmatched.toLocaleString() + ' ' + unmatchedLabel + '</span>' +
+                '<span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ' + unmatched.toLocaleString() + ' ' + unmatchedLabel + '</span>' +
                 '<span class="recon-summary__sep">|</span>' +
-                '<span class="recon-summary__item">Duplicates: ' + duplicates.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                '<span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ' + duplicates.toLocaleString() + ' ' + duplicateLabel + '</span>';
         }
 
         function updateReconStatusHeaders(modal, filterValue){
@@ -1680,7 +1680,7 @@ try {
             const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
             const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
             if(summaryEl){
-                summaryEl.innerHTML = '<span class="recon-summary__item">Matched: ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
             }
 
             const ensureEmptyRow = function(tbody, colspan = 4, message = 'No Data Found'){
@@ -1747,7 +1747,7 @@ try {
                 const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
                 const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
                 if(summaryEl){
-                    summaryEl.innerHTML = '<span class="recon-summary__item">Matched: ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                    summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
                 }
             };
 
@@ -3486,7 +3486,7 @@ try {
                                 const mLabel = (m === 1) ? 'transaction' : 'transactions';
                                 const uLabel = (u === 1) ? 'transaction' : 'transactions';
                                 const el = modal.querySelector('[data-role="summary"]');
-                                if(el) el.innerHTML = `<span class="recon-summary__item">Matched: ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ${u.toLocaleString()} ${uLabel}</span>`;
+                                if(el) el.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ${u.toLocaleString()} ${uLabel}</span>`;
                             }
 
                             const partnersBody = modal.querySelector('[data-role="partnersBody"]');
@@ -3814,7 +3814,7 @@ try {
                                             const mLabel = (m === 1) ? 'transaction' : 'transactions';
                                             const uLabel = (u === 1) ? 'transaction' : 'transactions';
                                             const dLabel = (d === 1) ? 'transaction' : 'transactions';
-                                            summaryEl.innerHTML = `<span class="recon-summary__item">Matched: ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Not Matched: ${u.toLocaleString()} ${uLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item">Duplicates: ${d.toLocaleString()} ${dLabel}</span>`;
+                                            summaryEl.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ${u.toLocaleString()} ${uLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ${d.toLocaleString()} ${dLabel}</span>`;
                                         }
 
                                         const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');

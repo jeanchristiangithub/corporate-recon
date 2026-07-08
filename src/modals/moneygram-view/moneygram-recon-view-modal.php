@@ -364,13 +364,20 @@ window.showSuccessToast = function(message, timeout){
         const raw = String(value || '').trim();
         if(!raw) return '';
         const remarks = [];
+        const displayLabels = {
+            'Maybe New Branch': 'Maybe New Branch, Contact CAD System Administrator to verify Branch ID',
+            'PARTNER DATA REFERENCE ID not found in KPX WEB Report': 'PARTNER Data: REFERENCE ID not found in KPX Report',
+            'KPX WEB DATA CCREF NO not found in Partners Report': 'KPX Data: CCREF NO not found in Partners Report'
+        };
         [
             'Maybe New Branch',
             'PARTNER DATA REFERENCE ID not found in KPX WEB Report',
-            'KPX WEB DATA CCREF NO not found in Partners Report'
+            'KPX WEB DATA CCREF NO not found in Partners Report',
+            'PARTNER Data: REFERENCE ID not found in KPX Report',
+            'KPX Data: CCREF NO not found in Partners Report'
         ].forEach(function(label){
             if(raw.indexOf(label) !== -1){
-                remarks.push(label);
+                remarks.push(displayLabels[label] || label);
             }
         });
         if(!remarks.length){
@@ -392,8 +399,8 @@ window.showSuccessToast = function(message, timeout){
                 ? (pair.pairDateIso || (pair.partnerObj && pair.partnerObj.pDate) || '')
                 : (pair.pairDateIso || (pair.webObj && pair.webObj.wDateRaw) || '');
             const remarks = (pair.legacyDetectionRemark ? pair.legacyDetectionRemark + ' ' : '') + (hasPartner && !hasWeb
-                ? 'PARTNER DATA REFERENCE ID not found in KPX WEB Report'
-                : (!hasPartner && hasWeb ? 'KPX WEB DATA CCREF NO not found in Partners Report' : ''));
+                ? 'PARTNER Data: REFERENCE ID not found in KPX Report'
+                : (!hasPartner && hasWeb ? 'KPX Data: CCREF NO not found in Partners Report' : ''));
             return {
                 transactionDate: formatDetectedDate(dateValue),
                 legacyId: hasPartner ? (pair.partnerLegacyId || '') : '',
@@ -470,8 +477,8 @@ window.showSuccessToast = function(message, timeout){
             const branchId = hasWeb ? (pair.webBranchId || '') : '';
             const branchName = hasWeb ? (pair.webBranch || pair.webBranchName || '') : '';
             const remarks = (pair.legacyDetectionRemark ? pair.legacyDetectionRemark + ' ' : '') + (hasPartner && !hasWeb
-                ? 'PARTNER DATA REFERENCE ID not found in KPX WEB Report'
-                : (!hasPartner && hasWeb ? 'KPX WEB DATA CCREF NO not found in Partners Report' : ''));
+                ? 'PARTNER Data: REFERENCE ID not found in KPX Report'
+                : (!hasPartner && hasWeb ? 'KPX Data: CCREF NO not found in Partners Report' : ''));
             return '<tr>' +
                 '<td>' + escapeDetectedText(formatDetectedDate(dateValue)) + '</td>' +
                 '<td>' + escapeDetectedText(partnerReferenceId) + '</td>' +

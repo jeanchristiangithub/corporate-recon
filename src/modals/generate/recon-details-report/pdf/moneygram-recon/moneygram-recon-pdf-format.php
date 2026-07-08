@@ -1,4 +1,9 @@
 <?php
+require_once __DIR__ . '/../../../../../config/session.php';
+require_once __DIR__ . '/../../../../../config/db.php';
+
+bootSecureSession();
+
 $payload = isset($_POST['payload']) ? (string)$_POST['payload'] : '';
 $decoded = json_decode($payload, true);
 $rows = is_array($decoded['rows'] ?? null) ? $decoded['rows'] : [];
@@ -24,14 +29,54 @@ if ($startDateForFilename !== '' && $endDateForFilename !== '') {
     $filenameDateLabel = $endDateForFilename;
 }
 $runDateTime = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('F d, Y H:i:s A');
+$sessionUser = isset($_SESSION['user']) && is_array($_SESSION['user']) ? $_SESSION['user'] : [];
+$generatedBy = '';
+$idNumber = trim((string)($sessionUser['id_number'] ?? ''));
+if ($idNumber !== '') {
+    try {
+        $stmt = userDbConnection()->prepare(
+            "SELECT CONCAT_WS(' ',
+                NULLIF(TRIM(firstname), ''),
+                NULLIF(TRIM(middlename), ''),
+                NULLIF(TRIM(lastname), '')
+            ) AS full_name
+            FROM filerecondb.users
+            WHERE id_number = :id_number
+            LIMIT 1"
+        );
+        $stmt->bindValue(':id_number', $idNumber, PDO::PARAM_STR);
+        $stmt->execute();
+        $generatedBy = trim((string)($stmt->fetchColumn() ?: ''));
+    } catch (Throwable $e) {
+        $generatedBy = '';
+    }
+}
+if ($generatedBy === '') {
+    $generatedBy = trim(implode(' ', array_filter([
+        trim((string)($sessionUser['firstname'] ?? '')),
+        trim((string)($sessionUser['middlename'] ?? '')),
+        trim((string)($sessionUser['lastname'] ?? '')),
+    ])));
+}
+if ($generatedBy === '') {
+    $generatedBy = trim((string)($sessionUser['username'] ?? ''));
+}
 
 $remarkLabels = [
     'Maybe New Branch',
     'PARTNER DATA REFERENCE ID not found in KPX WEB Report',
     'KPX WEB DATA CCREF NO not found in Partners Report',
+    'PARTNER Data: REFERENCE ID not found in KPX Report',
+    'KPX Data: CCREF NO not found in Partners Report',
 ];
 
-$remarkItems = static function ($remark) use ($remarkLabels): array {
+$remarkDisplayLabels = [
+    'Maybe New Branch' => 'Maybe New Branch, Contact CAD System Administrator to verify Branch ID',
+    'PARTNER DATA REFERENCE ID not found in KPX WEB Report' => 'PARTNER Data: REFERENCE ID not found in KPX Report',
+    'KPX WEB DATA CCREF NO not found in Partners Report' => 'KPX Data: CCREF NO not found in Partners Report',
+];
+
+$remarkItems = static function ($remark) use ($remarkLabels, $remarkDisplayLabels): array {
     $raw = trim((string)$remark);
     if ($raw === '') {
         return [];
@@ -39,7 +84,7 @@ $remarkItems = static function ($remark) use ($remarkLabels): array {
     $items = [];
     foreach ($remarkLabels as $label) {
         if (strpos($raw, $label) !== false) {
-            $items[] = $label;
+            $items[] = $remarkDisplayLabels[$label] ?? $label;
         }
     }
     if (strpos($raw, 'Legacy ID not yet registered. Contact System Administrator') !== false && !$items) {
@@ -84,18 +129,18 @@ $wrapText = static function ($value, float $width, int $fontSize) use ($pdfText)
     return array_map($pdfText, $lines ?: ['']);
 };
 
-$pageWidth = 936.0;
-$pageHeight = 612.0;
+$pageWidth = 612.0;
+$pageHeight = 792.0;
 $margin = 18.0;
 $usableWidth = $pageWidth - ($margin * 2);
 $columns = [
-    ['label' => 'TRANSACTION DATE', 'key' => 'transactionDate', 'width' => 110.0],
-    ['label' => 'REFERENCE ID', 'key' => 'partnerReferenceId', 'width' => 120.0],
-    ['label' => 'ACCOUNT NAME', 'key' => 'partnerAccountName', 'width' => 180.0],
-    ['label' => 'CCREF NO', 'key' => 'webCcrefNo', 'width' => 120.0],
-    ['label' => 'BRANCH ID', 'key' => 'branchId', 'width' => 90.0],
-    ['label' => 'BRANCH NAME', 'key' => 'branchName', 'width' => 150.0],
-    ['label' => 'REMARKS', 'key' => 'remarks', 'width' => $usableWidth - 770.0],
+    ['label' => 'TRANSACTION DATE', 'key' => 'transactionDate', 'width' => 78.0],
+    ['label' => 'REFERENCE ID', 'key' => 'partnerReferenceId', 'width' => 75.0],
+    ['label' => 'ACCOUNT NAME', 'key' => 'partnerAccountName', 'width' => 105.0],
+    ['label' => 'CCREF NO', 'key' => 'webCcrefNo', 'width' => 75.0],
+    ['label' => 'BRANCH ID', 'key' => 'branchId', 'width' => 58.0],
+    ['label' => 'BRANCH NAME', 'key' => 'branchName', 'width' => 95.0],
+    ['label' => 'REMARKS', 'key' => 'remarks', 'width' => $usableWidth - 486.0],
 ];
 
 $fontSize = 8;
@@ -104,7 +149,7 @@ $lineHeight = 10.0;
 $cellPaddingX = 5.0;
 $cellPaddingY = 6.0;
 $headerHeight = 34.0;
-$reportHeaderHeight = 58.0;
+$reportHeaderHeight = 72.0;
 $bottomLimit = $margin;
 $pages = [];
 
@@ -137,23 +182,33 @@ $estimateTextWidth = static function (string $text, int $fontSize): float {
     return $width;
 };
 
-$newPage = static function (bool $withReportHeader = false) use (&$pages, $margin, $pageHeight, $columns, $headerHeight, $reportHeaderHeight, $drawRect, $drawText, $headerFontSize, $cellPaddingX, $pdfText, $wrapText, $estimateTextWidth, $partnerName, $runDateTime): array {
+$newPage = static function (bool $withReportHeader = false) use (&$pages, $margin, $pageHeight, $columns, $headerHeight, $reportHeaderHeight, $drawRect, $drawText, $headerFontSize, $cellPaddingX, $pdfText, $wrapText, $estimateTextWidth, $partnerName, $runDateTime, $generatedBy): array {
     $content = "0 G 0 g 0.6 w\n";
     if ($withReportHeader) {
         $topY = $pageHeight - $margin - 10;
-        $content .= $drawText($margin, $topY, 'ERROR DETECTION MONITORING', 11, 'F2');
-        $content .= $drawText($margin, $topY - 14, 'PARTNER: ' . $pdfText($partnerName), 10, 'F2');
-        $content .= $drawText($margin, $topY - 28, 'RUN DATE & TIME: ' . $pdfText($runDateTime), 10, 'F2');
+        $content .= $drawText($margin, $topY, 'Error Detection Monitoring', 11, 'F2');
+        $content .= $drawText($margin, $topY - 14, 'Partner: ' . $pdfText($partnerName), 10, 'F2');
+        $content .= $drawText($margin, $topY - 28, 'Run Date & Time: ' . $pdfText($runDateTime), 10, 'F2');
+        $content .= $drawText($margin, $topY - 42, 'Generated By: ' . $pdfText($generatedBy), 10, 'F2');
     }
     $x = $margin;
     $y = $pageHeight - $margin - $headerHeight - ($withReportHeader ? $reportHeaderHeight : 0);
     $halfHeader = $headerHeight / 2;
     $centerText = static function (string $label, float $cellX, float $cellY, float $cellWidth, float $cellHeight) use ($drawText, $headerFontSize, $cellPaddingX, $estimateTextWidth, $pdfText): string {
+        if ($label === 'TRANSACTION DATE') {
+            $lines = ['TRANSACTION', 'DATE'];
+            $lineHeight = $headerFontSize + 2;
+            $startY = $cellY + (($cellHeight + ($lineHeight * count($lines))) / 2) - $headerFontSize - 1;
+            $output = '';
+            foreach ($lines as $index => $line) {
+                $lineWidth = $estimateTextWidth($line, $headerFontSize);
+                $textX = $cellX + max($cellPaddingX, min($cellWidth - $cellPaddingX - $lineWidth, ($cellWidth - $lineWidth) / 2));
+                $output .= $drawText($textX, $startY - ($index * $lineHeight), $pdfText($line), $headerFontSize, 'F2');
+            }
+            return $output;
+        }
         $line = $pdfText($label);
         $labelWidth = $estimateTextWidth($label, $headerFontSize);
-        if ($label === 'TRANSACTION DATE') {
-            $labelWidth = min($cellWidth - ($cellPaddingX * 2), $labelWidth * 1.15);
-        }
         $textX = $cellX + max($cellPaddingX, min($cellWidth - $cellPaddingX - $labelWidth, ($cellWidth - $labelWidth) / 2));
         $textY = $cellY + (($cellHeight - $headerFontSize) / 2) + 1;
         return $drawText($textX, $textY, $line, $headerFontSize, 'F2');

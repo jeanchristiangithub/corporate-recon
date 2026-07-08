@@ -144,6 +144,7 @@
 }
 .moneygram-recon-modal__summary .recon-summary__sep{ opacity: 0.6; margin: 0 8px; }
 .moneygram-recon-modal__summary .recon-summary__item{ white-space:nowrap; }
+.moneygram-recon-modal__summary .recon-summary__label{ font-weight:700; }
 
 .moneygram-recon-modal__metrics {
     display: flex;
