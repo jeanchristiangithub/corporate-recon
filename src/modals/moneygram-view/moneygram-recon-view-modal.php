@@ -21,7 +21,7 @@
                 <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
                 <label class="cmp-control-filter">Show: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
                 <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
-                <button id="moneygramExportExcelBtn" class="moneygram-lock-all-btn" type="button">Export to Excel</button>
+                <button id="moneygramViewDataDetectedBtn" class="moneygram-lock-all-btn moneygram-detected-count-btn" type="button"><span class="moneygram-detected-count-btn__badge" data-role="dataDetectedCount">0</span><span>VIEW DATA DETECTED</span></button>
             </div>
 
         </div>
@@ -197,6 +197,41 @@
     </div>
 </div>
 
+<div id="moneygramDataDetectedModal" class="moneygram-data-detected-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="MONEYGRAM Data Detected">
+    <div class="moneygram-data-detected-modal__overlay" data-action="close-moneygram-data-detected"></div>
+    <div class="moneygram-data-detected-modal__dialog">
+        <div class="moneygram-data-detected-modal__header">
+            <h3>VIEW DATA DETECTED</h3>
+            <div class="moneygram-data-detected-modal__actions">
+                <button type="button" class="moneygram-data-detected-modal__pdf" data-action="export-moneygram-data-detected-pdf">Export to PDF</button>
+                <button type="button" class="moneygram-data-detected-modal__close" data-action="close-moneygram-data-detected" aria-label="Close">×</button>
+            </div>
+        </div>
+        <div class="moneygram-data-detected-modal__body">
+            <div class="moneygram-data-detected-table-wrap">
+                <table class="moneygram-data-detected-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">TRANSACTION DATE</th>
+                            <th colspan="2">PARTNER DATA</th>
+                            <th colspan="3">KPX WEB DATA</th>
+                            <th rowspan="2">REMARKS</th>
+                        </tr>
+                        <tr>
+                            <th>REFERENCE ID</th>
+                            <th>ACCOUNT NAME</th>
+                            <th>CCREF NO</th>
+                            <th>BRANCH ID</th>
+                            <th>BRANCH NAME</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Warning Modal for Unsecured Matched Transactions -->
 <div id="moneygramWarningModal" class="moneygram-warning-modal" style="display:none;">
     <div class="moneygram-warning-modal__overlay"></div>
@@ -282,7 +317,7 @@ window.showSuccessToast = function(message, timeout){
     if(!modal) return;
 
     const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
-    const exportExcelBtn = modal.querySelector('#moneygramExportExcelBtn');
+    const viewDataDetectedBtn = modal.querySelector('#moneygramViewDataDetectedBtn');
     const LOCK_LABEL = 'LOCK MATCHED TRANSACTIONS';
     const UNLOCK_LABEL = 'UNLOCK MATCHED TRANSACTIONS';
 
@@ -310,38 +345,174 @@ window.showSuccessToast = function(message, timeout){
         });
     }
 
-    if(exportExcelBtn && exportExcelBtn.dataset.bound !== 'true'){
-        exportExcelBtn.dataset.bound = 'true';
-        exportExcelBtn.addEventListener('click', function(e){
-            e.preventDefault();
-            const startEl = document.getElementById('hsStartDate');
-            const endEl = document.getElementById('hsEndDate');
-            const companyEl = document.getElementById('hsCompany');
-            const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
-            const filterEl = modal.querySelector('[data-role="resultFilter"]');
-            const startDate = startEl ? String(startEl.value || '').trim() : '';
-            const endDate = endEl ? String(endEl.value || '').trim() : '';
-            const partnerName = companyEl && String(companyEl.value || '').trim() ? String(companyEl.value || '').trim() : 'MONEYGRAM';
-            const currency = currencyEl ? String(currencyEl.value || 'all').trim() : 'all';
-            const filter = filterEl ? String(filterEl.value || 'all').trim() : 'all';
+    function escapeDetectedText(value){
+        return String(value ?? '').replace(/[&<>"']/g, function(ch){
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]);
+        });
+    }
 
-            if(!startDate || !endDate){
-                if(window.showAlertModal){
-                    window.showAlertModal('Please select start and end date before exporting.', { title: 'Missing Date', icon: 'warning' });
-                } else {
-                    alert('Please select start and end date before exporting.');
-                }
-                return;
+    function formatDetectedDate(value){
+        const raw = String(value || '').trim();
+        if(!raw) return '';
+        const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const date = iso ? new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])) : new Date(raw);
+        if(isNaN(date.getTime())) return raw;
+        return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatDetectedRemarks(value){
+        const raw = String(value || '').trim();
+        if(!raw) return '';
+        const remarks = [];
+        [
+            'Maybe New Branch',
+            'PARTNER DATA REFERENCE ID not found in KPX WEB Report',
+            'KPX WEB DATA CCREF NO not found in Partners Report'
+        ].forEach(function(label){
+            if(raw.indexOf(label) !== -1){
+                remarks.push(label);
             }
+        });
+        if(!remarks.length){
+            remarks.push(raw);
+        }
+        return '<ul class="moneygram-detected-remarks">' + remarks.map(function(label){
+            return '<li>' + escapeDetectedText(label) + '</li>';
+        }).join('') + '</ul>';
+    }
 
-            const baseUrl = window.autoreconBaseUrl || '';
-            const url = baseUrl + '/src/modals/generate/recon-details-report/excel/moneygram-recon/moneygram-recon-format.php'
-                + '?start_date=' + encodeURIComponent(startDate)
-                + '&end_date=' + encodeURIComponent(endDate)
-                + '&partnerName=' + encodeURIComponent(partnerName)
-                + '&currency=' + encodeURIComponent(currency)
-                + '&filter=' + encodeURIComponent(filter);
-            window.location.href = url;
+    function getDataDetectedExportRows(){
+        const rows = modal._moneygramVirtual && typeof modal._moneygramVirtual.getDetectedRows === 'function'
+            ? modal._moneygramVirtual.getDetectedRows()
+            : [];
+        return rows.map(function(pair){
+            const hasPartner = String(pair.partnerRef || '').trim() !== '';
+            const hasWeb = String(pair.webRef || '').trim() !== '';
+            const dateValue = hasPartner
+                ? (pair.pairDateIso || (pair.partnerObj && pair.partnerObj.pDate) || '')
+                : (pair.pairDateIso || (pair.webObj && pair.webObj.wDateRaw) || '');
+            const remarks = (pair.legacyDetectionRemark ? pair.legacyDetectionRemark + ' ' : '') + (hasPartner && !hasWeb
+                ? 'PARTNER DATA REFERENCE ID not found in KPX WEB Report'
+                : (!hasPartner && hasWeb ? 'KPX WEB DATA CCREF NO not found in Partners Report' : ''));
+            return {
+                transactionDate: formatDetectedDate(dateValue),
+                legacyId: hasPartner ? (pair.partnerLegacyId || '') : '',
+                partnerReferenceId: hasPartner ? (pair.partnerRef || '') : '',
+                partnerAccountName: hasPartner ? (pair.agentName || '') : '',
+                webCcrefNo: hasWeb ? (pair.webRef || '') : '',
+                referenceNo: hasWeb ? (pair.webRef || '') : (pair.partnerRef || ''),
+                accountName: hasPartner ? (pair.agentName || '') : (pair.webBranch || ''),
+                branchId: hasWeb ? (pair.webBranchId || '') : '',
+                branchName: hasWeb ? (pair.webBranch || pair.webBranchName || '') : '',
+                remarks: remarks
+            };
+        });
+    }
+
+    function updateDataDetectedCountBadge(){
+        if(!viewDataDetectedBtn) return;
+        const badge = viewDataDetectedBtn.querySelector('[data-role="dataDetectedCount"]');
+        const rows = modal._moneygramVirtual && typeof modal._moneygramVirtual.getDetectedRows === 'function'
+            ? modal._moneygramVirtual.getDetectedRows()
+            : [];
+        if(badge) badge.textContent = String(rows.length || 0);
+    }
+
+    modal._moneygramRefreshDetectedCount = updateDataDetectedCountBadge;
+    updateDataDetectedCountBadge();
+
+    function exportDataDetectedPdf(){
+        const exportRows = getDataDetectedExportRows();
+        const form = document.createElement('form');
+        const input = document.createElement('input');
+        const url = (window.autoreconBaseUrl || '') + '/src/modals/generate/recon-details-report/pdf/moneygram-recon/moneygram-recon-pdf-format.php';
+
+        form.method = 'POST';
+        form.action = url;
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.value = JSON.stringify({
+            partner: modal.dataset.partnerName || 'MONEYGRAM',
+            startDate: modal.dataset.startDate || modal.dataset.reconDate || '',
+            endDate: modal.dataset.endDate || modal.dataset.reconDate || '',
+            rows: exportRows
+        });
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    }
+
+    function renderDataDetectedRows(){
+        const detectedModal = document.getElementById('moneygramDataDetectedModal');
+        const tbody = detectedModal ? detectedModal.querySelector('.moneygram-data-detected-table tbody') : null;
+        if(!tbody) return;
+        const rows = modal._moneygramVirtual && typeof modal._moneygramVirtual.getDetectedRows === 'function'
+            ? modal._moneygramVirtual.getDetectedRows()
+            : [];
+        if(!rows.length){
+            tbody.innerHTML = '<tr><td colspan="7" class="moneygram-data-detected-table__empty">No data detected</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(function(pair){
+            const hasPartner = String(pair.partnerRef || '').trim() !== '';
+            const hasWeb = String(pair.webRef || '').trim() !== '';
+            const dateValue = hasPartner
+                ? (pair.pairDateIso || (pair.partnerObj && pair.partnerObj.pDate) || '')
+                : (pair.pairDateIso || (pair.webObj && pair.webObj.wDateRaw) || '');
+            const partnerReferenceId = hasPartner ? (pair.partnerRef || '') : '';
+            const partnerAccountName = hasPartner ? (pair.agentName || '') : '';
+            const webCcrefNo = hasWeb ? (pair.webRef || '') : '';
+            const branchId = hasWeb ? (pair.webBranchId || '') : '';
+            const branchName = hasWeb ? (pair.webBranch || pair.webBranchName || '') : '';
+            const remarks = (pair.legacyDetectionRemark ? pair.legacyDetectionRemark + ' ' : '') + (hasPartner && !hasWeb
+                ? 'PARTNER DATA REFERENCE ID not found in KPX WEB Report'
+                : (!hasPartner && hasWeb ? 'KPX WEB DATA CCREF NO not found in Partners Report' : ''));
+            return '<tr>' +
+                '<td>' + escapeDetectedText(formatDetectedDate(dateValue)) + '</td>' +
+                '<td>' + escapeDetectedText(partnerReferenceId) + '</td>' +
+                '<td>' + escapeDetectedText(partnerAccountName) + '</td>' +
+                '<td>' + escapeDetectedText(webCcrefNo) + '</td>' +
+                '<td>' + escapeDetectedText(branchId) + '</td>' +
+                '<td>' + escapeDetectedText(branchName) + '</td>' +
+                '<td>' + formatDetectedRemarks(remarks) + '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    if(viewDataDetectedBtn && viewDataDetectedBtn.dataset.bound !== 'true'){
+        viewDataDetectedBtn.dataset.bound = 'true';
+        viewDataDetectedBtn.addEventListener('click', function(e){
+            e.preventDefault();
+            const detectedModal = document.getElementById('moneygramDataDetectedModal');
+            if(detectedModal){
+                renderDataDetectedRows();
+                detectedModal.style.display = 'block';
+            }
+        });
+    }
+
+    const dataDetectedPdfBtn = document.querySelector('[data-action="export-moneygram-data-detected-pdf"]');
+    if(dataDetectedPdfBtn && dataDetectedPdfBtn.dataset.bound !== 'true'){
+        dataDetectedPdfBtn.dataset.bound = 'true';
+        dataDetectedPdfBtn.addEventListener('click', function(e){
+            e.preventDefault();
+            exportDataDetectedPdf();
+        });
+    }
+
+    const dataDetectedModal = document.getElementById('moneygramDataDetectedModal');
+    if(dataDetectedModal && dataDetectedModal.dataset.bound !== 'true'){
+        dataDetectedModal.dataset.bound = 'true';
+        dataDetectedModal.addEventListener('click', function(e){
+            const closeTarget = e.target.closest && e.target.closest('[data-action="close-moneygram-data-detected"]');
+            if(closeTarget){
+                dataDetectedModal.style.display = 'none';
+            }
         });
     }
     
@@ -543,7 +714,7 @@ window.showSuccessToast = function(message, timeout){
             if(typeof IS_ADMIN !== 'undefined' && !IS_ADMIN){ await (window.showAlertModal ? showAlertModal('You are not authorized to lock transactions.') : Promise.resolve()); return; }
             const refs = collectMatchedRefs();
             const dates = collectMatchedDates();
-            if(!refs || refs.length === 0){ await (window.showAlertModal ? showAlertModal('No matched rows to lock/unlock.') : Promise.resolve()); return; }
+            if(!refs || refs.length === 0){ await (window.showAlertModal ? showAlertModal('No matched rows to Lock.') : Promise.resolve()); return; }
             // determine mode from button text
             const mode = String(lockBtn.textContent || '').trim() === UNLOCK_LABEL ? 'unlock' : 'lock';
             const confirmMsg = mode === 'lock' ? 'Lock matched transactions?' : 'Unlock matched transactions?';

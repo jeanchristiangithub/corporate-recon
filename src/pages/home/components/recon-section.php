@@ -49,7 +49,7 @@ try {
                         </div>
                     </label>
                     <label class="filter"><span>Start Date</span>
-                        <input id="hsStartDate" type="date" value="<?= date('Y-m-01') ?>">
+                        <input id="hsStartDate" type="date" value="<?= date('Y-m-d') ?>">
                     </label>
                     <label class="filter"><span>End Date</span>
                         <input id="hsEndDate" type="date" value="<?= date('Y-m-d') ?>">
@@ -1387,9 +1387,15 @@ try {
                     pairDateIso: pairDateIso,
                     insertIndex: pairInsertIndex++,
                     partnerId: partnerObj && partnerObj.partnerId ? String(partnerObj.partnerId) : '',
+                    partnerLegacyId: partnerObj && partnerObj.legacyId ? String(partnerObj.legacyId) : '',
+                    agentName: partnerObj && partnerObj.agentName ? String(partnerObj.agentName) : '',
                     partnerRef: partnerObj && partnerObj.tx ? String(partnerObj.tx) : '',
                     webRef: webObj && webObj.wRef ? String(webObj.wRef) : '',
                     webKptn: webObj && webObj.wKptn ? String(webObj.wKptn) : '',
+                    webBranch: webObj && webObj.wBranch ? String(webObj.wBranch) : '',
+                    webBranchId: webObj && webObj.wBranchId ? String(webObj.wBranchId) : '',
+                    webBranchName: webObj && webObj.wBranchName ? String(webObj.wBranchName) : '',
+                    legacyDetectionRemark: partnerObj && partnerObj.legacyDetectionRemark ? String(partnerObj.legacyDetectionRemark) : (webObj && webObj.legacyDetectionRemark ? String(webObj.legacyDetectionRemark) : ''),
                     partnerAmount: partnerObj ? toMoneygramAmount(partnerObj.pAmt) : 0,
                     partnerCommission: partnerObj ? toMoneygramAmount(partnerObj.pComm) : 0,
                     webAmount: webObj ? toMoneygramAmount(webObj.wAmt) : 0,
@@ -1404,6 +1410,9 @@ try {
                 const wRef = extractMoneygramWebRef(row);
                 const pObj = tx ? {
                     partnerId: row.partner_id || '',
+                    legacyId: row.partner_legacy_id || row.legacy_id || row.legacyid || '',
+                    agentName: row.partner_agent_name || row.agent_name || '',
+                    legacyDetectionRemark: row.legacy_detection_remark || '',
                     pDate: row.partner_tran_date || row.partner_date || row.partner_fx_date_trn || row.partner_cover_date || row.partner_date_claimed || row.partner_date_send || aggregate.startDate || '',
                     tx: tx,
                     pAmt: toMoneygramAmount(row.partner_principal || row.partner_base_amt || 0),
@@ -1413,6 +1422,10 @@ try {
                 const wObj = wRef ? {
                     wDateRaw: row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || '',
                     wKptn: row.web_kptn || row.kptn || '',
+                    wBranch: row.web_branch || '',
+                    wBranchId: row.web_branch_id || '',
+                    wBranchName: row.web_branch_name || '',
+                    legacyDetectionRemark: row.legacy_detection_remark || '',
                     wRef: wRef,
                     wAmt: toMoneygramAmount(row.web_amount || row.web_amt || 0),
                     wCurrency: row.web_currency || row.web_ccy || row.web_currency_code || ''
@@ -1794,6 +1807,9 @@ try {
                 webScroll.scrollTop = 0;
                 updateMetrics();
                 renderVirtualRows(true);
+                if(typeof modal._moneygramRefreshDetectedCount === 'function'){
+                    modal._moneygramRefreshDetectedCount();
+                }
             };
 
             if(searchEl && modal._moneygramRangeSearchHandler){
@@ -1822,9 +1838,20 @@ try {
                 applyFilters: applySearchFilter,
                 getMatchedPairs: function(){
                     return alignedPairs.filter((pair) => !pair.isMismatch && !pair.isDuplicate && String(pair.partnerRef || '').trim());
+                },
+                getDetectedRows: function(){
+                    return filteredPairs.filter((pair) => {
+                        const hasPartner = String(pair.partnerRef || '').trim() !== '';
+                        const hasWeb = String(pair.webRef || '').trim() !== '';
+                        const hasBranchDetection = String(pair.legacyDetectionRemark || '').indexOf('Maybe New Branch') !== -1;
+                        return hasPartner !== hasWeb || hasBranchDetection;
+                    });
                 }
             };
             modal.dataset.virtualReady = String(Date.now());
+            if(typeof modal._moneygramRefreshDetectedCount === 'function'){
+                modal._moneygramRefreshDetectedCount();
+            }
             if(lockedDates.length){
                 const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
                 if(lockBtn){

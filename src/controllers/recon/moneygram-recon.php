@@ -109,6 +109,34 @@ try{
         return (int)round(($rightTs - $leftTs) / 86400);
     };
 
+    $branchNameById = [];
+    $branchProfileById = [];
+    $branchProfileByLegacyId = [];
+    try {
+        $masterPdo = masterDataConnection();
+        $branchStmt = $masterPdo->query('SELECT branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE branch_id IS NOT NULL AND TRIM(branch_id) <> \'\'');
+        foreach ($branchStmt->fetchAll(PDO::FETCH_ASSOC) as $branchRow) {
+            $branchId = trim((string)($branchRow['branch_id'] ?? ''));
+            if ($branchId === '') {
+                continue;
+            }
+            $branchKey = $normalizeKey($branchId);
+            $branchNameById[$branchKey] = (string)($branchRow['branch_name'] ?? '');
+            $branchProfileById[$branchKey] = [
+                'branch_name' => (string)($branchRow['branch_name'] ?? ''),
+                'legacyid_moneygram' => (string)($branchRow['legacyid_moneygram'] ?? ''),
+            ];
+            $legacyKey = $normalizeKey($branchRow['legacyid_moneygram'] ?? '');
+            if ($legacyKey !== '') {
+                $branchProfileByLegacyId[$legacyKey] = $branchProfileById[$branchKey];
+            }
+        }
+    } catch (Throwable $e) {
+        $branchNameById = [];
+        $branchProfileById = [];
+        $branchProfileByLegacyId = [];
+    }
+
     $expandedStartObj = clone $startDtObj;
     $expandedStartObj->modify('-1 day');
     $expandedEndObj = clone $endDtObj;
@@ -155,6 +183,9 @@ try{
             'amount' => isset($row['base_amt']) ? abs((float)$row['base_amt']) : 0.0,
             'commission' => isset($row['comm_amt']) ? (float)$row['comm_amt'] : (isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0))),
             'currency' => $normalizeCurrency($row['settlement_currency'] ?? ($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? ''))))),
+            'agent_name' => (string)($row['agent_name'] ?? ''),
+            'legacy_id' => (string)($row['legacy_id'] ?? ($row['legacyid'] ?? ($row['legacyId'] ?? ''))),
+            'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
             'raw' => $row,
         ];
     }
@@ -174,6 +205,9 @@ try{
             'ref' => $ref,
             'raw_ref' => $rawRef,
             'kptn' => (string)($row['kptn'] ?? ''),
+            'branch' => (string)($row['branch'] ?? ($row['account_name'] ?? ($row['accountName'] ?? ''))),
+            'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
+            'branch_name' => (string)($branchNameById[$normalizeKey($row['branch_id'] ?? ($row['branchId'] ?? ''))] ?? ''),
             'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
             'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
             'currency' => $normalizeCurrency($row['currency'] ?? ''),
@@ -384,9 +418,15 @@ try{
                     }
                     $row['partner_principal'] = (float)$partner['amount'];
                     $row['partner_commission'] = (float)$partner['commission'];
+                    $row['partner_agent_name'] = (string)($partner['agent_name'] ?? '');
+                    $row['partner_legacy_id'] = (string)($partner['legacy_id'] ?? '');
+                    $row['partner_branch_id'] = (string)($partner['branch_id'] ?? '');
                 } else {
                     $row['partner_principal'] = 0.0;
                     $row['partner_commission'] = 0.0;
+                    $row['partner_agent_name'] = '';
+                    $row['partner_legacy_id'] = '';
+                    $row['partner_branch_id'] = '';
                 }
 
                 if($web){
@@ -394,12 +434,47 @@ try{
                         $row['web_'.$col] = $val;
                     }
                     $row['web_kptn'] = (string)($web['kptn'] ?? '');
+                    $row['web_branch'] = (string)($web['branch'] ?? '');
+                    $row['web_branch_id'] = (string)($web['branch_id'] ?? '');
+                    $row['web_branch_name'] = (string)($web['branch_name'] ?? '');
                     $row['web_amount'] = (float)$web['amount'];
                     $row['web_ctp'] = (float)$web['ctp'];
                 } else {
                     $row['web_kptn'] = '';
+                    $row['web_branch'] = '';
+                    $row['web_branch_id'] = '';
+                    $row['web_branch_name'] = '';
                     $row['web_amount'] = 0.0;
                     $row['web_ctp'] = 0.0;
+                }
+
+                $row['legacy_detection_remark'] = '';
+                $row['registered_legacyid_moneygram'] = '';
+                if($partner && $web){
+                    $webBranchKey = $normalizeKey($web['branch_id'] ?? '');
+                    $partnerLegacyId = trim((string)($partner['legacy_id'] ?? ''));
+                    $branchProfile = $webBranchKey !== '' ? ($branchProfileById[$webBranchKey] ?? null) : null;
+                    $registeredLegacyId = $branchProfile ? trim((string)($branchProfile['legacyid_moneygram'] ?? '')) : '';
+                    $row['registered_legacyid_moneygram'] = $registeredLegacyId;
+
+                    if(!$branchProfile){
+                        $row['legacy_detection_remark'] = 'Maybe New Branch';
+                        $legacyProfile = $partnerLegacyId !== '' ? ($branchProfileByLegacyId[$normalizeKey($partnerLegacyId)] ?? null) : null;
+                        if(!$legacyProfile){
+                            $row['legacy_detection_remark'] = 'Maybe New Branch Legacy ID not yet registered. Contact System Administrator';
+                        }
+                    } elseif($registeredLegacyId === ''){
+                        $row['legacy_detection_remark'] = 'Legacy ID not yet registered. Contact System Administrator';
+                    } elseif($normalizeKey($registeredLegacyId) !== $normalizeKey($partnerLegacyId)){
+                        $row['legacy_detection_remark'] = 'Legacy ID not yet registered. Contact System Administrator';
+                    }
+                }
+                if(!$partner && $web){
+                    $webBranchKey = $normalizeKey($web['branch_id'] ?? '');
+                    $branchProfile = $webBranchKey !== '' ? ($branchProfileById[$webBranchKey] ?? null) : null;
+                    if(!$branchProfile){
+                        $row['legacy_detection_remark'] = 'Maybe New Branch';
+                    }
                 }
 
                 $row['is_cross_date_match'] = ($partner && $web && $partner['date'] !== $web['date']);
