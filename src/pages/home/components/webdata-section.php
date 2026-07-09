@@ -429,6 +429,8 @@ try {
                 .join(' ')
                 .toUpperCase();
             const hasSendoutWord = filename.includes('SENDOUT') || filename.includes('SEND OUT') || reportTitle.includes('SENDOUT') || reportTitle.includes('SEND OUT');
+            const hasPayoutWord = filename.includes('PAYOUT') || filename.includes('PAY OUT') || reportTitle.includes('PAYOUT') || reportTitle.includes('PAY OUT');
+            if(hasPayoutWord && !hasSendoutWord) return false;
             if(hasSendoutWord) return true;
 
             const rows = Array.isArray(payload.rows) ? payload.rows : [];

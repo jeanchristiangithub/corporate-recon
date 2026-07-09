@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 header('Content-Type: application/json; charset=utf-8');
 
 reconDaycardLocksBoot();
+@set_time_limit(0);
 
 // read raw json
 $raw = file_get_contents('php://input');
@@ -31,61 +32,79 @@ try {
         $pdo = fileRecDbConnection();
         $results = [];
         $seen = [];
-        
+
+        $addDuplicateResult = static function(array $row) use (&$results, &$seen): void {
+            $key = $row['partnerName'] . '|' . $row['ccref_no'] . '|' . $row['date_claimed'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $results[] = [
+                    'partnerName' => $row['partnerName'],
+                    'ccref_no' => $row['ccref_no'],
+                    'date_claimed' => $row['date_claimed'],
+                    'cnt' => (int)$row['cnt'],
+                ];
+            }
+        };
+
+        $exactPairs = [];
+        $dateOnlyPairs = [];
+        $loosePairs = [];
         foreach ($pairs as $p) {
             $partnerName = isset($p['partnerName']) ? trim((string)$p['partnerName']) : '';
             $ccref = isset($p['ccref_no']) ? trim((string)$p['ccref_no']) : '';
             $rawDate = isset($p['date_claimed']) ? $p['date_claimed'] : '';
-            
             if ($ccref === '' || $partnerName === '') continue;
-            
-            // 1) Try exact normalized datetime match
+
             $norm = ml_parse_date_claimed($rawDate);
             if ($norm !== null) {
-                $stmt = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE partnerName = ? AND ccref_no = ? AND date_claimed = ? GROUP BY partnerName, ccref_no, date_claimed');
-                $stmt->execute([$partnerName, $ccref, $norm]);
-                $r = $stmt->fetch();
-                if ($r && isset($r['cnt']) && (int)$r['cnt'] > 0) {
-                    $key = $r['partnerName'] . '|' . $r['ccref_no'] . '|' . $r['date_claimed'];
-                    if (!isset($seen[$key])) { 
-                        $seen[$key] = true; 
-                        $results[] = ['partnerName' => $r['partnerName'], 'ccref_no' => $r['ccref_no'], 'date_claimed' => $r['date_claimed'], 'cnt' => (int)$r['cnt']]; 
-                    }
-                    continue;
-                }
+                $exactPairs[$partnerName . '|' . $ccref . '|' . $norm] = [$partnerName, $ccref, $norm];
             }
-            
-            // 2) Try date-only match if rawDate is parseable
+
             $ts = strtotime((string)$rawDate);
             if ($ts !== false) {
                 $dateOnly = date('Y-m-d', $ts);
-                $stmt2 = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE partnerName = ? AND ccref_no = ? AND DATE(date_claimed) = ? GROUP BY partnerName, ccref_no, date_claimed');
-                $stmt2->execute([$partnerName, $ccref, $dateOnly]);
-                $r2 = $stmt2->fetchAll();
-                foreach ($r2 as $ra) {
-                    if (isset($ra['cnt']) && (int)$ra['cnt'] > 0) {
-                        $key = $ra['partnerName'] . '|' . $ra['ccref_no'] . '|' . $ra['date_claimed'];
-                        if (!isset($seen[$key])) { 
-                            $seen[$key] = true; 
-                            $results[] = ['partnerName' => $ra['partnerName'], 'ccref_no' => $ra['ccref_no'], 'date_claimed' => $ra['date_claimed'], 'cnt' => (int)$ra['cnt']]; 
-                        }
-                    }
-                }
-                if (!empty($r2)) continue;
+                $dateOnlyPairs[$partnerName . '|' . $ccref . '|' . $dateOnly] = [$partnerName, $ccref, $dateOnly];
             }
-            
-            // 3) Last resort: any rows matching partner + ccref_no
-            $stmt3 = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE partnerName = ? AND ccref_no = ? GROUP BY partnerName, ccref_no, date_claimed');
-            $stmt3->execute([$partnerName, $ccref]);
-            $r3 = $stmt3->fetchAll();
-            foreach ($r3 as $ra) {
-                if (isset($ra['cnt']) && (int)$ra['cnt'] > 0) {
-                    $key = $ra['partnerName'] . '|' . $ra['ccref_no'] . '|' . $ra['date_claimed'];
-                    if (!isset($seen[$key])) { 
-                        $seen[$key] = true; 
-                        $results[] = ['partnerName' => $ra['partnerName'], 'ccref_no' => $ra['ccref_no'], 'date_claimed' => $ra['date_claimed'], 'cnt' => (int)$ra['cnt']]; 
-                    }
-                }
+            $loosePairs[$partnerName . '|' . $ccref] = [$partnerName, $ccref];
+        }
+
+        foreach (array_chunk(array_values($exactPairs), 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '(?,?,?)'));
+            $params = [];
+            foreach ($chunk as $pair) {
+                array_push($params, $pair[0], $pair[1], $pair[2]);
+            }
+            $stmt = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE (partnerName, ccref_no, date_claimed) IN (' . $placeholders . ') GROUP BY partnerName, ccref_no, date_claimed');
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $addDuplicateResult($row);
+            }
+        }
+
+        foreach (array_chunk(array_values($dateOnlyPairs), 250) as $chunk) {
+            $where = [];
+            $params = [];
+            foreach ($chunk as $pair) {
+                $where[] = '(partnerName = ? AND ccref_no = ? AND DATE(date_claimed) = ?)';
+                array_push($params, $pair[0], $pair[1], $pair[2]);
+            }
+            $stmt = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE ' . implode(' OR ', $where) . ' GROUP BY partnerName, ccref_no, date_claimed');
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $addDuplicateResult($row);
+            }
+        }
+
+        foreach (array_chunk(array_values($loosePairs), 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '(?,?)'));
+            $params = [];
+            foreach ($chunk as $pair) {
+                array_push($params, $pair[0], $pair[1]);
+            }
+            $stmt = $pdo->prepare('SELECT partnerName, ccref_no, date_claimed, COUNT(*) as cnt FROM ml_web_data WHERE (partnerName, ccref_no) IN (' . $placeholders . ') GROUP BY partnerName, ccref_no, date_claimed');
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $addDuplicateResult($row);
             }
         }
         
@@ -567,7 +586,22 @@ try {
         $quotedInsertColumns = array_map(static function($key) use ($mlColumns) {
             return '`' . str_replace('`', '``', $mlColumns[$key]) . '`';
         }, $mlInsertColumnKeys);
+        $updateColumnKeys = array_values(array_filter($mlInsertColumnKeys, static function($key) {
+            return !in_array($key, ['partnername', 'ccref_no', 'date_claimed', 'date_send', 'date_cancelled', 'created_at'], true);
+        }));
+        $updateClauses = array_map(static function($key) use ($mlColumns) {
+            $quotedColumn = '`' . str_replace('`', '``', $mlColumns[$key]) . '`';
+            return $quotedColumn . ' = VALUES(' . $quotedColumn . ')';
+        }, $updateColumnKeys);
+        if (isset($mlColumns['updated_at'])) {
+            $quotedUpdatedAt = '`' . str_replace('`', '``', $mlColumns['updated_at']) . '`';
+            $updateClauses[] = $quotedUpdatedAt . ' = VALUES(' . $quotedUpdatedAt . ')';
+        }
+
         $sql = 'INSERT INTO ml_web_data (' . implode(',', $quotedInsertColumns) . ') VALUES (' . implode(',', array_fill(0, count($mlInsertColumnKeys), '?')) . ')';
+        if (!empty($updateClauses)) {
+            $sql .= ' ON DUPLICATE KEY UPDATE ' . implode(', ', array_unique($updateClauses));
+        }
         $stmt = $pdo->prepare($sql);
 
         // resolves invalid parameter number
