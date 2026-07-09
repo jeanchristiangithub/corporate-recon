@@ -96,6 +96,7 @@
 
 /* Logout modal styles for header.php */
 .logout-modal{display:none;position:fixed;inset:0;z-index:1200;font-family:inherit}
+.logout-modal--pending{z-index:200100}
 .logout-modal[aria-hidden="false"]{display:block}
 .logout-modal__overlay{position:fixed;inset:0;background:rgba(8,15,30,0.68);backdrop-filter:blur(2px);animation:logoutFadeIn .18s ease both}
 .logout-modal__dialog{position:fixed;left:50%;top:50%;width:min(440px,calc(100vw - 40px));transform:translate(-50%,-50%) scale(.96);background:#fff;padding:30px 28px 24px;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);color:#111827;text-align:center;animation:logoutScaleIn .22s cubic-bezier(.2,.8,.2,1) both}

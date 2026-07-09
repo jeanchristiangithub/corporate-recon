@@ -43,11 +43,13 @@ if ($currentUserId !== '') {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/home.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/header.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/sidebar.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-upload/kpx-webdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-cancellation-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/reconreport-section.css">
@@ -116,13 +118,17 @@ if ($currentUserId !== '') {
                     <span class="chev material-icons" aria-hidden="true">expand_more</span>
                 </button>
                 <ul id="dataUploadMenu" class="nav-group-menu" style="display:none;">
-                    <li><a href="#" id="navWebData" data-show="webdataSection">
+                    <!-- <li><a href="#" id="navWebData" data-show="webdataSection">
                         <span class="icon material-icons" aria-hidden="true">web</span>
                         <span class="label">KPX Web Data</span>
-                    </a></li>
-                    <li><a href="#" id="navWebDataCancellation" class="nav-subitem--compact" data-show="webdataCancellationSection">
+                    </a></li> -->
+                    <!-- <li><a href="#" id="navWebDataCancellation" class="nav-subitem--compact" data-show="webdataCancellationSection">
                         <span class="icon material-icons" aria-hidden="true">cancel</span>
                         <span class="label">KPX Web Cancellation</span>
+                    </a></li> -->
+                    <li><a href="#" id="navKpxWebDataVer2" data-show="kpxWebDataVer2Section">
+                        <span class="icon material-icons" aria-hidden="true">web_asset</span>
+                        <span class="label">KPX Web Data</span>
                     </a></li>
                     <li><a href="#" id="navPartnerData" data-show="partnerdataSection">
                         <span class="icon material-icons" aria-hidden="true">people</span>
@@ -243,6 +249,7 @@ if ($currentUserId !== '') {
 
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
     <?php include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
+    <?php include __DIR__ . '/components/data-upload/kpx-webdata-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
@@ -390,6 +397,7 @@ if ($currentUserId !== '') {
                 users: 'usersSection',
                 webdata: 'webdataSection',
                 webdatacancellation: 'webdataCancellationSection',
+                kpxwebdataver2: 'kpxWebDataVer2Section',
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
@@ -421,7 +429,7 @@ if ($currentUserId !== '') {
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
