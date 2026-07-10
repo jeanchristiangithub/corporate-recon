@@ -136,6 +136,7 @@ try {
             <div id="kpxWdUploadModalActions" class="kpx-wd-upload-actions" hidden>
                 <button id="kpxWdUploadNo" type="button" class="material-btn">No</button>
                 <button id="kpxWdUploadYes" type="button" class="material-btn material-btn--primary">Yes</button>
+                <button id="kpxWdUploadOk" type="button" class="material-btn material-btn--primary">OK</button>
             </div>
         </div>
     </div>
@@ -164,6 +165,7 @@ try {
         const uploadModalActions = document.getElementById('kpxWdUploadModalActions');
         const uploadModalYes = document.getElementById('kpxWdUploadYes');
         const uploadModalNo = document.getElementById('kpxWdUploadNo');
+        const uploadModalOk = document.getElementById('kpxWdUploadOk');
         const uploadProgressBar = document.getElementById('kpxWdUploadProgressBar');
         const partners = <?= json_encode($kpxPartners, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const partnerIds = <?= json_encode($kpxPartnerIds, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
@@ -404,12 +406,16 @@ try {
             viewerTableWrap.innerHTML = message ? '<div class="kpx-wd-viewer-empty">' + message + '</div>' : '';
         }
 
-        function showUploadModal(title, message, confirmMode, progressPercent){
+        function showUploadModal(title, message, actionMode, progressPercent){
             if(!uploadModal) return;
+            const mode = actionMode === true ? 'confirm' : (actionMode || '');
             uploadModalTitle.textContent = title || 'Processing files...';
             uploadModalMessage.textContent = message || '';
-            uploadModalActions.hidden = !confirmMode;
-            uploadModal.classList.toggle('is-confirm', !!confirmMode);
+            uploadModalActions.hidden = mode !== 'confirm' && mode !== 'ok';
+            if(uploadModalNo) uploadModalNo.hidden = mode !== 'confirm';
+            if(uploadModalYes) uploadModalYes.hidden = mode !== 'confirm';
+            if(uploadModalOk) uploadModalOk.hidden = mode !== 'ok';
+            uploadModal.classList.toggle('is-confirm', mode === 'confirm' || mode === 'ok');
             if(uploadProgressBar){
                 const percent = Number.isFinite(Number(progressPercent)) ? Math.max(0, Math.min(100, Number(progressPercent))) : 0;
                 uploadProgressBar.style.width = percent + '%';
@@ -419,6 +425,11 @@ try {
 
         function hideUploadModal(){
             if(uploadModal) uploadModal.setAttribute('aria-hidden', 'true');
+        }
+
+        function showFailureModal(title, message){
+            showUploadModal(title || 'Upload Failed', message || 'Upload failed.', 'ok', 100);
+            if(uploadModalOk) uploadModalOk.onclick = hideUploadModal;
         }
 
         function askOverwrite(message){
@@ -514,7 +525,7 @@ try {
                 renderFiles();
             }catch(error){
                 console.error(error);
-                showUploadModal('Upload Failed', error && error.message ? error.message : 'Upload failed.', false, 100);
+                showFailureModal('Upload Failed', error && error.message ? error.message : 'Upload failed.');
             }finally{
                 refreshState();
             }
@@ -729,13 +740,13 @@ try {
             dropzone.classList.remove('kpx-wd-dropzone--over');
             addFiles(event.dataTransfer.files).catch(error => {
                 console.error(error);
-                hideUploadModal();
+                showFailureModal('Fetching Failed', error && error.message ? error.message : 'Failed to check selected files.');
             });
         });
         fileInput.addEventListener('change', () => {
             addFiles(fileInput.files).catch(error => {
                 console.error(error);
-                hideUploadModal();
+                showFailureModal('Fetching Failed', error && error.message ? error.message : 'Failed to check selected files.');
             });
         });
         viewerModeInputs.forEach(input => input.addEventListener('change', renderViewerMode));

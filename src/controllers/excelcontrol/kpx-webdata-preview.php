@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 bootSecureSession();
 
@@ -265,6 +266,45 @@ function kpxFormatNumericCell(mixed $value): string
     return number_format((float)$normalized, 2, '.', '');
 }
 
+function kpxFormatDateTimeCell(mixed $value): string
+{
+    if ($value === null || $value === '') return '';
+    if ($value instanceof DateTimeInterface) return $value->format('Y-m-d H:i:s');
+    if (is_numeric($value)) {
+        try {
+            return ExcelDate::excelToDateTimeObject((float)$value)->format('Y-m-d H:i:s');
+        } catch (Throwable $e) {
+            return kpxCellValue($value);
+        }
+    }
+
+    $text = trim((string)$value);
+    if ($text === '') return '';
+    $formats = [
+        'm/d/Y H:i:s',
+        'm/d/Y H:i',
+        'n/j/Y H:i:s',
+        'n/j/Y H:i',
+        'Y-m-d H:i:s',
+        'Y-m-d H:i',
+        'm/d/Y',
+        'n/j/Y',
+        'Y-m-d',
+    ];
+    foreach ($formats as $format) {
+        $date = DateTimeImmutable::createFromFormat($format, $text, new DateTimeZone('Asia/Manila'));
+        if ($date instanceof DateTimeImmutable) {
+            return $date->format('Y-m-d H:i:s');
+        }
+    }
+
+    $timestamp = strtotime($text);
+    if ($timestamp !== false) {
+        return (new DateTimeImmutable('@' . $timestamp))->setTimezone(new DateTimeZone('Asia/Manila'))->format('Y-m-d H:i:s');
+    }
+    return $text;
+}
+
 function kpxBranchIdFromControlSeries(string $controlSeriesNo): string
 {
     $controlSeriesNo = trim($controlSeriesNo);
@@ -326,6 +366,7 @@ function kpxReadMappedRows(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
     $rows = [];
     $highestRow = $sheet->getHighestDataRow();
     $numericLookup = array_fill_keys($numericHeaders, true);
+    $dateTimeLookup = array_fill_keys(['DATE CANCELLED', 'DATE CLAIMED', 'DATE SEND'], true);
 
     for ($rowIndex = 5; $rowIndex <= $highestRow; $rowIndex++) {
         $record = [];
@@ -333,7 +374,13 @@ function kpxReadMappedRows(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
 
         foreach ($sourceMap as $header => $columnLetter) {
             $rawValue = $sheet->getCell($columnLetter . $rowIndex)->getCalculatedValue();
-            $value = isset($numericLookup[$header]) ? kpxFormatNumericCell($rawValue) : kpxCellValue($rawValue);
+            if (isset($dateTimeLookup[$header])) {
+                $value = kpxFormatDateTimeCell($rawValue);
+            } elseif (isset($numericLookup[$header])) {
+                $value = kpxFormatNumericCell($rawValue);
+            } else {
+                $value = kpxCellValue($rawValue);
+            }
             if ($value !== '') $hasValue = true;
             $record[$header] = $value;
         }
@@ -502,7 +549,7 @@ function kpxReadSpreadsheetHeaderCells(string $path, string $extension): array
     $reader = IOFactory::createReader($readerType);
     $reader->setReadDataOnly(true);
     $spreadsheet = $reader->load($path);
-    $sheet = $spreadsheet->getSheet(0);
+    $sheet = $spreadsheet->getActiveSheet();
     $cells = kpxReadHeaderCellsFromSheet($sheet);
     $detected = kpxMoneygramHeadersForCombination($cells['C'], $cells['D']);
     $cells['rows'] = kpxReadMappedRows($sheet, $detected['sourceMap'], $detected['numericHeaders']);

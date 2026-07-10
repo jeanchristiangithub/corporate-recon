@@ -94,6 +94,7 @@
 .kpx-wd-upload-modal.is-confirm .kpx-wd-upload-progress{display:none}
 .kpx-wd-upload-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
 .kpx-wd-upload-actions[hidden]{display:none!important}
+.kpx-wd-upload-actions button[hidden]{display:none!important}
 .kpx-wd-upload-actions .material-btn{border-radius:999px;min-width:58px;border:0;font-weight:800}
 
 @media (max-width:720px){
