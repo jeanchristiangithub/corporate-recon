@@ -132,7 +132,7 @@ try {
         <div class="kpx-wd-upload-dialog">
             <h3 id="kpxWdUploadModalTitle">Processing files...</h3>
             <p id="kpxWdUploadModalMessage">Please wait while the files are prepared.</p>
-            <div class="kpx-wd-upload-progress"><div></div></div>
+            <div class="kpx-wd-upload-progress"><div id="kpxWdUploadProgressBar"></div></div>
             <div id="kpxWdUploadModalActions" class="kpx-wd-upload-actions" hidden>
                 <button id="kpxWdUploadNo" type="button" class="material-btn">No</button>
                 <button id="kpxWdUploadYes" type="button" class="material-btn material-btn--primary">Yes</button>
@@ -164,6 +164,7 @@ try {
         const uploadModalActions = document.getElementById('kpxWdUploadModalActions');
         const uploadModalYes = document.getElementById('kpxWdUploadYes');
         const uploadModalNo = document.getElementById('kpxWdUploadNo');
+        const uploadProgressBar = document.getElementById('kpxWdUploadProgressBar');
         const partners = <?= json_encode($kpxPartners, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const partnerIds = <?= json_encode($kpxPartnerIds, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const canUpload = root.dataset.canUpload === '1';
@@ -179,17 +180,6 @@ try {
         function getSelectedPartner(){
             const selected = normalize(company && company.value);
             return (partners || []).find(name => normalize(name) === selected) || '';
-        }
-
-        function normalizeHeader(value){
-            return String(value || '').trim().toUpperCase().replace(/\s+/g, ' ');
-        }
-
-        function isMoneygramSelection(){
-            const selectedPartner = normalizeHeader(company && company.value);
-            const selectedPartnerId = String(partnerId && partnerId.value ? partnerId.value : '').trim();
-            const numericPartnerId = selectedPartnerId.replace(/^0+/, '') || selectedPartnerId;
-            return selectedPartner.includes('MONEYGRAM') || numericPartnerId === '1';
         }
 
         function syncPartnerId(){
@@ -349,13 +339,15 @@ try {
             return Array.isArray(payload.rows) ? payload.rows.length : 0;
         }
 
-        function renderSystemTable(headers, rows){
+        function renderSystemTable(headers, rows, options){
             if(!viewerTableWrap) return;
+            const displayOptions = options || {};
             if(!headers || headers.length === 0){
                 viewerTableWrap.innerHTML = '<div class="kpx-wd-viewer-empty">No matching MoneyGram system table detected.</div>';
                 return;
             }
 
+            const numericHeaders = new Set(['AMOUNT', 'CTC', 'CTP', 'CHARGE', 'amount', 'ctc', 'ctp', 'charge']);
             const table = document.createElement('table');
             table.className = 'kpx-wd-system-table';
             const thead = document.createElement('thead');
@@ -364,6 +356,7 @@ try {
             headers.forEach(label => {
                 const th = document.createElement('th');
                 th.textContent = label;
+                if(numericHeaders.has(label)) th.classList.add('is-numeric');
                 tr.appendChild(th);
             });
 
@@ -371,6 +364,16 @@ try {
             table.appendChild(thead);
             const tbody = document.createElement('tbody');
             const tableRows = Array.isArray(rows) ? rows : [];
+            function formatDisplayNumber(value){
+                const text = String(value ?? '').trim();
+                if(text === '') return '';
+                const normalized = text.replace(/,/g, '');
+                if(!/^-?\d+(\.\d+)?$/.test(normalized)) return text;
+                return Number(normalized).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
             if(tableRows.length === 0){
                 const emptyRow = document.createElement('tr');
                 const emptyCell = document.createElement('td');
@@ -383,7 +386,9 @@ try {
                     const bodyRow = document.createElement('tr');
                     headers.forEach(label => {
                         const td = document.createElement('td');
-                        td.textContent = row && Object.prototype.hasOwnProperty.call(row, label) ? row[label] : '';
+                        const value = row && Object.prototype.hasOwnProperty.call(row, label) ? row[label] : '';
+                        td.textContent = displayOptions.formatNumeric === true && numericHeaders.has(label) ? formatDisplayNumber(value) : value;
+                        if(numericHeaders.has(label)) td.classList.add('is-numeric');
                         bodyRow.appendChild(td);
                     });
                     tbody.appendChild(bodyRow);
@@ -399,12 +404,16 @@ try {
             viewerTableWrap.innerHTML = message ? '<div class="kpx-wd-viewer-empty">' + message + '</div>' : '';
         }
 
-        function showUploadModal(title, message, confirmMode){
+        function showUploadModal(title, message, confirmMode, progressPercent){
             if(!uploadModal) return;
             uploadModalTitle.textContent = title || 'Processing files...';
             uploadModalMessage.textContent = message || '';
             uploadModalActions.hidden = !confirmMode;
             uploadModal.classList.toggle('is-confirm', !!confirmMode);
+            if(uploadProgressBar){
+                const percent = Number.isFinite(Number(progressPercent)) ? Math.max(0, Math.min(100, Number(progressPercent))) : 0;
+                uploadProgressBar.style.width = percent + '%';
+            }
             uploadModal.setAttribute('aria-hidden', 'false');
         }
 
@@ -438,28 +447,66 @@ try {
         async function uploadSelectedFiles(){
             if(uploadBtn.disabled) return;
             uploadBtn.disabled = true;
-            showUploadModal('Processing files...', 'Preparing records for database write.', false);
+            showUploadModal('Processing files...', 'Preparing records for database write.', false, 0);
             try{
                 const developerRows = [];
-                for(const file of files){
-                    const payload = await readWorkbookHeaderCells(file);
-                    if(Array.isArray(payload.developerRows)) developerRows.push(...payload.developerRows);
+                const filePayloads = [];
+                const queue = files.slice();
+                const workerCount = Math.min(4, Math.max(1, queue.length));
+                let parsedFiles = 0;
+                async function parseWorker(){
+                    while(queue.length > 0){
+                        const file = queue.shift();
+                        if(!file) return;
+                        const payload = await readWorkbookHeaderCells(file);
+                        const rows = Array.isArray(payload.developerRows) ? payload.developerRows : [];
+                        if(rows.length > 0){
+                            developerRows.push(...rows);
+                            filePayloads.push({ file: file, rows: rows });
+                        }
+                        parsedFiles++;
+                        showUploadModal('Processing files...', 'Preparing records for database write (' + parsedFiles + ' of ' + files.length + ' files).', false, (parsedFiles / files.length) * 100);
+                    }
                 }
+                await Promise.all(Array.from({ length: workerCount }, parseWorker));
                 if(developerRows.length === 0) throw new Error('No rows to upload.');
 
-                let result = await saveDeveloperRows(developerRows, false);
-                if(result.duplicate){
-                    const confirmed = await askOverwrite(result.message || 'Data already exists. Do you want to overwrite the existing data?');
+                const duplicatePayloads = [];
+                let inserted = 0;
+                let updated = 0;
+                let writtenFiles = 0;
+                for(const payload of filePayloads){
+                    showUploadModal('Processing files...', 'Writing data to database (' + writtenFiles + ' of ' + filePayloads.length + ' files).', false, (writtenFiles / filePayloads.length) * 100);
+                    const result = await saveDeveloperRows(payload.rows, false);
+                    if(result.duplicate){
+                        duplicatePayloads.push(payload);
+                    } else {
+                        inserted += Number(result.inserted || 0);
+                        updated += Number(result.updated || 0);
+                    }
+                    writtenFiles++;
+                    showUploadModal('Processing files...', 'Writing data to database (' + writtenFiles + ' of ' + filePayloads.length + ' files).', false, (writtenFiles / filePayloads.length) * 100);
+                }
+
+                if(duplicatePayloads.length > 0){
+                    const confirmed = await askOverwrite('Data with the same CCREF NO and date already exists. Do you want to overwrite the existing data?');
                     if(!confirmed){
                         hideUploadModal();
                         refreshState();
                         return;
                     }
-                    showUploadModal('Processing files...', 'Updating existing database records.', false);
-                    result = await saveDeveloperRows(developerRows, true);
+                    let updatedFiles = 0;
+                    for(const payload of duplicatePayloads){
+                        showUploadModal('Processing files...', 'Updating existing database records (' + updatedFiles + ' of ' + duplicatePayloads.length + ' files).', false, (updatedFiles / duplicatePayloads.length) * 100);
+                        const result = await saveDeveloperRows(payload.rows, true);
+                        inserted += Number(result.inserted || 0);
+                        updated += Number(result.updated || 0);
+                        updatedFiles++;
+                        showUploadModal('Processing files...', 'Updating existing database records (' + updatedFiles + ' of ' + duplicatePayloads.length + ' files).', false, (updatedFiles / duplicatePayloads.length) * 100);
+                    }
                 }
 
-                showUploadModal('Completed Successfully', 'Inserted ' + (result.inserted || 0) + ' row(s), updated ' + (result.updated || 0) + ' row(s).', false);
+                showUploadModal('Completed Successfully', 'Inserted ' + inserted + ' row(s), updated ' + updated + ' row(s).', false, 100);
                 setTimeout(hideUploadModal, 1400);
                 files = [];
                 fileRowCounts.clear();
@@ -467,7 +514,7 @@ try {
                 renderFiles();
             }catch(error){
                 console.error(error);
-                showUploadModal('Upload Failed', error && error.message ? error.message : 'Upload failed.', false);
+                showUploadModal('Upload Failed', error && error.message ? error.message : 'Upload failed.', false, 100);
             }finally{
                 refreshState();
             }
@@ -482,16 +529,12 @@ try {
 
         async function renderNormalMode(file){
             if(!file) return;
-            if(!isMoneygramSelection()){
-                resetViewerContent('Normal Mode system table is available for MONEYGRAM or Partner ID 1.');
-                return;
-            }
 
             resetViewerContent('Reading file...');
             try{
                 const payload = await getActiveViewerPayload();
                 if(payload.headers && payload.headers.length > 0){
-                    renderSystemTable(payload.headers, payload.rows || []);
+                    renderSystemTable(payload.headers, payload.rows || [], { formatNumeric: true });
                     return;
                 }
                 const row4 = payload.row4 || {};
@@ -504,16 +547,12 @@ try {
 
         async function renderDeveloperMode(){
             if(!activeViewerFile) return;
-            if(!isMoneygramSelection()){
-                resetViewerContent('Developer Mode is available for MONEYGRAM or Partner ID 1.');
-                return;
-            }
 
             resetViewerContent('Preparing database records...');
             try{
                 const payload = await getActiveViewerPayload();
                 if(payload.developerHeaders && payload.developerHeaders.length > 0){
-                    renderSystemTable(payload.developerHeaders, payload.developerRows || []);
+                    renderSystemTable(payload.developerHeaders, payload.developerRows || [], { formatNumeric: false });
                     return;
                 }
                 resetViewerContent('No developer records prepared.');
@@ -565,7 +604,20 @@ try {
 
             const count = document.createElement('div');
             count.className = 'kpx-wd-filecount';
-            count.textContent = files.length + ' file' + (files.length === 1 ? '' : 's') + ' ready';
+            const countText = document.createElement('span');
+            countText.textContent = files.length + ' file' + (files.length === 1 ? '' : 's') + ' ready';
+            const removeAll = document.createElement('button');
+            removeAll.className = 'kpx-wd-remove-all';
+            removeAll.type = 'button';
+            removeAll.textContent = 'Remove All';
+            removeAll.addEventListener('click', () => {
+                files = [];
+                fileRowCounts.clear();
+                if(fileInput) fileInput.value = '';
+                renderFiles();
+            });
+            count.appendChild(countText);
+            count.appendChild(removeAll);
 
             const list = document.createElement('ul');
             list.className = 'kpx-wd-files-ul';
@@ -621,25 +673,44 @@ try {
             refreshState();
         }
 
-        function addFiles(selectedFiles){
+        async function addFiles(selectedFiles){
             const incoming = Array.from(selectedFiles || []);
+            const newFiles = [];
             incoming.forEach(file => {
                 const exists = files.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified);
                 if(!exists) {
                     files.push(file);
-                    detectFileRowCount(file).then(count => {
-                        if(!files.includes(file)) return;
-                        fileRowCounts.set(file, count);
-                        renderFiles();
-                    }).catch(error => {
-                        console.warn('[kpx-webdata] failed to count rows', error);
-                        if(!files.includes(file)) return;
-                        fileRowCounts.set(file, 0);
-                        renderFiles();
-                    });
+                    newFiles.push(file);
                 }
             });
             renderFiles();
+            if(newFiles.length === 0) return;
+
+            showUploadModal('Checking data rows...', 'Checking 0 of ' + newFiles.length + ' files.', false, 0);
+            const queue = newFiles.slice();
+            const workerCount = Math.min(4, Math.max(1, queue.length));
+            let checked = 0;
+
+            async function countWorker(){
+                while(queue.length > 0){
+                    const file = queue.shift();
+                    if(!file) return;
+                    try{
+                        const count = await detectFileRowCount(file);
+                        if(files.includes(file)) fileRowCounts.set(file, count);
+                    }catch(error){
+                        console.warn('[kpx-webdata] failed to count rows', error);
+                        if(files.includes(file)) fileRowCounts.set(file, 0);
+                    }
+                    checked++;
+                    renderFiles();
+                    showUploadModal('Checking data rows...', 'Checking ' + checked + ' of ' + newFiles.length + ' files.', false, (checked / newFiles.length) * 100);
+                }
+            }
+
+            await Promise.all(Array.from({ length: workerCount }, countWorker));
+            renderFiles();
+            hideUploadModal();
         }
 
         partnerId.addEventListener('input', syncCompanyFromPartnerId);
@@ -656,9 +727,17 @@ try {
             if(dropzone.classList.contains('kpx-wd-dropzone--disabled')) return;
             event.preventDefault();
             dropzone.classList.remove('kpx-wd-dropzone--over');
-            addFiles(event.dataTransfer.files);
+            addFiles(event.dataTransfer.files).catch(error => {
+                console.error(error);
+                hideUploadModal();
+            });
         });
-        fileInput.addEventListener('change', () => addFiles(fileInput.files));
+        fileInput.addEventListener('change', () => {
+            addFiles(fileInput.files).catch(error => {
+                console.error(error);
+                hideUploadModal();
+            });
+        });
         viewerModeInputs.forEach(input => input.addEventListener('change', renderViewerMode));
         if(viewerClose) viewerClose.addEventListener('click', closeViewer);
         if(viewerModal){

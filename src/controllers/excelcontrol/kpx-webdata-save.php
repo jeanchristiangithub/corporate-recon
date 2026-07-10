@@ -100,8 +100,10 @@ function kpxDuplicateWhere(array $row): array
         $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
         $params[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SO') {
-        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
-        $params[] = trim((string)($row['date_send'] ?? ''));
+        $where[] = '(TRIM(COALESCE(date_send, "")) = TRIM(?) OR TRIM(COALESCE(date_claimed, "")) = TRIM(?))';
+        $sendDate = trim((string)($row['date_send'] ?? ''));
+        $params[] = $sendDate;
+        $params[] = $sendDate;
     } elseif ($status === 'POC') {
         $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
         $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
@@ -109,15 +111,34 @@ function kpxDuplicateWhere(array $row): array
         $params[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SOC') {
         $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
-        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
+        $where[] = '(TRIM(COALESCE(date_send, "")) = TRIM(?) OR TRIM(COALESCE(date_claimed, "")) = TRIM(?))';
+        $sendDate = trim((string)($row['date_send'] ?? ''));
         $params[] = trim((string)($row['date_cancelled'] ?? ''));
-        $params[] = trim((string)($row['date_send'] ?? ''));
+        $params[] = $sendDate;
+        $params[] = $sendDate;
     } else {
         $where[] = 'TRIM(COALESCE(data_status, "")) = TRIM(?)';
         $params[] = $status;
     }
 
     return [$where, $params];
+}
+
+function kpxDuplicateKey(array $row): string
+{
+    return strtoupper(trim((string)($row['data_status'] ?? '')));
+}
+
+function kpxDuplicateId(PDO $pdo, array $row, array &$statementCache): int
+{
+    [$where, $params] = kpxDuplicateWhere($row);
+    $key = kpxDuplicateKey($row);
+    if (!isset($statementCache[$key])) {
+        $statementCache[$key] = $pdo->prepare('SELECT id FROM ml_web_data WHERE ' . implode(' AND ', $where) . ' LIMIT 1');
+    }
+    $statementCache[$key]->execute($params);
+    $id = $statementCache[$key]->fetchColumn();
+    return $id === false ? 0 : (int)$id;
 }
 
 try {
@@ -133,14 +154,14 @@ try {
     }
 
     $duplicateIds = [];
+    $duplicateIdByRow = [];
+    $duplicateStatementCache = [];
     foreach ($rows as $row) {
         if (!is_array($row)) continue;
-        [$where, $params] = kpxDuplicateWhere($row);
-        $stmt = $pdo->prepare('SELECT id FROM ml_web_data WHERE ' . implode(' AND ', $where) . ' LIMIT 1');
-        $stmt->execute($params);
-        $id = $stmt->fetchColumn();
-        if ($id !== false) {
-            $duplicateIds[] = (int)$id;
+        $id = kpxDuplicateId($pdo, $row, $duplicateStatementCache);
+        $duplicateIdByRow[] = $id;
+        if ($id > 0) {
+            $duplicateIds[] = $id;
         }
     }
 
@@ -164,19 +185,19 @@ try {
     $inserted = 0;
     $updated = 0;
     $pdo->beginTransaction();
-    foreach ($rows as $row) {
+    foreach ($rows as $rowIndex => $row) {
         if (!is_array($row)) continue;
-        [$where, $params] = kpxDuplicateWhere($row);
-        $stmt = $pdo->prepare('SELECT id FROM ml_web_data WHERE ' . implode(' AND ', $where) . ' LIMIT 1');
-        $stmt->execute($params);
-        $id = $stmt->fetchColumn();
+        $id = (int)($duplicateIdByRow[$rowIndex] ?? 0);
+        if ($id <= 0 && $overwrite) {
+            $id = kpxDuplicateId($pdo, $row, $duplicateStatementCache);
+        }
 
-        if ($id !== false && $overwrite) {
+        if ($id > 0 && $overwrite) {
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $updateColumns);
-            $values[] = (int)$id;
+            $values[] = $id;
             $updateStmt->execute($values);
             $updated++;
-        } elseif ($id === false) {
+        } elseif ($id <= 0) {
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $columns);
             $insertStmt->execute($values);
             $inserted++;

@@ -412,6 +412,7 @@ function kpxBuildDeveloperRows(array $normalRows, string $detectedKey, string $p
         } elseif ($detectedKey === 'cancelledSend') {
             $record['date_cancelled'] = trim((string)($row['DATE CANCELLED'] ?? '')) ?: null;
             $record['date_send'] = trim((string)($row['DATE SEND'] ?? '')) ?: null;
+            $record['date_claimed'] = $record['date_send'];
             $record['charge'] = trim((string)($row['CHARGE'] ?? '')) ?: null;
             $record['data_status'] = 'SOC';
         } elseif ($detectedKey === 'claimed') {
@@ -424,6 +425,7 @@ function kpxBuildDeveloperRows(array $normalRows, string $detectedKey, string $p
             $record['data_status'] = 'PO';
         } elseif ($detectedKey === 'send') {
             $record['date_send'] = trim((string)($row['DATE SEND'] ?? '')) ?: null;
+            $record['date_claimed'] = $record['date_send'];
             $record['charge'] = trim((string)($row['CHARGE'] ?? '')) ?: null;
             $record['receiver_country'] = trim((string)($row['RECEIVER COUNTRY'] ?? '')) ?: null;
             $record['data_status'] = 'SO';

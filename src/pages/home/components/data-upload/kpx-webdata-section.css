@@ -44,7 +44,9 @@
 
 .kpx-wd-filelist{min-height:56px}
 .kpx-wd-empty{color:#6b7280}
-.kpx-wd-filecount{font-weight:600;margin-bottom:8px}
+.kpx-wd-filecount{font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.kpx-wd-remove-all{border:0;background:#e52f3f;color:#fff;border-radius:999px;padding:7px 12px;font-size:.8rem;font-weight:800;cursor:pointer;flex:0 0 auto;box-shadow:0 8px 18px rgba(229,47,63,.22)}
+.kpx-wd-remove-all:hover{background:#c92836;color:#fff}
 .kpx-wd-files-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .kpx-wd-file-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;background:#fff;border:1px solid rgba(15,23,42,0.04)}
 .kpx-wd-file-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -79,6 +81,7 @@
 .kpx-wd-system-table{width:100%;min-width:1100px;border-collapse:collapse;table-layout:auto}
 .kpx-wd-system-table th{position:sticky;top:0;background:#f8fafc;color:#111827;border:1px solid #e5e7eb;padding:9px 10px;font-size:.76rem;line-height:1.2;text-align:left;font-weight:800;white-space:nowrap}
 .kpx-wd-system-table td{border:1px solid #eef2f7;padding:8px 10px;font-size:.82rem;color:#334155}
+.kpx-wd-system-table td.is-numeric{text-align:right;font-variant-numeric:tabular-nums}
 .kpx-wd-viewer-empty{padding:14px;color:#64748b;font-size:.9rem;text-align:center}
 
 .kpx-wd-upload-modal{position:fixed;inset:0;z-index:200120;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72)}
@@ -87,15 +90,11 @@
 .kpx-wd-upload-dialog h3{margin:0 0 10px;color:#5f6368;font-size:1rem;font-weight:800}
 .kpx-wd-upload-dialog p{margin:0;color:#2f3137;font-size:.96rem;line-height:1.45}
 .kpx-wd-upload-progress{height:8px;border-radius:999px;background:#fee2e2;overflow:hidden;margin-top:16px}
-.kpx-wd-upload-progress div{height:100%;width:42%;border-radius:999px;background:#e52f3f;animation:kpx-upload-progress 1s ease-in-out infinite}
+.kpx-wd-upload-progress div{height:100%;width:0;border-radius:999px;background:#e52f3f;transition:width .18s ease}
 .kpx-wd-upload-modal.is-confirm .kpx-wd-upload-progress{display:none}
 .kpx-wd-upload-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
 .kpx-wd-upload-actions[hidden]{display:none!important}
 .kpx-wd-upload-actions .material-btn{border-radius:999px;min-width:58px;border:0;font-weight:800}
-@keyframes kpx-upload-progress{
-    0%{transform:translateX(-110%)}
-    100%{transform:translateX(260%)}
-}
 
 @media (max-width:720px){
     .kpx-webdata-filters{flex-direction:column;align-items:flex-start}
