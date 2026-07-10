@@ -75,6 +75,28 @@ try{
         }
         return [];
     };
+    $tryQueryAll = function(array $sqls, array $params) use ($pdo){
+        $rows = [];
+        $seen = [];
+        foreach($sqls as $sql){
+            try{
+                $statement = $pdo->prepare($sql);
+                $statement->execute($params);
+                foreach($statement->fetchAll() as $row){
+                    $key = md5(json_encode($row));
+                    if(isset($seen[$key])) continue;
+                    $seen[$key] = true;
+                    $rows[] = $row;
+                }
+            }catch(PDOException $e){
+                $code = $e->getCode();
+                if(strpos($e->getMessage(), 'Unknown column') === false && $code !== '42S22'){
+                    throw $e;
+                }
+            }
+        }
+        return $rows;
+    };
 
     $detail = isset($_GET['detail']) ? (int)$_GET['detail'] : 0;
     $rangeDetail = isset($_GET['range_detail']) ? (int)$_GET['range_detail'] : 0;
@@ -152,13 +174,17 @@ try{
     $sqlRangeWeb = [
         "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
+        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
+        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT * FROM ml_web_data WHERE DATE(date) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
         "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
+        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
+        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
     ];
 
     $partnerRowsRaw = $tryQuery($sqlRangePart, [$startDate, $endDate]);
-    $webRowsRaw = $tryQuery($sqlRangeWeb, array_merge([$expandedStartDate, $expandedEndDate], $partnerNameList));
+    $webRowsRaw = $tryQueryAll($sqlRangeWeb, array_merge([$expandedStartDate, $expandedEndDate], $partnerNameList));
     $webRowsRaw = array_values(array_filter($webRowsRaw, function($row) use ($partnerNameList, $normalizeKey){
         $rowPartner = $row['partnerName'] ?? ($row['partner_name'] ?? ($row['corporate_partner'] ?? ($row['corporatePartner'] ?? '')));
         $rowPartnerKey = $normalizeKey($rowPartner);
@@ -192,7 +218,13 @@ try{
 
     $webRows = [];
     foreach($webRowsRaw as $index => $row){
-        $dateOnly = $normalizeDate($row['date_claimed'] ?? ($row['date'] ?? ''));
+        $dateOnly = $normalizeDate($row['date_claimed'] ?? '');
+        if($dateOnly === '') {
+            $dateOnly = $normalizeDate($row['date_send'] ?? '');
+        }
+        if($dateOnly === '') {
+            $dateOnly = $normalizeDate($row['date'] ?? '');
+        }
         if($dateOnly === '' || $dateOnly < $expandedStartDate || $dateOnly > $expandedEndDate) continue;
 
         $rawRef = (string)($row['ccref_no'] ?? ($row['cc_ref'] ?? ''));

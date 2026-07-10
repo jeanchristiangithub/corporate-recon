@@ -324,7 +324,7 @@ try {
         window.renderMoneygramLockIcon = renderMoneygramLockIcon;
 
         function getKpxWebDate(row, fallbackDate){
-            return row && (row.web_date_claimed || row.web_date || row.web_date_claim || row.date_claimed || row.date || fallbackDate || '');
+            return row && (row.web_date_claimed || row.web_date_send || row.web_date || row.web_date_claim || row.date_claimed || row.date_send || row.date || fallbackDate || '');
         }
 
         function getKpxWebKptn(row){
