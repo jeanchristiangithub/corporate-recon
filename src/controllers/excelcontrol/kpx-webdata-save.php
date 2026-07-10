@@ -100,10 +100,8 @@ function kpxDuplicateWhere(array $row): array
         $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
         $params[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SO') {
-        $where[] = '(TRIM(COALESCE(date_send, "")) = TRIM(?) OR TRIM(COALESCE(date_claimed, "")) = TRIM(?))';
-        $sendDate = trim((string)($row['date_send'] ?? ''));
-        $params[] = $sendDate;
-        $params[] = $sendDate;
+        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
+        $params[] = trim((string)($row['date_send'] ?? ''));
     } elseif ($status === 'POC') {
         $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
         $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
@@ -111,11 +109,9 @@ function kpxDuplicateWhere(array $row): array
         $params[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SOC') {
         $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
-        $where[] = '(TRIM(COALESCE(date_send, "")) = TRIM(?) OR TRIM(COALESCE(date_claimed, "")) = TRIM(?))';
-        $sendDate = trim((string)($row['date_send'] ?? ''));
+        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
         $params[] = trim((string)($row['date_cancelled'] ?? ''));
-        $params[] = $sendDate;
-        $params[] = $sendDate;
+        $params[] = trim((string)($row['date_send'] ?? ''));
     } else {
         $where[] = 'TRIM(COALESCE(data_status, "")) = TRIM(?)';
         $params[] = $status;
