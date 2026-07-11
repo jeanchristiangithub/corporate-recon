@@ -361,7 +361,39 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
     ]];
 }
 
-function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily, array $partnerCancelledDaily = []): array
+function summary_web_non_test_where(array $columns): array
+{
+    $checks = [];
+    foreach (['sender_name', 'receiver_name', 'other_details'] as $candidate) {
+        $column = summary_first_column([$candidate], $columns);
+        if ($column !== null) {
+            $checks[] = 'REGEXP_LIKE(COALESCE(' . summary_quote_identifier($column) . ', ""), "\\\\b(TEST|TESTING)\\\\b")';
+        }
+    }
+
+    if (count($checks) === 0) {
+        return [];
+    }
+
+    return [[
+        'sql' => 'NOT (' . implode(' OR ', $checks) . ')',
+        'params' => [],
+    ]];
+}
+
+function summary_merge_where(array ...$groups): array
+{
+    $merged = [];
+    foreach ($groups as $group) {
+        foreach ($group as $where) {
+            $merged[] = $where;
+        }
+    }
+
+    return $merged;
+}
+
+function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily, array $partnerCancelledDaily = [], array $webCancelledDaily = []): array
 {
     $rows = [];
     $totals = [
@@ -383,7 +415,7 @@ function summary_build_rows_and_totals(DateTime $startObj, string $endDate, arra
         $partnerCancelledAmounts = $partnerCancelledDaily[$date] ?? summary_empty_amounts();
         $netPartnerAmounts = summary_subtract_amounts($partnerAmounts, $partnerCancelledAmounts);
         $webAmounts = $webDaily[$date] ?? summary_empty_amounts();
-        $cancelledAmounts = summary_empty_amounts();
+        $cancelledAmounts = $webCancelledDaily[$date] ?? summary_empty_amounts();
         $duplicateAmounts = $duplicateDaily[$date] ?? summary_empty_amounts();
         $netWeb = summary_subtract_amounts(summary_subtract_amounts($webAmounts, $cancelledAmounts), $duplicateAmounts);
         $variance = summary_subtract_amounts($partnerAmounts, $netWeb);
@@ -459,6 +491,8 @@ try {
         $sendoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RSN');
         $payoutWebWhere = summary_column_is_nullish_where($webColumns, ['date_send']);
         $sendoutWebWhere = summary_column_is_not_nullish_where($webColumns, ['date_send']);
+        $webCancellationWhere = summary_column_is_not_nullish_where($webColumns, ['date_cancelled', 'date_cancellation']);
+        $webNonTestWhere = summary_web_non_test_where($webColumns);
 
         foreach (['PHP', 'USD'] as $currencyCode) {
             $payoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
@@ -479,7 +513,13 @@ try {
                 'commission_candidates' => ['ctp', 'commission', 'in_php'],
                 'where' => $payoutWebWhere,
             ]);
-            $currencyReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $payoutPartnerDaily, $payoutWebDaily, $payoutDuplicateDaily, $payoutCancelledPartnerDaily);
+            $payoutWebCancelledDaily = summary_fetch_daily($pdo, 'ml_web_data', $webColumns, $aliases, $startDate, $endDate, true, $currencyCode, [
+                'date_candidates' => ['date_cancelled', 'date_cancellation'],
+                'amount_candidates' => ['amount', 'php', 'in_php'],
+                'commission_candidates' => ['ctp', 'commission', 'in_php'],
+                'where' => summary_merge_where($webCancellationWhere, summary_column_is_not_nullish_where($webColumns, ['date_claimed']), $webNonTestWhere),
+            ]);
+            $currencyReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $payoutPartnerDaily, $payoutWebDaily, $payoutDuplicateDaily, $payoutCancelledPartnerDaily, $payoutWebCancelledDaily);
             $currencyReports[strtolower($currencyCode)]['currency'] = $currencyCode;
 
             $sendoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
@@ -500,7 +540,13 @@ try {
                 'commission_candidates' => ['charge', 'ctp', 'commission', 'in_php'],
                 'where' => $sendoutWebWhere,
             ]);
-            $sendoutReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $sendoutPartnerDaily, $sendoutWebDaily, $sendoutDuplicateDaily, $sendoutCancelledPartnerDaily);
+            $sendoutWebCancelledDaily = summary_fetch_daily($pdo, 'ml_web_data', $webColumns, $aliases, $startDate, $endDate, true, $currencyCode, [
+                'date_candidates' => ['date_cancelled', 'date_cancellation'],
+                'amount_candidates' => ['amount', 'php', 'in_php'],
+                'commission_candidates' => ['charge', 'ctp', 'commission', 'in_php'],
+                'where' => summary_merge_where($webCancellationWhere, summary_column_is_not_nullish_where($webColumns, ['date_send']), $webNonTestWhere),
+            ]);
+            $sendoutReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $sendoutPartnerDaily, $sendoutWebDaily, $sendoutDuplicateDaily, $sendoutCancelledPartnerDaily, $sendoutWebCancelledDaily);
             $sendoutReports[strtolower($currencyCode)]['currency'] = $currencyCode;
         }
 
