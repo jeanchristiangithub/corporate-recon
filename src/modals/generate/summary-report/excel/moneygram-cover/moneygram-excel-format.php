@@ -222,6 +222,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
     foreach (($report['rows'] ?? []) as $row) {
         $partner = moneygram_summary_amount($row, 'partner');
         $cancelled = moneygram_summary_amount($row, 'partner_cancelled');
+        $netPartner = moneygram_summary_amount($row, 'net_partner');
         $web = moneygram_summary_amount($row, 'web');
         $netWeb = moneygram_summary_amount($row, 'net_web');
         $variance = moneygram_summary_amount($row, 'variance');
@@ -229,7 +230,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
             moneygram_summary_date_label((string) ($row['date'] ?? '')),
             moneygram_summary_count($partner), moneygram_summary_num($partner, 'principal'), moneygram_summary_num($partner, 'fx'), moneygram_summary_num($partner, 'commission'),
             moneygram_summary_count($cancelled), moneygram_summary_num($cancelled, 'principal'), moneygram_summary_num($cancelled, 'fx'), moneygram_summary_num($cancelled, 'commission'),
-            moneygram_summary_count($partner), moneygram_summary_num($partner, 'principal'), moneygram_summary_net_rev_share($partner, $cancelled), moneygram_summary_num($partner, 'commission'),
+            moneygram_summary_count($netPartner), moneygram_summary_num($netPartner, 'principal'), moneygram_summary_num($netPartner, 'fx'), moneygram_summary_num($netPartner, 'commission'),
             moneygram_summary_count($web), moneygram_summary_num($web, 'principal'), '',
             '', '', '', '',
             moneygram_summary_count($netWeb), moneygram_summary_num($netWeb, 'principal'), moneygram_summary_num($netWeb, 'commission'),

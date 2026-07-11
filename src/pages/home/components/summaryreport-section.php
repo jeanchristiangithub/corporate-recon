@@ -692,6 +692,7 @@ $partnerInputChars = min($partnerInputChars, 90);
     function payoutRow(row) {
         const partner = amountGroup(row, 'partner');
         const cancelled = amountGroup(row, 'partner_cancelled');
+        const netPartner = amountGroup(row, 'net_partner');
         const web = amountGroup(row, 'web');
         const webCancelled = amountGroup(row, 'cancelled');
         const netWeb = amountGroup(row, 'net_web');
@@ -700,7 +701,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtDate(row.date))
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(netPartnerRevShare(partner, cancelled))) + td(fmtMoney(partner.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
@@ -711,6 +712,7 @@ $partnerInputChars = min($partnerInputChars, 90);
     function payoutTotalRow(totals) {
         const partner = totals.partner || {};
         const cancelled = totals.partner_cancelled || {};
+        const netPartner = totals.net_partner || {};
         const web = totals.web || {};
         const webCancelled = totals.cancelled || {};
         const netWeb = totals.net_web || {};
@@ -719,7 +721,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td('Grand total')
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(netPartnerRevShare(partner, cancelled))) + td(fmtMoney(partner.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
             + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
