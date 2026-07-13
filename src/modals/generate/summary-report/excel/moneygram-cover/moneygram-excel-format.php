@@ -191,12 +191,12 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
 {
     $sheet = $firstSheet ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
     $sheet->setTitle($sheetTitle);
-    $lastColumn = 26;
+    $lastColumn = 23;
     moneygram_summary_set_headers($sheet, 'MONEYGRAM PAYOUT', 'CURRENCY ' . $currency, $reportMonth, $generatedDate, $generatedBy, $lastColumn);
     moneygram_summary_set_section_headers($sheet, [
         ['label' => 'DATE', 'span' => 1, 'rowspan' => 3],
         ['label' => 'Partner Data', 'span' => 12],
-        ['label' => 'KPX Web Data', 'span' => 10],
+        ['label' => 'KPX Web Data', 'span' => 7],
         ['label' => 'VARIANCE', 'span' => 3],
     ]);
     moneygram_summary_set_group_headers($sheet, [
@@ -205,7 +205,6 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
         ['label' => 'NET', 'span' => 4],
         ['label' => 'KPX', 'span' => 3],
         ['label' => 'CANCELLED', 'span' => 4],
-        ['label' => 'NET', 'span' => 3],
         ['label' => 'MONEYGRAM vs KPX WEB', 'span' => 3],
     ], 2);
     moneygram_summary_write_values($sheet, MONEYGRAM_SUMMARY_COLUMN_HEADER_ROW, [
@@ -215,7 +214,6 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
         'Volume', 'Principal', 'CHARGE',
         'Volume', 'Principal', 'Rev Share', 'Comm',
         'Volume', 'Principal', 'Comm',
-        'Volume', 'Principal', 'Comm',
     ], 2);
 
     $rowNumber = MONEYGRAM_SUMMARY_FIRST_DATA_ROW;
@@ -224,7 +222,6 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
         $cancelled = moneygram_summary_amount($row, 'partner_cancelled');
         $netPartner = moneygram_summary_amount($row, 'net_partner');
         $web = moneygram_summary_amount($row, 'web');
-        $netWeb = moneygram_summary_amount($row, 'net_web');
         $variance = moneygram_summary_amount($row, 'variance');
         moneygram_summary_write_values($sheet, $rowNumber, [
             moneygram_summary_date_label((string) ($row['date'] ?? '')),
@@ -233,7 +230,6 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
             moneygram_summary_count($netPartner), moneygram_summary_num($netPartner, 'principal'), moneygram_summary_num($netPartner, 'fx'), moneygram_summary_num($netPartner, 'commission'),
             moneygram_summary_count($web), moneygram_summary_num($web, 'principal'), '',
             '', '', '', '',
-            moneygram_summary_count($netWeb), moneygram_summary_num($netWeb, 'principal'), moneygram_summary_num($netWeb, 'commission'),
             moneygram_summary_count($variance), moneygram_summary_num($variance, 'principal'), moneygram_summary_num($variance, 'commission'),
         ]);
         $rowNumber++;
@@ -241,7 +237,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
 
     $totalRow = $rowNumber + 1;
     moneygram_summary_sum_row($sheet, $totalRow, MONEYGRAM_SUMMARY_FIRST_DATA_ROW, max(MONEYGRAM_SUMMARY_FIRST_DATA_ROW, $rowNumber - 1), $lastColumn);
-    moneygram_summary_style_table($sheet, $lastColumn, $totalRow, ['B', 'F', 'J', 'N', 'Q', 'U', 'X']);
+    moneygram_summary_style_table($sheet, $lastColumn, $totalRow, ['B', 'F', 'J', 'N', 'Q', 'U']);
 }
 
 function moneygram_summary_settlement(array $sendoutRow, array $payoutRow): array
@@ -259,12 +255,12 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
 {
     $sheet = $spreadsheet->createSheet();
     $sheet->setTitle($sheetTitle);
-    $lastColumn = 30;
+    $lastColumn = 27;
     moneygram_summary_set_headers($sheet, 'MONEYGRAM SENDOUT', 'CURRENCY ' . $currency, $reportMonth, $generatedDate, $generatedBy, $lastColumn);
     moneygram_summary_set_section_headers($sheet, [
         ['label' => 'DATE', 'span' => 1, 'rowspan' => 3],
         ['label' => 'Partner Data', 'span' => 12],
-        ['label' => 'KPX Web Data', 'span' => 10],
+        ['label' => 'KPX Web Data', 'span' => 7],
         ['label' => 'VARIANCE', 'span' => 4],
         ['label' => 'MONEYGRAM SETTLEMENT', 'span' => 3, 'rowspan' => 2],
     ]);
@@ -274,7 +270,6 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
         ['label' => 'NET', 'span' => 4],
         ['label' => 'KPX', 'span' => 3],
         ['label' => 'CANCELLED', 'span' => 4],
-        ['label' => 'NET', 'span' => 3],
         ['label' => 'MONEYGRAM vs KPX WEB', 'span' => 4],
     ], 2);
     moneygram_summary_write_values($sheet, MONEYGRAM_SUMMARY_COLUMN_HEADER_ROW, [
@@ -283,7 +278,6 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
         'Volume', 'Principal', 'Rev Share', 'Comm',
         'Volume', 'Principal', 'CHARGE',
         'Volume', 'Principal', 'Rev Share', 'Comm',
-        'Volume', 'Principal', 'Comm',
         'Volume', 'Principal', 'Comm', 'fee',
         'Volume', 'Amount', 'Variance',
     ], 2);
@@ -303,7 +297,6 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
         $netPartner = isset($row['net_partner']) && is_array($row['net_partner']) ? $row['net_partner'] : $partner;
         $web = moneygram_summary_amount($row, 'web');
         $cancelled = moneygram_summary_amount($row, 'cancelled');
-        $netWeb = moneygram_summary_amount($row, 'net_web');
         $variance = moneygram_summary_amount($row, 'variance');
         $settlement = moneygram_summary_settlement($row, $payoutRowsByDate[$date] ?? []);
 
@@ -314,7 +307,6 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
             moneygram_summary_count($netPartner), moneygram_summary_num($netPartner, 'principal'), moneygram_summary_net_rev_share($partner, $refund), moneygram_summary_num($netPartner, 'commission'),
             moneygram_summary_count($web), moneygram_summary_num($web, 'principal'), moneygram_summary_num($web, 'commission'),
             moneygram_summary_count($cancelled), moneygram_summary_num($cancelled, 'principal'), moneygram_summary_num($cancelled, 'fx'), moneygram_summary_num($cancelled, 'commission'),
-            moneygram_summary_count($netWeb), moneygram_summary_num($netWeb, 'principal'), moneygram_summary_num($netWeb, 'commission'),
             moneygram_summary_count($variance), moneygram_summary_num($variance, 'principal'), moneygram_summary_num($variance, 'commission'), moneygram_summary_num($web, 'commission'),
             $settlement['count'], -$settlement['amount'], $settlement['amount'],
         ]);
@@ -323,7 +315,7 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
 
     $totalRow = $rowNumber + 1;
     moneygram_summary_sum_row($sheet, $totalRow, MONEYGRAM_SUMMARY_FIRST_DATA_ROW, max(MONEYGRAM_SUMMARY_FIRST_DATA_ROW, $rowNumber - 1), $lastColumn);
-    moneygram_summary_style_table($sheet, $lastColumn, $totalRow, ['B', 'F', 'J', 'N', 'Q', 'U', 'X', 'AB']);
+    moneygram_summary_style_table($sheet, $lastColumn, $totalRow, ['B', 'F', 'J', 'N', 'Q', 'U', 'Y']);
 }
 
 try {

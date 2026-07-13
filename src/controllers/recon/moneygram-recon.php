@@ -509,6 +509,27 @@ try{
                     }
                 }
 
+                // Show cancellation details first, followed by any missing-data
+                // combination detected by VIEW DATA DETECTED.
+                $webRaw = $web['raw'] ?? [];
+                $dateCancelled = trim((string)($webRaw['date_cancelled'] ?? ($webRaw['date_cancellation'] ?? '')));
+                $remarks = [];
+                if($dateCancelled !== ''){
+                    $otherDetails = trim((string)($webRaw['other_details'] ?? ''));
+                    if($otherDetails !== ''){
+                        foreach(preg_split('/\R+/', $otherDetails) ?: [] as $detail){
+                            $detail = trim((string)$detail);
+                            if($detail !== '') $remarks[] = '• ' . $detail;
+                        }
+                    }
+                }
+                if($partner && !$web){
+                    $remarks[] = '• PARTNER Data: REFERENCE ID not found in KPX Report';
+                } elseif(!$partner && $web){
+                    $remarks[] = '• KPX Data: CCREF NO not found in Partners Report';
+                }
+                $row['remarks'] = implode("\n", array_values(array_unique($remarks)));
+
                 $row['is_cross_date_match'] = ($partner && $web && $partner['date'] !== $web['date']);
                 $rows[] = $row;
             }

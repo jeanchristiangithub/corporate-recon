@@ -273,28 +273,35 @@ $partnerInputChars = min($partnerInputChars, 90);
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(-n+3),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(-n+12),
         .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+2):nth-child(-n+13) {
-            background: #f3f5a9;
+            background: #f8bac1;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(3),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(n+4):nth-child(-n+6),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+13):nth-child(-n+22),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+14):nth-child(-n+23) {
-            background: #d0e4ee;
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(n+4):nth-child(-n+5),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+13):nth-child(-n+19),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+14):nth-child(-n+20) {
+            background: #f9cbd0;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(4),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(7),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+23),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+24) {
-            background: #c1ebc0;
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(6),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+20),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21) {
+            background: #fbdce0;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(1) th:nth-child(4),
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(2) th:nth-child(6),
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(3) th:nth-child(n+20):nth-child(-n+23),
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21):nth-child(-n+24) {
+            background: #fad2d7;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(5),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(8),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+27),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+28) {
-            background: #c7caff;
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(7),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+24),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+25) {
+            background: #fbdce0;
         }
 
         .summary-report-content .mg-cover__message {
@@ -689,13 +696,18 @@ $partnerInputChars = min($partnerInputChars, 90);
         return Number((partner || {}).fx || 0) - Number((cancelled || {}).fx || 0);
     }
 
+    function kpxWebAmounts(row) {
+        // row.web is already restricted by the controller to records whose
+        // date_cancelled/date_cancellation value is empty.
+        return amountGroup(row, 'web');
+    }
+
     function payoutRow(row) {
         const partner = amountGroup(row, 'partner');
         const cancelled = amountGroup(row, 'partner_cancelled');
         const netPartner = amountGroup(row, 'net_partner');
-        const web = amountGroup(row, 'web');
+        const web = kpxWebAmounts(row);
         const webCancelled = amountGroup(row, 'cancelled');
-        const netWeb = amountGroup(row, 'net_web');
         const variance = amountGroup(row, 'variance');
         return '<tr>'
             + td(fmtDate(row.date))
@@ -704,7 +716,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
-            + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
             + '</tr>';
     }
@@ -715,7 +726,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         const netPartner = totals.net_partner || {};
         const web = totals.web || {};
         const webCancelled = totals.cancelled || {};
-        const netWeb = totals.net_web || {};
         const variance = totals.variance || {};
         return '<tr class="mg-cover__total">'
             + td('Grand total')
@@ -724,7 +734,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
-            + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
             + '</tr>';
     }
@@ -742,9 +751,8 @@ $partnerInputChars = min($partnerInputChars, 90);
         const partner = amountGroup(row, 'partner');
         const refund = amountGroup(row, 'partner_cancelled');
         const netPartner = row && row.net_partner ? row.net_partner : partner;
-        const web = amountGroup(row, 'web');
+        const web = kpxWebAmounts(row);
         const cancelled = amountGroup(row, 'cancelled');
-        const netWeb = amountGroup(row, 'net_web');
         const variance = amountGroup(row, 'variance');
         const settlement = sendoutSettlement(row, payoutRowForDate || {});
         return '<tr>'
@@ -754,7 +762,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission)) + td(fmtMoney(web.commission))
             + td(fmtCount(settlement.count)) + td(fmtMoney(-settlement.amount)) + td(fmtMoney(settlement.amount))
             + '</tr>';
@@ -766,7 +773,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         const netPartner = totals.net_partner || partner;
         const web = totals.web || {};
         const cancelled = totals.cancelled || {};
-        const netWeb = totals.net_web || {};
         const variance = totals.variance || {};
         const settlement = sendoutSettlement({ partner, variance }, { partner: (payoutTotals || {}).partner || {} });
         return '<tr class="mg-cover__total">'
@@ -776,7 +782,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(netWeb.volume)) + td(fmtMoney(netWeb.principal)) + td(fmtMoney(netWeb.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission)) + td(fmtMoney(web.commission))
             + td(fmtCount(settlement.count)) + td(fmtMoney(-settlement.amount)) + td(fmtMoney(settlement.amount))
             + '</tr>';
@@ -802,6 +807,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         moneygramCover.classList.add('is-moneygram');
         const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
         const selectedCover = cover === 'sendout' ? 'sendout' : 'payout';
+        moneygramCover.classList.toggle('is-moneygram-sendout', selectedCover === 'sendout');
         const reportsKey = selectedCover === 'sendout' ? 'sendout_reports' : 'currency_reports';
         const selectedReport = data && data[reportsKey] && data[reportsKey][selectedCurrency]
             ? data[reportsKey][selectedCurrency]
@@ -815,7 +821,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         const payoutSections = [
             { label: 'Date', span: 1, rowspan: 3 },
             { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 10 },
+            { label: 'KPX Web Data', span: 7 },
             { label: 'VARIANCE', span: 3 }
         ];
         const payoutGroups = [
@@ -824,7 +830,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'NET', span: 4 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 3 },
             { label: `${partnerLabel} vs KPX WEB`, span: 3 }
         ];
         const payoutLabels = [
@@ -833,13 +838,12 @@ $partnerInputChars = min($partnerInputChars, 90);
             'Volume', 'Principal', 'Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
             'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Comm',
             'Volume', 'Principal', 'Comm'
         ];
         const sendoutSections = [
             { label: 'Date', span: 1, rowspan: 3 },
             { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 10 },
+            { label: 'KPX Web Data', span: 7 },
             { label: 'VARIANCE', span: 4 },
             { label: `${partnerLabel} SETTLEMENT`, span: 3, rowspan: 2 }
         ];
@@ -849,7 +853,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'NET', span: 4 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 3 },
             { label: `${partnerLabel} vs KPX WEB`, span: 4 }
         ];
         const sendoutLabels = [
@@ -858,7 +861,6 @@ $partnerInputChars = min($partnerInputChars, 90);
             'Volume', 'Principal', 'Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
             'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Comm',
             'Volume', 'Principal', 'Comm', 'fee',
             'Volume', 'Amount', 'Variance'
         ];

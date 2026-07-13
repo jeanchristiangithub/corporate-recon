@@ -106,6 +106,17 @@ $reconReportControllerMap = [
             </div>
         </form>
 
+        <div class="recon-report-type-tabs" id="reconReportTypeTabs" role="tablist" aria-label="Recon report type and currency" hidden>
+            <button class="recon-report-type-tab is-active" type="button" data-report-type="payout" data-report-currency="PHP" role="tab" aria-selected="true">Payout PHP</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="payout-cancel" data-report-currency="PHP" role="tab" aria-selected="false">Payout Cancel PHP</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="payout" data-report-currency="USD" role="tab" aria-selected="false">Payout USD</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="payout-cancel" data-report-currency="USD" role="tab" aria-selected="false">Payout Cancel USD</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout" data-report-currency="PHP" role="tab" aria-selected="false">Sendout PHP</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancel" data-report-currency="PHP" role="tab" aria-selected="false">Sendout Cancel PHP</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout" data-report-currency="USD" role="tab" aria-selected="false">Sendout USD</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancel" data-report-currency="USD" role="tab" aria-selected="false">Sendout Cancel USD</button>
+        </div>
+
         <div class="recon-report-table-card">
             <div class="recon-report-summary" aria-label="Recon report summary totals">
                 <div class="recon-report-summary-group">
@@ -129,6 +140,7 @@ $reconReportControllerMap = [
                             <th colspan="5" scope="colgroup">Partners Data</th>
                             <th colspan="5" scope="colgroup">KPX Web Data</th>
                             <th rowspan="2" scope="col">Data Status</th>
+                            <th rowspan="2" scope="col">Remarks</th>
                         </tr>
                         <tr>
                             <th scope="col">Date</th>
@@ -145,7 +157,7 @@ $reconReportControllerMap = [
                     </thead>
                     <tbody>
                         <tr class="recon-report-empty-row">
-                            <td colspan="11">No recon report data generated yet.</td>
+                            <td colspan="12">No recon report data generated yet.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -169,6 +181,7 @@ $reconReportControllerMap = [
     const searchInput = document.getElementById('reconReportSearch');
     const exportBtn = document.getElementById('reconReportExportBtn');
     const clearBtn = document.getElementById('reconReportClearBtn');
+    const typeTabs = document.getElementById('reconReportTypeTabs');
     const table = document.getElementById('reconReportTable');
     const tbody = table ? table.querySelector('tbody') : null;
 
@@ -184,6 +197,20 @@ $reconReportControllerMap = [
     };
 
     let reportRows = [];
+
+    function attachTypeTabs() {
+        if (!typeTabs) return;
+        const tabs = Array.from(typeTabs.querySelectorAll('.recon-report-type-tab'));
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                tabs.forEach(function (item) {
+                    const isSelected = item === tab;
+                    item.classList.toggle('is-active', isSelected);
+                    item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                });
+            });
+        });
+    }
 
     function normalizeKey(value) {
         return String(value || '').trim().toUpperCase();
@@ -552,6 +579,7 @@ $reconReportControllerMap = [
                 const webRef = readWebRef(row) || (hasWeb ? (row.ref || '') : '');
                 const partnerDate = hasPartner ? (row.partner_tran_date || row.partner_cover_date || row.partner_date || row.partner_date_claimed || row.__mbtc_date || day.date || '') : '';
                 const webDate = hasWeb ? (row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || row.__mbtc_date || day.date || '') : '';
+                const remarks = String(row.remarks || '').trim();
 
                 if (hasPartner) {
                     partnerRecords.push({
@@ -560,6 +588,7 @@ $reconReportControllerMap = [
                         amount: row.partner_principal || row.partner_amount || row.partner_base_amt || 0,
                         commission: row.partner_commission || row.partner_comm_amt || row.partner_comm_tran_amt || row.partner_fee_tran_amt || 0,
                         currency: readPartnerCurrency(row) || 'PHP',
+                        remarks: remarks,
                         duplicate: isDuplicateReference(partnerRef, day),
                         insertIndex: partnerRecords.length
                     });
@@ -568,11 +597,13 @@ $reconReportControllerMap = [
                 if (hasWeb) {
                     webRecords.push({
                         date: webDate,
+                        cancelled: String(row.web_date_cancelled || row.web_date_cancellation || '').trim() !== '',
                         kptn: readWebKptn(row),
                         ccref_no: webRef,
                         amount: row.web_amount || row.web_amt || row.amount || 0,
                         currency: readWebCurrency(row) || 'PHP',
                         commission: row.web_ctp || row.web_commission || row.web_charge || 0,
+                        remarks: remarks,
                         duplicate: isDuplicateReference(webRef, day),
                         insertIndex: webRecords.length
                     });
@@ -600,6 +631,9 @@ $reconReportControllerMap = [
                 }
 
                 const isDuplicate = partnerRecord.duplicate || (webRecord && webRecord.duplicate);
+                const dataStatus = !webRecord
+                    ? 'mismatch'
+                    : (webRecord.cancelled ? 'matched' : (isDuplicate ? 'duplicate' : 'matched'));
                 flatRows.push({
                     partner_date: partnerRecord.date,
                     partner_reference_id: partnerRecord.reference_id,
@@ -612,7 +646,8 @@ $reconReportControllerMap = [
                     web_amount: webRecord ? webRecord.amount : 0,
                     web_currency: webRecord ? webRecord.currency : '',
                     web_commission: webRecord ? webRecord.commission : 0,
-                    data_status: isDuplicate ? 'duplicate' : (webRecord ? 'matched' : 'mismatch')
+                    data_status: dataStatus,
+                    remarks: (webRecord && webRecord.remarks) || partnerRecord.remarks || ''
                 });
             });
 
@@ -630,7 +665,8 @@ $reconReportControllerMap = [
                     web_amount: webRecord.amount,
                     web_currency: webRecord.currency,
                     web_commission: webRecord.commission,
-                    data_status: webRecord.duplicate ? 'duplicate' : 'mismatch'
+                    data_status: 'mismatch',
+                    remarks: webRecord.remarks || ''
                 });
             });
         });
@@ -640,7 +676,7 @@ $reconReportControllerMap = [
 
     function setEmptyRow(message) {
         if (!tbody) return;
-        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="11">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
+        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="12">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
         updateExportButtonVisibility();
     }
 
@@ -665,7 +701,7 @@ $reconReportControllerMap = [
         tr.className = 'recon-report-date-row';
         tr.dataset.role = 'date-separator';
         tr.dataset.date = normalizeIsoDate(dateValue);
-        tr.innerHTML = '<td colspan="11">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
+        tr.innerHTML = '<td colspan="12">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
         return tr;
     }
 
@@ -706,7 +742,8 @@ $reconReportControllerMap = [
                 row.web_ccref_no,
                 row.web_amount,
                 row.web_currency,
-                statusLabel(row.data_status)
+                statusLabel(row.data_status),
+                row.remarks
             ].join(' ').toLowerCase();
             tr.className = 'recon-report-result-row recon-report-result-row--' + (row.data_status || 'mismatch');
             tr.innerHTML = ''
@@ -720,7 +757,8 @@ $reconReportControllerMap = [
                 + '<td>' + escapeHtml(row.web_ccref_no) + '</td>'
                 + '<td>' + escapeHtml(money(row.web_amount)) + '</td>'
                 + '<td>' + escapeHtml(row.web_currency) + '</td>'
-                + '<td>' + escapeHtml(statusLabel(row.data_status)) + '</td>';
+                + '<td>' + escapeHtml(statusLabel(row.data_status)) + '</td>'
+                + '<td>' + escapeHtml(row.remarks || '') + '</td>';
             fragment.appendChild(tr);
         });
 
@@ -853,6 +891,7 @@ $reconReportControllerMap = [
             reportRows = flattenControllerPayload(payload);
             renderRows(reportRows);
             applyFilters();
+            if (typeTabs) typeTabs.hidden = false;
         } catch (error) {
             console.error('Recon report generation failed', error);
             reportRows = [];
@@ -868,6 +907,7 @@ $reconReportControllerMap = [
 
     function clearReport() {
         reportRows = [];
+        if (typeTabs) typeTabs.hidden = true;
         setEmptyRow('No recon report data generated yet.');
         updateSummary();
     }
@@ -918,6 +958,7 @@ $reconReportControllerMap = [
     if (exportBtn) exportBtn.addEventListener('click', exportExcelReport);
     attachPartnerAutocomplete();
     attachDateAutofill();
+    attachTypeTabs();
     clearReport();
 })();
 </script>

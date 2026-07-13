@@ -164,8 +164,50 @@
     border-color: #d1d5db;
 }
 
-.recon-report-table-card {
+.recon-report-type-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
     margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.recon-report-type-tabs[hidden] {
+    display: none;
+}
+
+.recon-report-type-tab {
+    min-width: 104px;
+    height: 32px;
+    padding: 0 13px;
+    color: #111827;
+    background: #fff;
+    border: 1px solid #dbe5f1;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.recon-report-type-tab:hover,
+.recon-report-type-tab:focus-visible {
+    background: #f8fafc;
+}
+
+.recon-report-type-tab:focus-visible {
+    outline: 2px solid rgba(220, 53, 69, 0.35);
+    outline-offset: -2px;
+}
+
+.recon-report-type-tab.is-active {
+    color: #fff;
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.recon-report-table-card {
+    margin-top: 0;
     padding: 0.75rem;
     background: #fff;
     border: 1px solid #e6eef6;
@@ -275,6 +317,21 @@
 .recon-report-table tbody td:nth-child(4),
 .recon-report-table tbody td:nth-child(9) {
     text-align: right;
+}
+
+.recon-report-table th:last-child {
+    min-width: 240px;
+    white-space: normal;
+}
+
+.recon-report-table tbody td:last-child {
+    width: 280px;
+    min-width: 240px;
+    max-width: 320px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-line;
 }
 
 .recon-report-empty-row td {
