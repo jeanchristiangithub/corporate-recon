@@ -106,15 +106,11 @@ $reconReportControllerMap = [
             </div>
         </form>
 
-        <div class="recon-report-type-tabs" id="reconReportTypeTabs" role="tablist" aria-label="Recon report type and currency" hidden>
-            <button class="recon-report-type-tab is-active" type="button" data-report-type="payout" data-report-currency="PHP" role="tab" aria-selected="true">Payout PHP</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="payout-cancel" data-report-currency="PHP" role="tab" aria-selected="false">Payout Cancel PHP</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="payout" data-report-currency="USD" role="tab" aria-selected="false">Payout USD</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="payout-cancel" data-report-currency="USD" role="tab" aria-selected="false">Payout Cancel USD</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="sendout" data-report-currency="PHP" role="tab" aria-selected="false">Sendout PHP</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancel" data-report-currency="PHP" role="tab" aria-selected="false">Sendout Cancel PHP</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="sendout" data-report-currency="USD" role="tab" aria-selected="false">Sendout USD</button>
-            <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancel" data-report-currency="USD" role="tab" aria-selected="false">Sendout Cancel USD</button>
+        <div class="recon-report-type-tabs" id="reconReportTypeTabs" role="tablist" aria-label="Recon report type" hidden>
+            <button class="recon-report-type-tab is-active" type="button" data-report-type="payout" role="tab" aria-selected="true">Payout</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="payout-cancelled" role="tab" aria-selected="false">Payout Cancelled</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout" role="tab" aria-selected="false">Sendout</button>
+            <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancelled" role="tab" aria-selected="false">Sendout Cancelled</button>
         </div>
 
         <div class="recon-report-table-card">
@@ -208,7 +204,24 @@ $reconReportControllerMap = [
                     item.classList.toggle('is-active', isSelected);
                     item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
                 });
+                applyFilters();
             });
+        });
+    }
+
+    function activeReportType() {
+        if (!typeTabs || typeTabs.hidden) return 'payout';
+        const activeTab = typeTabs.querySelector('.recon-report-type-tab.is-active');
+        return String(activeTab && activeTab.dataset.reportType || 'payout');
+    }
+
+    function resetReportTypeTabs() {
+        if (!typeTabs) return;
+        const tabs = Array.from(typeTabs.querySelectorAll('.recon-report-type-tab'));
+        tabs.forEach(function (tab, index) {
+            const isSelected = index === 0;
+            tab.classList.toggle('is-active', isSelected);
+            tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
         });
     }
 
@@ -525,6 +538,28 @@ $reconReportControllerMap = [
         return row.web_currency || row.web_ccy || row.web_currency_code || '';
     }
 
+    function partnerReportType(row) {
+        if (row.partner_report_type) return String(row.partner_report_type);
+        const tranType = normalizeKey(row.partner_tran_type || row.partner_transaction_type || row.tran_type || '');
+        if (tranType === 'REC') return 'payout';
+        if (tranType === 'SEN') return 'sendout';
+        if (tranType === 'RRC') return 'payout-cancelled';
+        if (tranType === 'RSN' || tranType === 'REF') return 'sendout-cancelled';
+        return '';
+    }
+
+    function webReportTypes(row) {
+        if (row.web_report_type) return [String(row.web_report_type)];
+        const cancelled = String(row.web_date_cancelled || row.web_date_cancellation || row.date_cancelled || row.date_cancellation || '').trim() !== '';
+        const hasDateClaimed = String(row.web_date_claimed || row.date_claimed || '').trim() !== '';
+        const hasDateSend = String(row.web_date_send || row.date_send || '').trim() !== '';
+        const types = [];
+
+        if (hasDateClaimed) types.push(cancelled ? 'payout-cancelled' : 'payout');
+        if (hasDateSend) types.push(cancelled ? 'sendout-cancelled' : 'sendout');
+        return types;
+    }
+
     function rowStatus(row, day) {
         const explicit = normalizeStatus(row.data_status || row.status || row.recon_status || '');
         if (explicit) return explicit;
@@ -578,7 +613,7 @@ $reconReportControllerMap = [
                 const partnerRef = readPartnerRef(row) || (hasPartner ? (row.ref || '') : '');
                 const webRef = readWebRef(row) || (hasWeb ? (row.ref || '') : '');
                 const partnerDate = hasPartner ? (row.partner_tran_date || row.partner_cover_date || row.partner_date || row.partner_date_claimed || row.__mbtc_date || day.date || '') : '';
-                const webDate = hasWeb ? (row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || row.__mbtc_date || day.date || '') : '';
+                const webDate = hasWeb ? (row.web_report_date || row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || row.__mbtc_date || day.date || '') : '';
                 const remarks = String(row.remarks || '').trim();
 
                 if (hasPartner) {
@@ -588,6 +623,7 @@ $reconReportControllerMap = [
                         amount: row.partner_principal || row.partner_amount || row.partner_base_amt || 0,
                         commission: row.partner_commission || row.partner_comm_amt || row.partner_comm_tran_amt || row.partner_fee_tran_amt || 0,
                         currency: readPartnerCurrency(row) || 'PHP',
+                        reportType: partnerReportType(row),
                         remarks: remarks,
                         duplicate: isDuplicateReference(partnerRef, day),
                         insertIndex: partnerRecords.length
@@ -603,6 +639,7 @@ $reconReportControllerMap = [
                         amount: row.web_amount || row.web_amt || row.amount || 0,
                         currency: readWebCurrency(row) || 'PHP',
                         commission: row.web_ctp || row.web_commission || row.web_charge || 0,
+                        reportTypes: webReportTypes(row),
                         remarks: remarks,
                         duplicate: isDuplicateReference(webRef, day),
                         insertIndex: webRecords.length
@@ -640,12 +677,14 @@ $reconReportControllerMap = [
                     partner_amount: partnerRecord.amount,
                     partner_commission: partnerRecord.commission,
                     partner_currency: partnerRecord.currency,
+                    partner_report_type: partnerRecord.reportType,
                     web_date: webRecord ? webRecord.date : '',
                     web_kptn: webRecord ? webRecord.kptn : '',
                     web_ccref_no: webRecord ? webRecord.ccref_no : '',
                     web_amount: webRecord ? webRecord.amount : 0,
                     web_currency: webRecord ? webRecord.currency : '',
                     web_commission: webRecord ? webRecord.commission : 0,
+                    web_report_types: webRecord ? webRecord.reportTypes : [],
                     data_status: dataStatus,
                     remarks: (webRecord && webRecord.remarks) || partnerRecord.remarks || ''
                 });
@@ -659,12 +698,14 @@ $reconReportControllerMap = [
                     partner_amount: 0,
                     partner_commission: 0,
                     partner_currency: '',
+                    partner_report_type: '',
                     web_date: webRecord.date,
                     web_kptn: webRecord.kptn,
                     web_ccref_no: webRecord.ccref_no,
                     web_amount: webRecord.amount,
                     web_currency: webRecord.currency,
                     web_commission: webRecord.commission,
+                    web_report_types: webRecord.reportTypes,
                     data_status: 'mismatch',
                     remarks: webRecord.remarks || ''
                 });
@@ -726,6 +767,8 @@ $reconReportControllerMap = [
             tr.dataset.status = row.data_status || '';
             tr.dataset.partnerCurrency = normalizeKey(row.partner_currency);
             tr.dataset.webCurrency = normalizeKey(row.web_currency);
+            tr.dataset.partnerReportType = row.partner_report_type || '';
+            tr.dataset.webReportTypes = Array.isArray(row.web_report_types) ? row.web_report_types.join('|') : String(row.web_report_types || '');
             tr.dataset.partnerAmount = String(toNumber(row.partner_amount));
             tr.dataset.partnerCommission = String(toNumber(row.partner_commission));
             tr.dataset.webAmount = String(toNumber(row.web_amount));
@@ -838,10 +881,19 @@ $reconReportControllerMap = [
         const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
         const currency = normalizeKey(currencySelect && currencySelect.value);
         const status = normalizeStatus(statusSelect && statusSelect.value);
+        const reportType = activeReportType();
         let visibleCount = 0;
 
         Array.from(tbody ? tbody.querySelectorAll('tr.recon-report-result-row') : []).forEach(function (row) {
             let show = true;
+            const hasPartnerSide = String(row.cells[1] && row.cells[1].textContent || '').trim() !== '' || toNumber(row.dataset.partnerAmount) || toNumber(row.dataset.partnerCommission);
+            const hasWebSide = String(row.cells[7] && row.cells[7].textContent || '').trim() !== '' || toNumber(row.dataset.webAmount);
+            const partnerType = String(row.dataset.partnerReportType || '');
+            const webTypes = String(row.dataset.webReportTypes || '');
+            const partnerMatchesType = !hasPartnerSide || !partnerType || partnerType === reportType;
+            const webMatchesType = !hasWebSide || !webTypes || webTypes.split('|').indexOf(reportType) !== -1;
+
+            if (reportType) show = show && partnerMatchesType && webMatchesType;
             if (query && String(row.dataset.search || '').indexOf(query) === -1) show = false;
             if (currency && currency !== 'ALL') {
                 show = show && (String(row.dataset.partnerCurrency || '').indexOf(currency) !== -1 || String(row.dataset.webCurrency || '').indexOf(currency) !== -1);
@@ -907,6 +959,7 @@ $reconReportControllerMap = [
 
     function clearReport() {
         reportRows = [];
+        resetReportTypeTabs();
         if (typeTabs) typeTabs.hidden = true;
         setEmptyRow('No recon report data generated yet.');
         updateSummary();

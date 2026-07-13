@@ -201,11 +201,19 @@ try{
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
+        $tranType = $normalizeKey($row['tran_type'] ?? ($row['transaction_type'] ?? ''));
+        $reportType = '';
+        if($tranType === 'REC') $reportType = 'payout';
+        elseif($tranType === 'SEN') $reportType = 'sendout';
+        elseif($tranType === 'RRC') $reportType = 'payout-cancelled';
+        elseif($tranType === 'RSN' || $tranType === 'REF') $reportType = 'sendout-cancelled';
+
         $partnerRows[] = [
             'index' => $index,
             'date' => $dateOnly,
             'ref' => $ref,
             'raw_ref' => $rawRef,
+            'report_type' => $reportType,
             'amount' => isset($row['base_amt']) ? abs((float)$row['base_amt']) : 0.0,
             'commission' => isset($row['comm_amt']) ? (float)$row['comm_amt'] : (isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0))),
             'currency' => $normalizeCurrency($row['settlement_currency'] ?? ($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? ''))))),
@@ -218,33 +226,48 @@ try{
 
     $webRows = [];
     foreach($webRowsRaw as $index => $row){
-        $dateOnly = $normalizeDate($row['date_claimed'] ?? '');
-        if($dateOnly === '') {
-            $dateOnly = $normalizeDate($row['date_send'] ?? '');
-        }
-        if($dateOnly === '') {
-            $dateOnly = $normalizeDate($row['date'] ?? '');
-        }
-        if($dateOnly === '' || $dateOnly < $expandedStartDate || $dateOnly > $expandedEndDate) continue;
-
         $rawRef = (string)($row['ccref_no'] ?? ($row['cc_ref'] ?? ''));
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
-        $webRows[] = [
-            'index' => $index,
-            'date' => $dateOnly,
-            'ref' => $ref,
-            'raw_ref' => $rawRef,
-            'kptn' => (string)($row['kptn'] ?? ''),
-            'branch' => (string)($row['branch'] ?? ($row['account_name'] ?? ($row['accountName'] ?? ''))),
-            'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
-            'branch_name' => (string)($branchNameById[$normalizeKey($row['branch_id'] ?? ($row['branchId'] ?? ''))] ?? ''),
-            'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
-            'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
-            'currency' => $normalizeCurrency($row['currency'] ?? ''),
-            'raw' => $row,
+        $dateCancelled = trim((string)($row['date_cancelled'] ?? ($row['date_cancellation'] ?? '')));
+        $isCancelled = $dateCancelled !== '';
+        $dateCandidates = [
+            [
+                'date' => $normalizeDate($row['date_claimed'] ?? ''),
+                'report_type' => $isCancelled ? 'payout-cancelled' : 'payout',
+                'date_source' => 'date_claimed',
+            ],
+            [
+                'date' => $normalizeDate($row['date_send'] ?? ''),
+                'report_type' => $isCancelled ? 'sendout-cancelled' : 'sendout',
+                'date_source' => 'date_send',
+            ],
         ];
+
+        $candidateOffset = 0;
+        foreach($dateCandidates as $candidate){
+            $dateOnly = $candidate['date'];
+            if($dateOnly === '' || $dateOnly < $expandedStartDate || $dateOnly > $expandedEndDate) continue;
+
+            $webRows[] = [
+                'index' => ($index * 10) + $candidateOffset,
+                'date' => $dateOnly,
+                'ref' => $ref,
+                'raw_ref' => $rawRef,
+                'report_type' => $candidate['report_type'],
+                'date_source' => $candidate['date_source'],
+                'kptn' => (string)($row['kptn'] ?? ''),
+                'branch' => (string)($row['branch'] ?? ($row['account_name'] ?? ($row['accountName'] ?? ''))),
+                'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
+                'branch_name' => (string)($branchNameById[$normalizeKey($row['branch_id'] ?? ($row['branchId'] ?? ''))] ?? ''),
+                'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
+                'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
+                'currency' => $normalizeCurrency($row['currency'] ?? ''),
+                'raw' => $row,
+            ];
+            $candidateOffset++;
+        }
     }
 
     usort($partnerRows, function($left, $right){
@@ -278,6 +301,7 @@ try{
             if(isset($usedWebIndexes[$candidateIndex])) continue;
 
             $webRow = $webRows[$candidateIndex];
+            if(($partnerRow['report_type'] ?? '') !== '' && ($webRow['report_type'] ?? '') !== '' && $partnerRow['report_type'] !== $webRow['report_type']) continue;
             // Only consider web rows that fall within the requested reconciliation range.
             // This prevents pulling/matching web rows that are outside the user-selected date window
             // (e.g. a 04-17 web row should not match when the user requested range ends 04-16).
@@ -450,12 +474,14 @@ try{
                     }
                     $row['partner_principal'] = (float)$partner['amount'];
                     $row['partner_commission'] = (float)$partner['commission'];
+                    $row['partner_report_type'] = (string)($partner['report_type'] ?? '');
                     $row['partner_agent_name'] = (string)($partner['agent_name'] ?? '');
                     $row['partner_legacy_id'] = (string)($partner['legacy_id'] ?? '');
                     $row['partner_branch_id'] = (string)($partner['branch_id'] ?? '');
                 } else {
                     $row['partner_principal'] = 0.0;
                     $row['partner_commission'] = 0.0;
+                    $row['partner_report_type'] = '';
                     $row['partner_agent_name'] = '';
                     $row['partner_legacy_id'] = '';
                     $row['partner_branch_id'] = '';
@@ -471,6 +497,9 @@ try{
                     $row['web_branch_name'] = (string)($web['branch_name'] ?? '');
                     $row['web_amount'] = (float)$web['amount'];
                     $row['web_ctp'] = (float)$web['ctp'];
+                    $row['web_report_type'] = (string)($web['report_type'] ?? '');
+                    $row['web_report_date'] = (string)($web['date'] ?? '');
+                    $row['web_report_date_source'] = (string)($web['date_source'] ?? '');
                 } else {
                     $row['web_kptn'] = '';
                     $row['web_branch'] = '';
@@ -478,6 +507,9 @@ try{
                     $row['web_branch_name'] = '';
                     $row['web_amount'] = 0.0;
                     $row['web_ctp'] = 0.0;
+                    $row['web_report_type'] = '';
+                    $row['web_report_date'] = '';
+                    $row['web_report_date_source'] = '';
                 }
 
                 $row['legacy_detection_remark'] = '';
