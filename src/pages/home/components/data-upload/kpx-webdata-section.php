@@ -444,10 +444,23 @@ try {
             const formData = new FormData();
             if(csrfToken) formData.append('csrf_token', csrfToken.value || '');
             formData.append('payload', JSON.stringify({ rows: rows, overwrite: !!overwrite }));
-            const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/kpx-webdata-save.php', {
-                method: 'POST',
-                body: formData
-            });
+            const controller = new AbortController();
+            const timeout = window.setTimeout(() => controller.abort(), 180000);
+            let response;
+            try{
+                response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/kpx-webdata-save.php', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+            }catch(error){
+                if(error && error.name === 'AbortError'){
+                    throw new Error('Database write timed out after 3 minutes. No further files were sent.');
+                }
+                throw error;
+            }finally{
+                window.clearTimeout(timeout);
+            }
             const payload = await response.json().catch(() => null);
             if(!response.ok || !payload){
                 throw new Error('Upload failed.');

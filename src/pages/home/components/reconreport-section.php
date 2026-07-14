@@ -42,7 +42,7 @@ $reconReportControllerMap = [
 ?>
 <section class="recon-report-section" aria-labelledby="reconReportTitle">
     <div class="recon-report-inner">
-        <h2 id="reconReportTitle" class="recon-report-title">Recon Report</h2>
+        <h2 id="reconReportTitle" class="recon-report-title">Reconciliation Report</h2>
 
         <form class="recon-report-toolbar" id="reconReportFilterForm" action="#" method="get">
             <label class="recon-report-field" for="reconReportCorporatePartner">

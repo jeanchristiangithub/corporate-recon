@@ -87,54 +87,64 @@ function kpxSaveValue(array $row, string $key): mixed
     return $value;
 }
 
-function kpxDuplicateWhere(array $row): array
+function kpxNormalizedAmount(mixed $value): string
 {
+    $number = str_replace(',', '', trim((string)$value));
+    return number_format(is_numeric($number) ? (float)$number : 0.0, 2, '.', '');
+}
+
+function kpxDuplicateSignature(array $row): string
+{
+    $ccref = trim((string)($row['ccref_no'] ?? ''));
+    $amount = kpxNormalizedAmount($row['amount'] ?? 0);
     $status = strtoupper(trim((string)($row['data_status'] ?? '')));
-    $where = ['TRIM(COALESCE(ccref_no, "")) = TRIM(?)', 'CAST(COALESCE(amount, 0) AS DECIMAL(18,2)) = CAST(? AS DECIMAL(18,2))'];
-    $params = [
-        trim((string)($row['ccref_no'] ?? '')),
-        trim((string)($row['amount'] ?? '0')),
-    ];
-
+    $parts = [$ccref, $amount];
     if ($status === 'PO') {
-        $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
-        $params[] = trim((string)($row['date_claimed'] ?? ''));
+        $parts[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SO') {
-        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
-        $params[] = trim((string)($row['date_send'] ?? ''));
+        $parts[] = trim((string)($row['date_send'] ?? ''));
     } elseif ($status === 'POC') {
-        $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
-        $where[] = 'TRIM(COALESCE(date_claimed, "")) = TRIM(?)';
-        $params[] = trim((string)($row['date_cancelled'] ?? ''));
-        $params[] = trim((string)($row['date_claimed'] ?? ''));
+        $parts[] = trim((string)($row['date_cancelled'] ?? ''));
+        $parts[] = trim((string)($row['date_claimed'] ?? ''));
     } elseif ($status === 'SOC') {
-        $where[] = 'TRIM(COALESCE(date_cancelled, "")) = TRIM(?)';
-        $where[] = 'TRIM(COALESCE(date_send, "")) = TRIM(?)';
-        $params[] = trim((string)($row['date_cancelled'] ?? ''));
-        $params[] = trim((string)($row['date_send'] ?? ''));
+        $parts[] = trim((string)($row['date_cancelled'] ?? ''));
+        $parts[] = trim((string)($row['date_send'] ?? ''));
     } else {
-        $where[] = 'TRIM(COALESCE(data_status, "")) = TRIM(?)';
-        $params[] = $status;
+        $parts[] = $status;
     }
-
-    return [$where, $params];
+    return implode("\x1F", $parts);
 }
 
-function kpxDuplicateKey(array $row): string
+function kpxLoadDuplicateIds(PDO $pdo, array $rows): array
 {
-    return strtoupper(trim((string)($row['data_status'] ?? '')));
-}
-
-function kpxDuplicateId(PDO $pdo, array $row, array &$statementCache): int
-{
-    [$where, $params] = kpxDuplicateWhere($row);
-    $key = kpxDuplicateKey($row);
-    if (!isset($statementCache[$key])) {
-        $statementCache[$key] = $pdo->prepare('SELECT id FROM ml_web_data WHERE ' . implode(' AND ', $where) . ' LIMIT 1');
+    $ccrefs = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        $ccref = trim((string)($row['ccref_no'] ?? ''));
+        if ($ccref !== '') $ccrefs[$ccref] = true;
     }
-    $statementCache[$key]->execute($params);
-    $id = $statementCache[$key]->fetchColumn();
-    return $id === false ? 0 : (int)$id;
+
+    $idBySignature = [];
+    foreach (array_chunk(array_keys($ccrefs), 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $stmt = $pdo->prepare(
+            'SELECT id, ccref_no, amount, data_status, date_cancelled, date_claimed, date_send '
+            . 'FROM ml_web_data WHERE ccref_no IN (' . $placeholders . ')'
+        );
+        $stmt->execute($chunk);
+        while ($existing = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $signature = kpxDuplicateSignature($existing);
+            if (!isset($idBySignature[$signature])) {
+                $idBySignature[$signature] = (int)$existing['id'];
+            }
+        }
+    }
+
+    $ids = [];
+    foreach ($rows as $row) {
+        $ids[] = is_array($row) ? (int)($idBySignature[kpxDuplicateSignature($row)] ?? 0) : 0;
+    }
+    return $ids;
 }
 
 try {
@@ -149,17 +159,8 @@ try {
         throw new RuntimeException('No compatible ml_web_data columns found.');
     }
 
-    $duplicateIds = [];
-    $duplicateIdByRow = [];
-    $duplicateStatementCache = [];
-    foreach ($rows as $row) {
-        if (!is_array($row)) continue;
-        $id = kpxDuplicateId($pdo, $row, $duplicateStatementCache);
-        $duplicateIdByRow[] = $id;
-        if ($id > 0) {
-            $duplicateIds[] = $id;
-        }
-    }
+    $duplicateIdByRow = kpxLoadDuplicateIds($pdo, $rows);
+    $duplicateIds = array_values(array_filter($duplicateIdByRow, static fn($id) => $id > 0));
 
     if (!$overwrite && count($duplicateIds) > 0) {
         echo json_encode([
@@ -184,10 +185,6 @@ try {
     foreach ($rows as $rowIndex => $row) {
         if (!is_array($row)) continue;
         $id = (int)($duplicateIdByRow[$rowIndex] ?? 0);
-        if ($id <= 0 && $overwrite) {
-            $id = kpxDuplicateId($pdo, $row, $duplicateStatementCache);
-        }
-
         if ($id > 0 && $overwrite) {
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $updateColumns);
             $values[] = $id;
@@ -207,5 +204,6 @@ try {
         $pdo->rollBack();
     }
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Upload failed.']);
+    error_log('[kpx-webdata-save] ' . $e->getMessage());
+    echo json_encode(['success' => false, 'error' => 'Upload failed. Please check the server error log.']);
 }
