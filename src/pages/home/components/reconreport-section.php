@@ -84,7 +84,7 @@ $reconReportControllerMap = [
                     <option value="">All</option>
                     <option value="matched">Matched</option>
                     <option value="mismatch">Mismatch</option>
-                    <option value="duplicate">Duplicate</option>
+                    <option value="duplicate">Duplicates</option>
                 </select>
             </label>
 
@@ -131,9 +131,24 @@ $reconReportControllerMap = [
 
             <div class="recon-report-table-scroll">
                 <table class="recon-report-table" id="reconReportTable">
+                    <colgroup>
+                        <col class="recon-report-col--date">
+                        <col class="recon-report-col--reference">
+                        <col class="recon-report-col--amount">
+                        <col class="recon-report-col--commission">
+                        <col class="recon-report-col--currency">
+                        <col class="recon-report-col--transaction-type">
+                        <col class="recon-report-col--date">
+                        <col class="recon-report-col--kptn">
+                        <col class="recon-report-col--reference">
+                        <col class="recon-report-col--amount">
+                        <col class="recon-report-col--currency">
+                        <col class="recon-report-col--status">
+                        <col class="recon-report-col--remarks">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th colspan="5" scope="colgroup">Partners Data</th>
+                            <th colspan="6" scope="colgroup">Partners Data</th>
                             <th colspan="5" scope="colgroup">KPX Web Data</th>
                             <th rowspan="2" scope="col">Data Status</th>
                             <th rowspan="2" scope="col">Remarks</th>
@@ -144,6 +159,7 @@ $reconReportControllerMap = [
                             <th scope="col">Amount</th>
                             <th scope="col">Commission</th>
                             <th scope="col">Currency</th>
+                            <th scope="col">Transaction Type</th>
                             <th scope="col">Date</th>
                             <th scope="col">KPTN</th>
                             <th scope="col">CCREF NO</th>
@@ -153,7 +169,7 @@ $reconReportControllerMap = [
                     </thead>
                     <tbody>
                         <tr class="recon-report-empty-row">
-                            <td colspan="12">No recon report data generated yet.</td>
+                            <td colspan="13">No recon report data generated yet.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -204,6 +220,7 @@ $reconReportControllerMap = [
                     item.classList.toggle('is-active', isSelected);
                     item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
                 });
+                tab.classList.remove('has-result-indicator');
                 applyFilters();
             });
         });
@@ -213,6 +230,38 @@ $reconReportControllerMap = [
         if (!typeTabs || typeTabs.hidden) return 'payout';
         const activeTab = typeTabs.querySelector('.recon-report-type-tab.is-active');
         return String(activeTab && activeTab.dataset.reportType || 'payout');
+    }
+
+    function rowHasReportType(row, reportType) {
+        const partnerType = String(row && row.partner_report_type || '');
+        const webTypes = Array.isArray(row && row.web_report_types)
+            ? row.web_report_types
+            : String(row && row.web_report_types || '').split('|').filter(Boolean);
+        return partnerType === reportType || webTypes.indexOf(reportType) !== -1;
+    }
+
+    function updateReportTypeIndicators(rows) {
+        if (!typeTabs) return;
+        const reportData = Array.isArray(rows) ? rows : [];
+        const selectedCurrency = normalizeKey(currencySelect && currencySelect.value);
+        const selectedStatus = normalizeStatus(statusSelect && statusSelect.value);
+
+        Array.from(typeTabs.querySelectorAll('.recon-report-type-tab')).forEach(function (tab) {
+            const reportType = String(tab.dataset.reportType || '');
+            const isCancelledType = reportType === 'payout-cancelled' || reportType === 'sendout-cancelled';
+            const hasIndicator = reportData.some(function (row) {
+                if (!rowHasReportType(row, reportType)) return false;
+                const partnerCurrency = normalizeKey(row.partner_currency);
+                const webCurrency = normalizeKey(row.web_currency);
+                if (selectedCurrency && selectedCurrency !== 'ALL'
+                    && partnerCurrency.indexOf(selectedCurrency) === -1
+                    && webCurrency.indexOf(selectedCurrency) === -1) return false;
+                if (selectedStatus && row.data_status !== selectedStatus) return false;
+                if (isCancelledType) return true;
+                return row.data_status === 'mismatch' || row.data_status === 'duplicate';
+            });
+            tab.classList.toggle('has-result-indicator', hasIndicator);
+        });
     }
 
     function resetReportTypeTabs() {
@@ -534,6 +583,11 @@ $reconReportControllerMap = [
         return row.partner_currency || row.partner_coin || row.partner_settlement_currency || row.partner_transaction_currency || row.partner_base_cncy || '';
     }
 
+    function readPartnerTransactionType(row) {
+        if (normalizeKey(selectedPartnerName()).indexOf('MONEYGRAM') === -1) return '';
+        return row.partner_tran_type || row.partner_transaction_type || row.tran_type || '';
+    }
+
     function readWebCurrency(row) {
         return row.web_currency || row.web_ccy || row.web_currency_code || '';
     }
@@ -598,6 +652,44 @@ $reconReportControllerMap = [
         return refKey && dateKey ? refKey + '|' + dateKey : '';
     }
 
+    function duplicateCombinationKey(dateValue, referenceValue, amountValue) {
+        const dateKey = normalizeIsoDate(dateValue);
+        const referenceKey = normalizeKey(referenceValue);
+        if (!dateKey || !referenceKey) return '';
+        return dateKey + '|' + referenceKey + '|' + Math.abs(toNumber(amountValue)).toFixed(2);
+    }
+
+    function applyCompositeDuplicateStatuses(rows) {
+        const partnerCounts = new Map();
+        const webCounts = new Map();
+
+        rows.forEach(function (row) {
+            const partnerKey = duplicateCombinationKey(row.partner_date, row.partner_reference_id, row.partner_amount);
+            const webKey = duplicateCombinationKey(row.web_date, row.web_ccref_no, row.web_amount);
+            if (partnerKey) partnerCounts.set(partnerKey, (partnerCounts.get(partnerKey) || 0) + 1);
+            if (webKey) webCounts.set(webKey, (webCounts.get(webKey) || 0) + 1);
+        });
+
+        rows.forEach(function (row) {
+            const partnerKey = duplicateCombinationKey(row.partner_date, row.partner_reference_id, row.partner_amount);
+            const webKey = duplicateCombinationKey(row.web_date, row.web_ccref_no, row.web_amount);
+            const isPartnerDuplicate = partnerKey && (partnerCounts.get(partnerKey) || 0) > 1;
+            const isWebDuplicate = webKey && (webCounts.get(webKey) || 0) > 1;
+            const hasPartner = String(row.partner_reference_id || '').trim() !== '';
+            const hasWeb = String(row.web_ccref_no || '').trim() !== '';
+
+            if (hasPartner && hasWeb) {
+                row.data_status = 'matched';
+            } else if ((hasPartner && isPartnerDuplicate) || (hasWeb && isWebDuplicate)) {
+                row.data_status = 'duplicate';
+            } else {
+                row.data_status = 'mismatch';
+            }
+        });
+
+        return rows;
+    }
+
     function flattenControllerPayload(payload) {
         const days = Array.isArray(payload && payload.days) ? payload.days : [];
         const flatRows = [];
@@ -623,6 +715,7 @@ $reconReportControllerMap = [
                         amount: row.partner_principal || row.partner_amount || row.partner_base_amt || 0,
                         commission: row.partner_commission || row.partner_comm_amt || row.partner_comm_tran_amt || row.partner_fee_tran_amt || 0,
                         currency: readPartnerCurrency(row) || 'PHP',
+                        transactionType: readPartnerTransactionType(row),
                         reportType: partnerReportType(row),
                         remarks: remarks,
                         duplicate: isDuplicateReference(partnerRef, day),
@@ -660,7 +753,15 @@ $reconReportControllerMap = [
                 const key = matchKey(partnerRecord.reference_id, partnerRecord.date);
                 const webList = key && webByKey.has(key) ? webByKey.get(key) : [];
                 const webRecord = webList.find(function (candidate) {
-                    return !usedWeb.has(candidate);
+                    if (usedWeb.has(candidate)) return false;
+                    const partnerType = String(partnerRecord.reportType || '');
+                    const webTypes = Array.isArray(candidate.reportTypes) ? candidate.reportTypes : [];
+                    const reportTypeMatches = !partnerType || !webTypes.length || webTypes.indexOf(partnerType) !== -1;
+                    const amountMatches = Math.abs(Math.abs(toNumber(partnerRecord.amount)) - Math.abs(toNumber(candidate.amount))) < 0.01;
+                    const partnerCurrency = normalizeKey(partnerRecord.currency);
+                    const webCurrency = normalizeKey(candidate.currency);
+                    const currencyMatches = !partnerCurrency || !webCurrency || partnerCurrency === webCurrency;
+                    return reportTypeMatches && amountMatches && currencyMatches;
                 }) || null;
 
                 if (webRecord) {
@@ -677,6 +778,7 @@ $reconReportControllerMap = [
                     partner_amount: partnerRecord.amount,
                     partner_commission: partnerRecord.commission,
                     partner_currency: partnerRecord.currency,
+                    partner_transaction_type: partnerRecord.transactionType,
                     partner_report_type: partnerRecord.reportType,
                     web_date: webRecord ? webRecord.date : '',
                     web_kptn: webRecord ? webRecord.kptn : '',
@@ -698,6 +800,7 @@ $reconReportControllerMap = [
                     partner_amount: 0,
                     partner_commission: 0,
                     partner_currency: '',
+                    partner_transaction_type: '',
                     partner_report_type: '',
                     web_date: webRecord.date,
                     web_kptn: webRecord.kptn,
@@ -712,12 +815,12 @@ $reconReportControllerMap = [
             });
         });
 
-        return flatRows;
+        return applyCompositeDuplicateStatuses(flatRows);
     }
 
     function setEmptyRow(message) {
         if (!tbody) return;
-        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="12">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
+        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="13">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
         updateExportButtonVisibility();
     }
 
@@ -729,7 +832,7 @@ $reconReportControllerMap = [
 
     function statusLabel(status) {
         if (status === 'matched') return 'Matched';
-        if (status === 'duplicate') return 'Duplicate';
+        if (status === 'duplicate') return 'Duplicates';
         return 'Mismatch';
     }
 
@@ -742,7 +845,7 @@ $reconReportControllerMap = [
         tr.className = 'recon-report-date-row';
         tr.dataset.role = 'date-separator';
         tr.dataset.date = normalizeIsoDate(dateValue);
-        tr.innerHTML = '<td colspan="12">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
+        tr.innerHTML = '<td colspan="13">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
         return tr;
     }
 
@@ -780,6 +883,7 @@ $reconReportControllerMap = [
                 row.partner_amount,
                 row.partner_commission,
                 row.partner_currency,
+                row.partner_transaction_type,
                 row.web_date,
                 row.web_kptn,
                 row.web_ccref_no,
@@ -795,6 +899,7 @@ $reconReportControllerMap = [
                 + '<td>' + escapeHtml(money(row.partner_amount)) + '</td>'
                 + '<td>' + escapeHtml(money(row.partner_commission)) + '</td>'
                 + '<td>' + escapeHtml(row.partner_currency) + '</td>'
+                + '<td>' + escapeHtml(row.partner_transaction_type || '') + '</td>'
                 + '<td>' + escapeHtml(formatDate(row.web_date)) + '</td>'
                 + '<td>' + escapeHtml(row.web_kptn) + '</td>'
                 + '<td>' + escapeHtml(row.web_ccref_no) + '</td>'
@@ -844,7 +949,7 @@ $reconReportControllerMap = [
         rows.forEach(function (tr) {
             const cells = tr.cells;
             const pCurrency = normalizeKey(cells[4] ? cells[4].textContent : '');
-            const wCurrency = normalizeKey(cells[9] ? cells[9].textContent : '');
+            const wCurrency = normalizeKey(cells[10] ? cells[10].textContent : '');
             const pAmount = toNumber(tr.dataset.partnerAmount);
             const pCommission = toNumber(tr.dataset.partnerCommission);
             const wAmount = toNumber(tr.dataset.webAmount);
@@ -860,7 +965,7 @@ $reconReportControllerMap = [
                 }
             }
 
-            if ((cells[7] && cells[7].textContent.trim()) || wAmount) {
+            if ((cells[8] && cells[8].textContent.trim()) || wAmount) {
                 totals.webVolume++;
                 if (wCurrency.indexOf('USD') !== -1) totals.webPrincipalUsd += wAmount;
                 else totals.webPrincipalPhp += wAmount;
@@ -887,7 +992,7 @@ $reconReportControllerMap = [
         Array.from(tbody ? tbody.querySelectorAll('tr.recon-report-result-row') : []).forEach(function (row) {
             let show = true;
             const hasPartnerSide = String(row.cells[1] && row.cells[1].textContent || '').trim() !== '' || toNumber(row.dataset.partnerAmount) || toNumber(row.dataset.partnerCommission);
-            const hasWebSide = String(row.cells[7] && row.cells[7].textContent || '').trim() !== '' || toNumber(row.dataset.webAmount);
+            const hasWebSide = String(row.cells[8] && row.cells[8].textContent || '').trim() !== '' || toNumber(row.dataset.webAmount);
             const partnerType = String(row.dataset.partnerReportType || '');
             const webTypes = String(row.dataset.webReportTypes || '');
             const partnerMatchesType = !hasPartnerSide || !partnerType || partnerType === reportType;
@@ -941,6 +1046,7 @@ $reconReportControllerMap = [
             }
 
             reportRows = flattenControllerPayload(payload);
+            updateReportTypeIndicators(reportRows);
             renderRows(reportRows);
             applyFilters();
             if (typeTabs) typeTabs.hidden = false;
@@ -959,6 +1065,7 @@ $reconReportControllerMap = [
 
     function clearReport() {
         reportRows = [];
+        updateReportTypeIndicators([]);
         resetReportTypeTabs();
         if (typeTabs) typeTabs.hidden = true;
         setEmptyRow('No recon report data generated yet.');
@@ -976,6 +1083,7 @@ $reconReportControllerMap = [
         url.searchParams.set('partnerName', partnerName || 'MONEYGRAM');
         url.searchParams.set('filter', status === 'duplicate' ? 'duplicates' : status);
         url.searchParams.set('currency', currency === 'ALL' ? 'all' : currency);
+        url.searchParams.set('report_type', activeReportType());
 
         return url.toString();
     }
@@ -1003,8 +1111,14 @@ $reconReportControllerMap = [
         generateReport();
     });
     if (searchInput) searchInput.addEventListener('input', applyFilters);
-    if (currencySelect) currencySelect.addEventListener('change', applyFilters);
-    if (statusSelect) statusSelect.addEventListener('change', applyFilters);
+    if (currencySelect) currencySelect.addEventListener('change', function () {
+        updateReportTypeIndicators(reportRows);
+        applyFilters();
+    });
+    if (statusSelect) statusSelect.addEventListener('change', function () {
+        updateReportTypeIndicators(reportRows);
+        applyFilters();
+    });
     if (clearBtn) clearBtn.addEventListener('click', function () {
         window.setTimeout(clearReport, 0);
     });

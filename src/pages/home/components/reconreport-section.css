@@ -169,6 +169,8 @@
     align-items: flex-end;
     gap: 5px;
     margin-top: 1rem;
+    padding: 6px 6px 0;
+    box-sizing: border-box;
     overflow-x: auto;
 }
 
@@ -177,6 +179,7 @@
 }
 
 .recon-report-type-tab {
+    position: relative;
     min-width: 104px;
     height: 32px;
     padding: 0 13px;
@@ -188,6 +191,20 @@
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
+}
+
+.recon-report-type-tab.has-result-indicator::before {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    width: 10px;
+    height: 10px;
+    box-sizing: border-box;
+    background: #dc3545;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    content: '';
+    z-index: 2;
 }
 
 .recon-report-type-tab:hover,
@@ -256,10 +273,44 @@
 
 .recon-report-table {
     width: 100%;
-    min-width: 1080px;
+    min-width: 1705px;
+    table-layout: fixed;
     border-collapse: collapse;
     color: #111827;
     font-size: 0.85rem;
+}
+
+.recon-report-table .recon-report-col--currency {
+    width: 90px;
+}
+
+.recon-report-table .recon-report-col--date {
+    width: 125px;
+}
+
+.recon-report-table .recon-report-col--reference,
+.recon-report-table .recon-report-col--kptn {
+    width: 135px;
+}
+
+.recon-report-table .recon-report-col--amount {
+    width: 110px;
+}
+
+.recon-report-table .recon-report-col--commission {
+    width: 120px;
+}
+
+.recon-report-table .recon-report-col--transaction-type {
+    width: 130px;
+}
+
+.recon-report-table .recon-report-col--status {
+    width: 120px;
+}
+
+.recon-report-table .recon-report-col--remarks {
+    width: 280px;
 }
 
 .recon-report-table th,
@@ -308,14 +359,15 @@
 .recon-report-table tbody td:nth-child(6),
 .recon-report-table tbody td:nth-child(7),
 .recon-report-table tbody td:nth-child(8),
-.recon-report-table tbody td:nth-child(10),
-.recon-report-table tbody td:nth-child(11) {
+.recon-report-table tbody td:nth-child(9),
+.recon-report-table tbody td:nth-child(11),
+.recon-report-table tbody td:nth-child(12) {
     text-align: center;
 }
 
 .recon-report-table tbody td:nth-child(3),
 .recon-report-table tbody td:nth-child(4),
-.recon-report-table tbody td:nth-child(9) {
+.recon-report-table tbody td:nth-child(10) {
     text-align: right;
 }
 
