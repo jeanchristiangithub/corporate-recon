@@ -265,7 +265,9 @@ try {
 					<select id="rwdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="">ALL</option>
 						<option value="payout">PAYOUT</option>
+						<option value="payout_cancelled">PAYOUT CANCELLED</option>
 						<option value="sendout">SENDOUT</option>
+						<option value="sendout_cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
@@ -1173,7 +1175,7 @@ try {
 
 			if (filterCard.partner) filterCard.partner.textContent = data.partner || 'ALL';
 			if (filterCard.dateRange) filterCard.dateRange.textContent = dateRange;
-			if (filterCard.type) filterCard.type.textContent = typeValue ? typeValue.toUpperCase() : 'ALL';
+			if (filterCard.type) filterCard.type.textContent = typeValue ? typeValue.replace(/_/g, ' ').toUpperCase() : 'ALL';
 			if (filterCard.currency) filterCard.currency.textContent = currencyValue || 'ALL';
 			if (filterCard.volume) filterCard.volume.textContent = formatNumber(data.count || 0);
 			if (filterCard.principalPhp) {
@@ -1569,7 +1571,7 @@ try {
 			const activeDateLabel = String(data.date_label || 'Date Claimed');
 			if(dateHeader) dateHeader.textContent = activeDateLabel;
 			// Toggle Operator header to Charge for SENDOUT reports
-			const isSendout = String((data.type || '')).toLowerCase() === 'sendout';
+			const isSendout = ['sendout', 'sendout_cancelled'].includes(String((data.type || '')).toLowerCase());
 			if(operatorHeader) operatorHeader.textContent = 'Operator';
 			if(chargeHeader) chargeHeader.style.display = isSendout ? '' : 'none';
 

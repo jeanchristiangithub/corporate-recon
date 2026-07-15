@@ -66,8 +66,9 @@ try {
 
     $branchNameColumn = isset($availableColumns['branch_name']) ? 'branch_name' : (isset($availableColumns['branch']) ? 'branch' : null);
 
-    // Read optional type filter (all / payout / sendout)
+    // Read optional type filter (all / payout / payout_cancelled / sendout / sendout_cancelled)
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
+    $normalizedType = strtolower($type);
 
     // Base filter by partner name
     $whereSql = ' FROM ml_web_data WHERE partnerName = ?';
@@ -75,7 +76,7 @@ try {
     
     // Decide which date column to use for filtering/ordering and for the UI date column.
     $dateColumn = 'date_claimed';
-    if (strtolower($type) === 'sendout' && isset($availableColumns['date_send'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['date_send'])) {
         $dateColumn = 'date_send';
     }
     $dateLabel = $dateColumn === 'date_send' ? 'Date Send' : 'Date Claimed';
@@ -102,11 +103,19 @@ try {
     // PAYOUT: date_send IS NULL OR date_send = ''
     // SENDOUT: date_send IS NOT NULL AND date_send != ''
     if (isset($availableColumns['date_send'])) {
-        if (strtolower($type) === 'payout') {
+        if ($normalizedType === 'payout') {
             $whereSql .= ' AND (date_send IS NULL OR TRIM(COALESCE(date_send, "")) = "")';
-        } elseif (strtolower($type) === 'sendout') {
+        } elseif ($normalizedType === 'sendout') {
             $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
         }
+    }
+
+    if ($normalizedType === 'payout_cancelled') {
+        $whereSql .= ' AND (date_claimed IS NOT NULL AND TRIM(COALESCE(date_claimed, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
+    } elseif ($normalizedType === 'sendout_cancelled') {
+        $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
     }
 
     // Apply ml_web_data filters directly so table, count, and CSV all reflect the same data set.
@@ -204,7 +213,7 @@ try {
     }
 
     // When reporting SENDOUT, include `charge` column if present so frontend can display it.
-    if (strtolower($type) === 'sendout' && isset($availableColumns['charge'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['charge'])) {
         // append charge so it's available in result rows
         $selectCols = 'charge, ' . $selectCols;
     }

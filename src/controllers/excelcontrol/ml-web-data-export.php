@@ -25,6 +25,7 @@ try {
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
+    $normalizedType = strtolower($type);
     $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
 
     // Treat 'ALL' as empty
@@ -65,7 +66,7 @@ try {
     $params = [$partner];
 
     $dateColumn = 'date_claimed';
-    if (strtolower($type) === 'sendout' && isset($availableColumns['date_send'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['date_send'])) {
         $dateColumn = 'date_send';
     }
 
@@ -73,11 +74,19 @@ try {
     if ($end_date !== '') { $whereSql .= ' AND DATE(' . $dateColumn . ') <= ?'; $params[] = $end_date; }
 
     if (isset($availableColumns['date_send'])) {
-        if (strtolower($type) === 'payout') {
+        if ($normalizedType === 'payout') {
             $whereSql .= ' AND (date_send IS NULL OR TRIM(COALESCE(date_send, "")) = "")';
-        } elseif (strtolower($type) === 'sendout') {
+        } elseif ($normalizedType === 'sendout') {
             $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
         }
+    }
+
+    if ($normalizedType === 'payout_cancelled') {
+        $whereSql .= ' AND (date_claimed IS NOT NULL AND TRIM(COALESCE(date_claimed, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
+    } elseif ($normalizedType === 'sendout_cancelled') {
+        $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
     }
 
     if ($mainzone !== '' && isset($availableColumns['mainzone'])) { $whereSql .= ' AND TRIM(COALESCE(mainzone, "")) = TRIM(?)'; $params[] = $mainzone; }
@@ -97,7 +106,7 @@ try {
     if (isset($availableColumns['branch_id'])) {
         $selectColsArr[] = 'branch_id';
     }
-    if (strtolower($type) === 'sendout' && isset($availableColumns['charge'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['charge'])) {
         $selectColsArr[] = 'charge';
     }
     $selectColsArr[] = isset($availableColumns['branch']) ? 'branch' : 'branch_name';
@@ -173,13 +182,13 @@ try {
 
     $sheet->setCellValue('A5', 'Volume: ' . number_format(count($rows)) . ' transactions');
     $sheet->setCellValue('A6', 'Principal: PHP: ' . number_format(abs($php_total), 2, '.', ',') . ' USD: ' . number_format(abs($usd_total), 2, '.', ','));
-    if (strtolower($type) === 'sendout') {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true)) {
         $sheet->setCellValue('A7', 'Charge: PHP: ' . number_format(abs($charge_total), 2, '.', ','));
     }
     $sheet->getStyle('A5:A7')->getFont()->setBold(true);
 
     // Header row
-    $isSendout = strtolower($type) === 'sendout';
+    $isSendout = in_array($normalizedType, ['sendout', 'sendout_cancelled'], true);
     $headerRowNum = $isSendout ? 9 : 8;
     $headers = [$dateColumn === 'date_send' ? 'Date Send' : 'Date Claimed', 'Branch', 'Branch ID', 'Control Series', 'KPTN', 'CCREF NO', 'Amount'];
     if ($isSendout) {
