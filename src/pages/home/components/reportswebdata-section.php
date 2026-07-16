@@ -113,7 +113,7 @@ try {
 
 		.txn-detail-modal__dialog {
 			position: relative;
-			width: min(780px, 94vw);
+			width: min(1120px, 96vw);
 			max-height: 88vh;
 			display: flex;
 			flex-direction: column;
@@ -127,15 +127,15 @@ try {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			padding: 14px 18px;
-			border-top: 4px solid #dc3545;
-			border-bottom: 1px solid #e5e7eb;
+			padding: 16px 20px;
+			background: #df3044;
+			border-bottom: 1px solid #c92539;
 		}
 
 		.txn-detail-modal__head h4 {
 			margin: 0;
-			color: #1f2937;
-			font-size: 1rem;
+			color: #fff;
+			font-size: 1.15rem;
 			font-weight: 700;
 		}
 
@@ -144,54 +144,47 @@ try {
 			overflow: auto;
 		}
 
-		.txn-detail-grid {
-			margin: 0;
-			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 10px 14px;
-		}
-
-		.txn-detail-item {
-			min-width: 0;
-			padding: 8px 10px;
-			border: 1px solid #e5e7eb;
-			border-radius: 6px;
-			background: #f8fafc;
-		}
-
-		.txn-detail-item dt {
-			margin: 0 0 4px;
-			color: #6b7280;
-			font-size: 0.72rem;
-			font-weight: 700;
-			text-transform: uppercase;
-		}
-
-		.txn-detail-item dd {
-			margin: 0;
-			color: #1f2937;
-			font-size: 0.86rem;
-			overflow-wrap: anywhere;
-		}
+		.txn-detail-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+		.txn-detail-section { min-width:0; }
+		.txn-detail-section__title { margin:0 0 10px; padding-bottom:8px; border-bottom:1px solid #d8dee7; color:#252a34; font-size:1rem; font-weight:700; }
+		.txn-detail-section__title .material-icons { color:#df3044; margin-right:6px; font-size:18px; vertical-align:middle; }
+		.txn-detail-list { margin:0; }
+		.txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); gap:10px; padding:2px 0; font-size:.9rem; line-height:1.35; }
+		.txn-detail-row dt { margin:0; color:#252a34; font-weight:700; }
+		.txn-detail-row dd { margin:0; color:#656b73; overflow-wrap:anywhere; }
+		.txn-detail-status { display:inline-block; padding:2px 8px; border-radius:5px; background:#f6b900; color:#1f2937; font-size:.75rem; font-weight:800; }
+		.txn-detail-amounts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:24px; padding-top:16px; border-top:1px solid #edf0f4; text-align:center; }
+		.txn-detail-amount__label { display:block; color:#252a34; font-size:.9rem; font-weight:700; }
+		.txn-detail-amount__value { display:block; margin-top:4px; color:#df3044; font-size:1.45rem; font-weight:800; overflow-wrap:anywhere; }
+		/* Keep this modal independent from the Partner Data modal's shared class names. */
+		#rwdTxnDetailModal .txn-detail-modal__dialog { width:min(1120px,96vw); }
+		#rwdTxnDetailModal .txn-detail-list { display:block; margin:0; }
+		#rwdTxnDetailModal .txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); width:100%; }
+		#rwdTxnDetailModal .txn-detail-row dt,
+		#rwdTxnDetailModal .txn-detail-row dd { min-width:0; }
 
 		.txn-detail-close {
-			border: 1px solid #e5e7eb;
-			background: #fff;
-			color: #374151;
-			border-radius: 999px;
-			padding: 8px 18px;
-			font-weight: 700;
+			border: 0;
+			background: transparent;
+			color: #fff;
+			padding: 0 4px;
+			font-size: 1.8rem;
+			font-weight: 300;
 			cursor: pointer;
 			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 		}
 
 		.txn-detail-close:hover,
 		.txn-detail-close:focus-visible {
-			background: #dc3545;
-			border-color: #dc3545;
-			color: #fff;
-			box-shadow: 0 8px 18px rgba(220, 53, 69, 0.22);
+			background: transparent;
+			color: #ffe1e5;
+			box-shadow: none;
 			outline: none;
+		}
+		@media (max-width: 760px) {
+			.txn-detail-columns { grid-template-columns:1fr; }
+			.txn-detail-amounts { grid-template-columns:1fr; }
+			#rwdTxnDetailModal .txn-detail-row { grid-template-columns:minmax(130px,42%) minmax(0,1fr); }
 		}
 
 		.reports-webdata-content .rwd-results-layout { display:grid; grid-template-columns:minmax(230px, 280px) minmax(0, 1fr); gap:12px; align-items:start; }
@@ -393,8 +386,8 @@ try {
 		<div class="txn-detail-modal__overlay" data-action="close-rwd-detail"></div>
 		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="KPX Web Transaction Details">
 			<div class="txn-detail-modal__head">
-				<h4>KPX Web Transaction Details</h4>
-				<button type="button" class="txn-detail-close" data-action="close-rwd-detail">Close</button>
+				<h4> KPX Web Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rwd-detail" aria-label="Close">&times;</button>
 			</div>
 			<div class="txn-detail-modal__body" data-role="rwdTxnDetailBody">Loading...</div>
 		</div>
@@ -1205,17 +1198,86 @@ try {
 		function formatDetailDateValue(value) {
 			const raw = String(value === null || value === undefined ? '' : value).trim();
 			if (!raw) return '';
-			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
 			if (!match) return raw;
-			return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
+			const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			const month = monthNames[Number(match[2]) - 1];
+			if (!month) return raw;
+			const hour = match[4] || '00';
+			const minute = match[5] || '00';
+			const second = match[6] || '00';
+			const period = Number(hour) >= 12 ? 'PM' : 'AM';
+			return month + ' ' + match[3] + ', ' + match[1] + ' ' + hour + ':' + minute + ':' + second + ' ' + period;
 		}
 
 		function renderDetailGrid(data) {
-			const entries = Object.entries(data || {});
-			if (!entries.length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
-			return '<dl class="txn-detail-grid">' + entries.map(([key, value]) => {
-				return '<div class="txn-detail-item"><dt>' + escapeHtml(key) + '</dt><dd>' + escapeHtml(formatDetailDateValue(value)) + '</dd></div>';
-			}).join('') + '</dl>';
+			if (!data || !Object.keys(data).length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+
+			const hasValue = value => String(value === null || value === undefined ? '' : value).trim() !== '';
+			const value = (key, isDate = false) => {
+				const raw = data[key];
+				if (!hasValue(raw)) return '-';
+				return isDate ? formatDetailDateValue(raw) : String(raw);
+			};
+			const row = (label, displayValue, valueClass = '') => '<div class="txn-detail-row"><dt>' + escapeHtml(label) + ':</dt><dd>' + (valueClass ? '<span class="' + valueClass + '">' : '') + escapeHtml(displayValue) + (valueClass ? '</span>' : '') + '</dd></div>';
+			const hasCancelled = hasValue(data.date_cancelled);
+			const hasClaimed = hasValue(data.date_claimed);
+			const hasSend = hasValue(data.date_send);
+			const isPayout = hasClaimed;
+			const isCancelled = hasCancelled && (hasClaimed || hasSend);
+			const money = key => {
+				const number = Number(data[key]);
+				const formatted = Number.isFinite(number) ? number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value(key);
+				return formatted;
+			};
+
+			let transactionRows = row('CAD Status', '-');
+			if (hasCancelled && hasClaimed) {
+				transactionRows += row('Date Cancelled', value('date_cancelled', true));
+				transactionRows += row('Date Claimed', value('date_claimed', true));
+			} else if (hasCancelled && hasSend) {
+				transactionRows += row('Date Cancelled', value('date_cancelled', true));
+				transactionRows += row('Date Send', value('date_send', true));
+			} else if (hasClaimed) {
+				transactionRows += row('Date Claimed', value('date_claimed', true));
+			} else if (hasSend) {
+				transactionRows += row('Date Send', value('date_send', true));
+			}
+			transactionRows += row('Control Series Number', value('control_series_no'));
+			transactionRows += row('KPTN', value('kptn'));
+			transactionRows += row('CCREF Number', value('ccref_no'));
+			transactionRows += row('Currency', value('currency'));
+			transactionRows += row('Sender Name', value('sender_name'));
+			if (hasClaimed) {
+				transactionRows += row('Sender Country', value('sender_country'));
+				transactionRows += row('Beneficiary Name', value('beneficiary_receiver'));
+			} else if (hasSend) {
+				transactionRows += row('Receiver Country', value('receiver_country'));
+			}
+			transactionRows += row('Receiver Name', hasCancelled && hasClaimed ? value('receiver_name') : (isPayout ? value('receiver_kyc') : value('receiver_name')));
+			transactionRows += row('Receiver Phone Number', value('receiver_phone'));
+
+			let branchRows = row('Operator', value('operator'));
+			branchRows += row('Branch Name', value('branch'));
+			branchRows += row('Branch ID', value('branch_id'));
+			branchRows += row('Remote Operator', value('remote_operator'));
+			branchRows += row('Remote Branch', value('remote_branch'));
+			if (isCancelled) branchRows += row('Other Details', value('other_details'));
+			branchRows += row('Uploaded Date', value('created_at', true));
+			branchRows += row('Uploaded By', hasValue(data.uploaded_by_name) ? value('uploaded_by_name') : value('uploaded_by'));
+
+			let amountCards = '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Principal Amount</span><span class="txn-detail-amount__value">' + escapeHtml(money('amount')) + '</span></div>';
+			if (isPayout) {
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge to Customer</span><span class="txn-detail-amount__value">' + escapeHtml(money('ctc')) + '</span></div>';
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge to Partner</span><span class="txn-detail-amount__value">' + escapeHtml(money('ctp')) + '</span></div>';
+			} else if (hasSend) {
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge</span><span class="txn-detail-amount__value">' + escapeHtml(money('charge')) + '</span></div>';
+			}
+
+			return '<div class="txn-detail-columns">' +
+				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5><dl class="txn-detail-list">' + transactionRows + '</dl></section>' +
+				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">account_balance</span>Branch Information</h5><dl class="txn-detail-list">' + branchRows + '</dl></section>' +
+				'</div><div class="txn-detail-amounts">' + amountCards + '</div>';
 		}
 
 		function closeWebDetailModal() {

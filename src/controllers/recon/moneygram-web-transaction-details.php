@@ -22,6 +22,27 @@ try {
         exit;
     }
 
+    $uploadedBy = trim((string)($row['uploaded_by'] ?? ''));
+    $row['uploaded_by_name'] = '';
+    if ($uploadedBy !== '') {
+        try {
+            $userStmt = userDbConnection()->prepare(
+                "SELECT CONCAT_WS(' ',
+                    NULLIF(TRIM(firstname), ''),
+                    NULLIF(TRIM(middlename), ''),
+                    NULLIF(TRIM(lastname), '')
+                ) AS full_name
+                FROM users
+                WHERE id_number = :id_number
+                LIMIT 1"
+            );
+            $userStmt->execute([':id_number' => $uploadedBy]);
+            $row['uploaded_by_name'] = trim((string)($userStmt->fetchColumn() ?: ''));
+        } catch (Throwable $e) {
+            $row['uploaded_by_name'] = '';
+        }
+    }
+
     echo json_encode(['success' => true, 'data' => $row]);
     exit;
 } catch (Throwable $e) {

@@ -289,7 +289,7 @@ try {
 
 		.txn-detail-modal__dialog {
 			position: relative;
-			width: min(780px, 94vw);
+			width: min(1140px, 96vw);
 			max-height: 88vh;
 			display: flex;
 			flex-direction: column;
@@ -303,36 +303,53 @@ try {
 			display: flex;
 			justify-content: space-between;
 			align-items: center;
-			padding: 14px 18px;
-			border-top: 4px solid #dc3545;
-			border-bottom: 1px solid #e5e7eb;
+			padding: 16px 18px;
+			background: #df3345;
+			color: #fff;
 		}
 
 		.txn-detail-modal__head h4 {
 			margin: 0;
-			color: #1f2937;
-			font-size: 1rem;
+			color: #fff;
+			font-size: 1.2rem;
 			font-weight: 700;
 		}
 
 		.txn-detail-modal__body {
-			padding: 16px 18px;
+			padding: 14px 28px 26px;
 			overflow: auto;
 		}
 
-		.txn-detail-grid {
-			margin: 0;
+		.txn-detail-section-title { margin: 0 0 10px; padding-bottom: 7px; border-bottom: 1px solid #d8dee7; color: #2f3137; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+		.txn-detail-section-title .material-icons { color: #df3345; font-size: 18px; }
+		.txn-detail-list {
+			margin: 0 0 16px;
 			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 10px 14px;
+			grid-template-columns: minmax(145px, max-content) minmax(0, 1fr);
+			gap: 5px 18px;
 		}
-
-		.txn-detail-item {
-			min-width: 0;
-			padding: 8px 10px;
-			border: 1px solid #e5e7eb;
-			border-radius: 6px;
-			background: #f8fafc;
+		.txn-detail-list dt { margin: 0; color: #30323a; font-size: .9rem; font-weight: 700; }
+		.txn-detail-list dd { margin: 0; min-width: 0; color: #696b70; font-size: .9rem; overflow-wrap: anywhere; }
+		.txn-detail-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 44px; }
+		.txn-detail-status { display: inline-block; padding: 3px 8px; border-radius: 6px; background: #ffc107; color: #202020; font-size: .75rem; font-weight: 800; }
+		.txn-detail-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; text-align: center; }
+		.txn-detail-amount-label { display: block; color: #30323a; font-size: .95rem; font-weight: 700; }
+		.txn-detail-amount-value { display: block; margin-top: 4px; color: #df3345; font-size: 1.45rem; font-weight: 700; }
+		.txn-detail-close {
+			border: 0;
+			background: transparent;
+			color: #ffd7dc;
+			padding: 0 3px;
+			font-size: 2rem;
+			font-weight: 300;
+			line-height: 1;
+			cursor: pointer;
+		}
+		.txn-detail-close:hover, .txn-detail-close:focus-visible { color: #fff; background: transparent; box-shadow: none; outline: none; }
+		@media (max-width: 760px) {
+			.txn-detail-groups, .txn-detail-amounts { grid-template-columns: 1fr; }
+			.txn-detail-groups { gap: 0; }
+			.txn-detail-modal__body { padding: 14px 18px 22px; }
 		}
 
 		.txn-detail-item dt {
@@ -350,7 +367,7 @@ try {
 			overflow-wrap: anywhere;
 		}
 
-		.txn-detail-close {
+		.txn-detail-close-old {
 			border: 1px solid #e5e7eb;
 			background: #fff;
 			color: #374151;
@@ -361,8 +378,8 @@ try {
 			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 		}
 
-		.txn-detail-close:hover,
-		.txn-detail-close:focus-visible {
+		.txn-detail-close-old:hover,
+		.txn-detail-close-old:focus-visible {
 			background: #dc3545;
 			border-color: #dc3545;
 			color: #fff;
@@ -510,8 +527,8 @@ try {
 		<div class="txn-detail-modal__overlay" data-action="close-rpd-detail"></div>
 		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="MONEYGRAM Partner Transaction Details">
 			<div class="txn-detail-modal__head">
-				<h4>MONEYGRAM Partner Transaction Details</h4>
-				<button type="button" class="txn-detail-close" data-action="close-rpd-detail">Close</button>
+				<h4>Partner Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rpd-detail" aria-label="Close">&times;</button>
 			</div>
 			<div class="txn-detail-modal__body" data-role="rpdTxnDetailBody">Loading...</div>
 		</div>
@@ -823,17 +840,63 @@ try {
 			return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
 		}
 
+		function formatDetailLongDate(value, includeTime) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+			if (!match) return raw;
+			const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			let output = monthNames[Number(match[2]) - 1] + ' ' + match[3] + ', ' + match[1];
+			if (includeTime) {
+				const hour = Number(match[4] || 0);
+				output += ' ' + String(hour).padStart(2, '0') + ':' + (match[5] || '00') + ':' + (match[6] || '00') + ' ' + (hour >= 12 ? 'PM' : 'AM');
+			}
+			return output;
+		}
+
 		function isAmountDetailField(key) {
 			return /(^|_)(amount|amt|php|usd|charge|fee|comm|commission|total|principal)(_|$)/i.test(String(key || ''));
 		}
 
 		function renderDetailGrid(data) {
-			const entries = Object.entries(data || {});
-			if (!entries.length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
-			return '<dl class="txn-detail-grid">' + entries.map(([key, value]) => {
-				const displayValue = isAmountDetailField(key) ? formatCurrencyAbsolute(value) : formatDetailDateValue(value);
-				return '<div class="txn-detail-item"><dt>' + escapeHtml(key) + '</dt><dd>' + escapeHtml(displayValue) + '</dd></div>';
-			}).join('') + '</dl>';
+			if (!data || !Object.keys(data).length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			const pick = (...keys) => {
+				for (const key of keys) if (data[key] !== null && data[key] !== undefined && String(data[key]).trim() !== '') return data[key];
+				return '-';
+			};
+			const text = (label, value, options = {}) => {
+				let shown = value;
+				if (options.date && value !== '-') shown = formatDetailLongDate(value, false);
+				if (options.dateTime && value !== '-') shown = formatDetailLongDate(value, true);
+				if (options.amount && value !== '-') shown = formatCurrencyAbsolute(value);
+				if (options.status && value !== '-') shown = '<span class="txn-detail-status">' + escapeHtml(value) + '</span>';
+				else shown = escapeHtml(shown);
+				return '<dt>' + escapeHtml(label) + ':</dt><dd>' + shown + '</dd>';
+			};
+			const status = pick('cad_status', 'status', 'transaction_status');
+			const left = text('CAD Status', status, { status: true }) +
+				text('Transaction Date', pick('tran_date', 'transaction_date'), { date: true }) +
+				text('Transaction ID', pick('transaction_id')) +
+				text('Reference ID', pick('reference_id')) +
+				text('Product Type', pick('product')) +
+				text('Transaction Type', pick('tran_type'));
+			const right = text('Account Number', pick('account_number')) +
+				text('Agent Name', pick('agent_name')) +
+				text('Legacy ID', pick('legacy_id')) +
+				text('Original Country', pick('orig_cntry')) +
+				text('Receiver Country', pick('rcv_cntry')) +
+				text('Settlement Currency', pick('settlement_currency')) +
+				text('Transaction Currency', pick('transaction_currency'));
+			const forex = text('Forex Date', pick('fx_date_trn'), { date: true }) +
+				text('Transaction Forex Rate', pick('fx_rate_trn', 'tran_fx_rate')) +
+				text('Margin', pick('margin')) +
+				text('Fee Amount', pick('fee_tran_amt'), { amount: true });
+			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by', 'created_by'));
+			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : formatCurrencyAbsolute(value)) + '</span></div>';
+			return '<h5 class="txn-detail-section-title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5>' +
+				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + left + '</dl><dl class="txn-detail-list">' + right + '</dl></div>' +
+				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + forex + '</dl><dl class="txn-detail-list">' + upload + '</dl></div>' +
+				'<div class="txn-detail-amounts">' + amount('Base Amount', pick('base_amt')) + amount('Forex Revenue Share Amount', pick('fx_rev_share_amt')) + amount('Commission Amount', pick('comm_amt')) + '</div>';
 		}
 
 		function closePartnerDetailModal() {
