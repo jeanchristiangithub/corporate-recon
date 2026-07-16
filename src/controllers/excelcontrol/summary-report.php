@@ -120,6 +120,7 @@ function summary_fetch_daily(PDO $pdo, string $table, array $columns, array $ali
     $amountCandidates = isset($options['amount_candidates']) && is_array($options['amount_candidates']) ? $options['amount_candidates'] : null;
     $commissionCandidates = isset($options['commission_candidates']) && is_array($options['commission_candidates']) ? $options['commission_candidates'] : null;
     $fxCandidates = isset($options['fx_candidates']) && is_array($options['fx_candidates']) ? $options['fx_candidates'] : null;
+    $feeCandidates = isset($options['fee_candidates']) && is_array($options['fee_candidates']) ? $options['fee_candidates'] : null;
     $emptyCandidates = isset($options['require_empty_candidates']) && is_array($options['require_empty_candidates'])
         ? $options['require_empty_candidates']
         : [];
@@ -146,6 +147,9 @@ function summary_fetch_daily(PDO $pdo, string $table, array $columns, array $ali
         $commissionCol = summary_first_column($commissionCandidates ?? ['in_php', 'commission', 'comm_amt', 'comm_tran_amt', 'agent_commission'], $columns);
     }
     $fxCol = $fxCol ?? summary_first_column($fxCandidates ?? [], $columns);
+    $feeCol = $table === 'moneygram_partner_data'
+        ? summary_first_column($feeCandidates ?? ['fee_tran_amt'], $columns)
+        : null;
 
     $whereParts = ['DATE(' . summary_quote_identifier($dateCol) . ') BETWEEN ? AND ?'];
     $params = [$startDate, $endDate];
@@ -189,7 +193,8 @@ function summary_fetch_daily(PDO $pdo, string $table, array $columns, array $ali
         . 'COUNT(*) AS volume, '
         . 'COALESCE(SUM(' . summary_numeric_expr($amountCol) . '), 0) AS principal, '
         . 'COALESCE(SUM(' . summary_numeric_expr($commissionCol) . '), 0) AS commission, '
-        . 'COALESCE(SUM(' . summary_numeric_expr($fxCol) . '), 0) AS fx '
+        . 'COALESCE(SUM(' . summary_numeric_expr($fxCol) . '), 0) AS fx, '
+        . 'COALESCE(SUM(' . summary_numeric_expr($feeCol) . '), 0) AS fee '
         . 'FROM ' . $table . ' WHERE ' . implode(' AND ', $whereParts)
         . ' GROUP BY DATE(' . summary_quote_identifier($dateCol) . ')';
 
@@ -207,6 +212,7 @@ function summary_fetch_daily(PDO $pdo, string $table, array $columns, array $ali
             'principal' => (float) ($row['principal'] ?? 0),
             'commission' => (float) ($row['commission'] ?? 0),
             'fx' => (float) ($row['fx'] ?? 0),
+            'fee' => (float) ($row['fee'] ?? 0),
         ];
     }
 
@@ -309,7 +315,7 @@ function summary_fetch_duplicates(PDO $pdo, string $table, array $columns, array
 
 function summary_empty_amounts(): array
 {
-    return ['volume' => 0, 'principal' => 0.0, 'commission' => 0.0, 'fx' => 0.0];
+    return ['volume' => 0, 'principal' => 0.0, 'commission' => 0.0, 'fx' => 0.0, 'fee' => 0.0];
 }
 
 function summary_add_amounts(array $left, array $right): array
@@ -319,6 +325,7 @@ function summary_add_amounts(array $left, array $right): array
         'principal' => (float) ($left['principal'] ?? 0) + (float) ($right['principal'] ?? 0),
         'commission' => (float) ($left['commission'] ?? 0) + (float) ($right['commission'] ?? 0),
         'fx' => (float) ($left['fx'] ?? 0) + (float) ($right['fx'] ?? 0),
+        'fee' => (float) ($left['fee'] ?? 0) + (float) ($right['fee'] ?? 0),
     ];
 }
 
@@ -329,6 +336,7 @@ function summary_subtract_amounts(array $left, array $right): array
         'principal' => (float) ($left['principal'] ?? 0) - (float) ($right['principal'] ?? 0),
         'commission' => (float) ($left['commission'] ?? 0) - (float) ($right['commission'] ?? 0),
         'fx' => (float) ($left['fx'] ?? 0) - (float) ($right['fx'] ?? 0),
+        'fee' => (float) ($left['fee'] ?? 0) - (float) ($right['fee'] ?? 0),
     ];
 }
 

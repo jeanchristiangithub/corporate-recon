@@ -740,11 +740,17 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     function sendoutSettlement(sendoutSource, payoutSource) {
         const sendoutPartner = amountGroup(sendoutSource, 'partner');
-        const sendoutVariance = amountGroup(sendoutSource, 'variance');
+        const sendoutCancelled = amountGroup(sendoutSource, 'partner_cancelled');
+        const sendoutNetPartner = amountGroup(sendoutSource, 'net_partner');
         const payoutPartner = amountGroup(payoutSource, 'partner');
+        const payoutNetPartner = amountGroup(payoutSource, 'net_partner');
         const count = Number(payoutPartner.volume || 0) + Number(sendoutPartner.volume || 0);
-        const amount = Number(payoutPartner.principal || 0) - Number(sendoutPartner.principal || 0) + Number(sendoutVariance.commission || 0);
-        return { count, amount };
+        const amount = Number(sendoutPartner.principal || 0)
+            + Number(sendoutPartner.fee || 0)
+            - Number(sendoutNetPartner.commission || 0)
+            - Number(payoutNetPartner.principal || 0)
+            - Number(sendoutCancelled.principal || 0);
+        return { count, amount, variance: -amount };
     }
 
     function sendoutRow(row, payoutRowForDate) {
@@ -755,6 +761,8 @@ $partnerInputChars = min($partnerInputChars, 90);
         const cancelled = amountGroup(row, 'cancelled');
         const variance = amountGroup(row, 'variance');
         const settlement = sendoutSettlement(row, payoutRowForDate || {});
+        const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
+        const varianceFee = Number(partner.fee || 0);
         return '<tr>'
             + td(fmtDate(row.date))
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
@@ -762,8 +770,8 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission)) + td(fmtMoney(web.commission))
-            + td(fmtCount(settlement.count)) + td(fmtMoney(-settlement.amount)) + td(fmtMoney(settlement.amount))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
+            + td(fmtCount(settlement.count)) + td(fmtMoney(settlement.amount)) + td(fmtMoney(settlement.variance))
             + '</tr>';
     }
 
@@ -774,7 +782,12 @@ $partnerInputChars = min($partnerInputChars, 90);
         const web = totals.web || {};
         const cancelled = totals.cancelled || {};
         const variance = totals.variance || {};
-        const settlement = sendoutSettlement({ partner, variance }, { partner: (payoutTotals || {}).partner || {} });
+        const settlement = sendoutSettlement(
+            { partner, partner_cancelled: refund, net_partner: netPartner },
+            payoutTotals || {}
+        );
+        const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
+        const varianceFee = Number(partner.fee || 0);
         return '<tr class="mg-cover__total">'
             + td('Grand total')
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
@@ -782,8 +795,8 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission)) + td(fmtMoney(web.commission))
-            + td(fmtCount(settlement.count)) + td(fmtMoney(-settlement.amount)) + td(fmtMoney(settlement.amount))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
+            + td(fmtCount(settlement.count)) + td(fmtMoney(settlement.amount)) + td(fmtMoney(settlement.variance))
             + '</tr>';
     }
 
