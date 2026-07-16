@@ -742,11 +742,16 @@ $partnerInputChars = min($partnerInputChars, 90);
         const sendoutPartner = amountGroup(sendoutSource, 'partner');
         const sendoutCancelled = amountGroup(sendoutSource, 'partner_cancelled');
         const sendoutNetPartner = amountGroup(sendoutSource, 'net_partner');
+        const sendoutVariance = amountGroup(sendoutSource, 'variance');
         const payoutPartner = amountGroup(payoutSource, 'partner');
+        const payoutCancelled = amountGroup(payoutSource, 'partner_cancelled');
         const payoutNetPartner = amountGroup(payoutSource, 'net_partner');
-        const count = Number(payoutPartner.volume || 0) + Number(sendoutPartner.volume || 0);
+        const count = Number(payoutPartner.volume || 0)
+            + Number(payoutCancelled.volume || 0)
+            + Number(sendoutPartner.volume || 0)
+            + Number(sendoutCancelled.volume || 0);
         const amount = Number(sendoutPartner.principal || 0)
-            + Number(sendoutPartner.fee || 0)
+            + Number(sendoutVariance.fee || 0)
             - Number(sendoutNetPartner.commission || 0)
             - Number(payoutNetPartner.principal || 0)
             - Number(sendoutCancelled.principal || 0);
@@ -783,7 +788,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         const cancelled = totals.cancelled || {};
         const variance = totals.variance || {};
         const settlement = sendoutSettlement(
-            { partner, partner_cancelled: refund, net_partner: netPartner },
+            { partner, partner_cancelled: refund, net_partner: netPartner, variance },
             payoutTotals || {}
         );
         const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);

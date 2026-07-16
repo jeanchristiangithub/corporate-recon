@@ -245,11 +245,16 @@ function moneygram_summary_settlement(array $sendoutRow, array $payoutRow): arra
     $sendoutPartner = moneygram_summary_amount($sendoutRow, 'partner');
     $sendoutCancelled = moneygram_summary_amount($sendoutRow, 'partner_cancelled');
     $sendoutNetPartner = moneygram_summary_amount($sendoutRow, 'net_partner');
+    $sendoutVariance = moneygram_summary_amount($sendoutRow, 'variance');
     $payoutPartner = moneygram_summary_amount($payoutRow, 'partner');
+    $payoutCancelled = moneygram_summary_amount($payoutRow, 'partner_cancelled');
     $payoutNetPartner = moneygram_summary_amount($payoutRow, 'net_partner');
-    $count = moneygram_summary_count($payoutPartner) + moneygram_summary_count($sendoutPartner);
+    $count = moneygram_summary_count($payoutPartner)
+        + moneygram_summary_count($payoutCancelled)
+        + moneygram_summary_count($sendoutPartner)
+        + moneygram_summary_count($sendoutCancelled);
     $amount = moneygram_summary_num($sendoutPartner, 'principal')
-        + moneygram_summary_num($sendoutPartner, 'fee')
+        + moneygram_summary_num($sendoutVariance, 'fee')
         - moneygram_summary_num($sendoutNetPartner, 'commission')
         - moneygram_summary_num($payoutNetPartner, 'principal')
         - moneygram_summary_num($sendoutCancelled, 'principal');
