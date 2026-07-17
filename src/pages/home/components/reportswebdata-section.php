@@ -152,6 +152,9 @@ try {
 		.txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); gap:10px; padding:2px 0; font-size:.9rem; line-height:1.35; }
 		.txn-detail-row dt { margin:0; color:#252a34; font-weight:700; }
 		.txn-detail-row dd { margin:0; color:#656b73; overflow-wrap:anywhere; }
+		.txn-detail-notes { margin-top:1.35em; }
+		.txn-detail-notes label { display:block; margin-bottom:6px; color:#252a34; font-size:.9rem; font-weight:700; }
+		.txn-detail-notes textarea { display:block; width:100%; height:76px; padding:9px 10px; border:1px solid #d8dee7; border-radius:5px; box-sizing:border-box; resize:none; overflow-x:hidden; overflow-y:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#f8fafc; color:#656b73; font:inherit; line-height:1.4; }
 		.txn-detail-status { display:inline-block; padding:2px 8px; border-radius:5px; background:#f6b900; color:#1f2937; font-size:.75rem; font-weight:800; }
 		.txn-detail-amounts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:24px; padding-top:16px; border-top:1px solid #edf0f4; text-align:center; }
 		.txn-detail-amount__label { display:block; color:#252a34; font-size:.9rem; font-weight:700; }
@@ -1262,9 +1265,9 @@ try {
 			branchRows += row('Branch ID', value('branch_id'));
 			branchRows += row('Remote Operator', value('remote_operator'));
 			branchRows += row('Remote Branch', value('remote_branch'));
-			if (isCancelled) branchRows += row('Other Details', value('other_details'));
 			branchRows += row('Uploaded Date', value('created_at', true));
 			branchRows += row('Uploaded By', hasValue(data.uploaded_by_name) ? value('uploaded_by_name') : value('uploaded_by'));
+			if (isCancelled) branchRows += '<div class="txn-detail-notes"><label for="rwdOtherDetails">Other Details:</label><textarea id="rwdOtherDetails" readonly>' + escapeHtml(value('other_details')) + '</textarea></div>';
 
 			let amountCards = '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Principal Amount</span><span class="txn-detail-amount__value">' + escapeHtml(money('amount')) + '</span></div>';
 			if (isPayout) {

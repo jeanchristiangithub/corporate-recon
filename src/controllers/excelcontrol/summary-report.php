@@ -381,6 +381,25 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
     ]];
 }
 
+function summary_column_in_where(array $columns, array $candidates, array $values): array
+{
+    $column = summary_first_column($candidates, $columns);
+    $normalizedValues = array_values(array_filter(array_map(
+        static fn ($value): string => strtoupper(trim((string) $value)),
+        $values
+    ), static fn (string $value): bool => $value !== ''));
+
+    if ($column === null || count($normalizedValues) === 0) {
+        return [];
+    }
+
+    $placeholders = implode(', ', array_fill(0, count($normalizedValues), '?'));
+    return [[
+        'sql' => 'UPPER(TRIM(' . summary_quote_identifier($column) . ')) IN (' . $placeholders . ')',
+        'params' => $normalizedValues,
+    ]];
+}
+
 function summary_web_has_no_cancellation_where(array $columns, string $table): array
 {
     $cancelledCol = summary_first_column(['date_cancelled', 'date_cancellation'], $columns);
@@ -528,7 +547,7 @@ try {
         $payoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'REC');
         $payoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RRC');
         $sendoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'SEN');
-        $sendoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RSN');
+        $sendoutCancelledPartnerWhere = summary_column_in_where($partnerColumns, ['tran_type', 'transaction_type'], ['RSN', 'REF']);
         $payoutWebWhere = summary_column_is_nullish_where($webColumns, ['date_send']);
         $sendoutWebWhere = summary_column_is_not_nullish_where($webColumns, ['date_send']);
         $webCancellationWhere = summary_column_is_not_nullish_where($webColumns, ['date_cancelled', 'date_cancellation']);

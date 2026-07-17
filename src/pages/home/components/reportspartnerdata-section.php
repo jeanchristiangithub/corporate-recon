@@ -325,7 +325,9 @@ try {
 		.txn-detail-list {
 			margin: 0 0 16px;
 			display: grid;
-			grid-template-columns: minmax(145px, max-content) minmax(0, 1fr);
+			grid-template-columns: 175px minmax(0, 1fr);
+			grid-auto-rows: max-content;
+			align-content: start;
 			gap: 5px 18px;
 		}
 		.txn-detail-list dt { margin: 0; color: #30323a; font-size: .9rem; font-weight: 700; }
@@ -349,6 +351,7 @@ try {
 		@media (max-width: 760px) {
 			.txn-detail-groups, .txn-detail-amounts { grid-template-columns: 1fr; }
 			.txn-detail-groups { gap: 0; }
+			.txn-detail-list { grid-template-columns: minmax(145px, 175px) minmax(0, 1fr); }
 			.txn-detail-modal__body { padding: 14px 18px 22px; }
 		}
 
