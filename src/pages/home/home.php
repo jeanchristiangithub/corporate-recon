@@ -134,6 +134,23 @@ if ($currentUserId !== '') {
                         <span class="icon material-icons" aria-hidden="true">people</span>
                         <span class="label">Partner Data</span>
                     </a></li>
+                    <li class="nav-subgroup">
+                        <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="settlementDetailMenu">
+                            <span class="icon material-icons" aria-hidden="true">payments</span>
+                            <span class="label">Settlement Detail</span>
+                            <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                        </button>
+                        <ul id="settlementDetailMenu" class="nav-subgroup-menu" style="display:none;">
+                            <li><a href="#" id="navSettlementDaily" data-show="settlementDailySection">
+                                <span class="icon material-icons" aria-hidden="true">today</span>
+                                <span class="label">Per Daily</span>
+                            </a></li>
+                            <li><a href="#" id="navSettlementEndMonth" data-show="settlementEndMonthSection">
+                                <span class="icon material-icons" aria-hidden="true">event</span>
+                                <span class="label">End Month</span>
+                            </a></li>
+                        </ul>
+                    </li>
                    
                 </ul>
             </li>
@@ -250,6 +267,8 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/webdata-section.php'; ?>
     <?php include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
     <?php include __DIR__ . '/components/data-upload/kpx-webdata-section.php'; ?>
+    <?php include __DIR__ . '/components/data-upload/settlement-detail/daily/settlementdaily-section.php'; ?>
+    <?php include __DIR__ . '/components/data-upload/settlement-detail/end-month/settlementendmonth-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
@@ -398,6 +417,8 @@ if ($currentUserId !== '') {
                 webdata: 'webdataSection',
                 webdatacancellation: 'webdataCancellationSection',
                 kpxwebdataver2: 'kpxWebDataVer2Section',
+                settlementdaily: 'settlementDailySection',
+                settlementendmonth: 'settlementEndMonthSection',
                 partnerdata: 'partnerdataSection',
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
@@ -425,11 +446,12 @@ if ($currentUserId !== '') {
     // list of nav ids that are under maintenance
     const underMaintenanceNavIds = [
         'navUploadedFileLogs',
-        'navWebDataCancellation'
+        'navWebDataCancellation',
+        
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
@@ -511,6 +533,22 @@ if ($currentUserId !== '') {
         });
     } catch (e) { /* ignore */ }
 
+    // Handle the second-level Settlement Detail menu.
+    try {
+        document.querySelectorAll('.nav-subgroup-toggle').forEach(function(btn){
+            btn.addEventListener('click', function(e){
+                e.preventDefault();
+                const subgroup = btn.closest('.nav-subgroup');
+                const menu = subgroup ? subgroup.querySelector('.nav-subgroup-menu') : null;
+                if (!subgroup || !menu) return;
+                const open = !subgroup.classList.contains('is-open');
+                subgroup.classList.toggle('is-open', open);
+                menu.style.display = open ? 'flex' : 'none';
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        });
+    } catch (e) { /* ignore */ }
+
     try {
         const tooltip = document.createElement('div');
         tooltip.className = 'sidebar-tooltip';
@@ -537,7 +575,7 @@ if ($currentUserId !== '') {
             tooltip.classList.remove('is-visible');
         }
 
-        sb.querySelectorAll('.sidebar-nav a, .sidebar-nav .nav-group-toggle').forEach(function(item) {
+        sb.querySelectorAll('.sidebar-nav a, .sidebar-nav .nav-group-toggle, .sidebar-nav .nav-subgroup-toggle').forEach(function(item) {
             item.addEventListener('mouseenter', function(){ showSidebarTooltip(item); });
             item.addEventListener('focus', function(){ showSidebarTooltip(item); });
             item.addEventListener('mouseleave', hideSidebarTooltip);
