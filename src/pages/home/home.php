@@ -50,6 +50,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/sidebar.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-upload/kpx-webdata-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-upload/settlement-detail/daily/settlementdaily-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-cancellation-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/reconreport-section.css">
