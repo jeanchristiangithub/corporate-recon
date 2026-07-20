@@ -2,9 +2,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../../../../config/db.php';
+require_once __DIR__ . '/../../../../../../config/csrf.php';
 
 $settlementDailyPartners = [];
 $settlementDailyPartnerIds = [];
+$settlementDailyCsrfToken = csrfToken();
 $settlementUploaderMode = $settlementUploaderMode ?? 'daily';
 try {
     $statement = masterDataConnection()->query("SELECT partner_name, partner_id FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name");
@@ -69,6 +71,7 @@ try {
             <div class="settlement-daily-checking-progress"><div id="settlementDailyCheckingBar"></div></div>
         </div>
     </div>
+    <input id="settlementDailyCsrfToken" type="hidden" value="<?= htmlspecialchars($settlementDailyCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
     <script>
     (function () {
@@ -86,6 +89,7 @@ try {
         const checkingModal = document.getElementById('settlementDailyCheckingModal');
         const checkingMessage = document.getElementById('settlementDailyCheckingMessage');
         const checkingBar = document.getElementById('settlementDailyCheckingBar');
+        const csrfToken = document.getElementById('settlementDailyCsrfToken');
         const allowedExtensions = ['xls', 'xlsx', 'csv'];
         const batchHeaders = ['Tran FX Rate', 'FX Date', 'Base Amt', 'Fee Amt', 'Fx Rev Share Amt', 'Comm Amt'];
         const uploaderMode = <?= json_encode($settlementUploaderMode, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
@@ -156,14 +160,117 @@ try {
             });
             return window.settlementDailySheetJsPromise;
         }
+        function normalizeLookupDate(value, XLSX) {
+            let parts = null;
+            if (value instanceof Date && !Number.isNaN(value.getTime())) {
+                parts = [value.getFullYear(), value.getMonth() + 1, value.getDate()];
+            } else if (typeof value === 'number') {
+                const parsed = XLSX.SSF.parse_date_code(value);
+                if (parsed) parts = [parsed.y, parsed.m, parsed.d];
+            } else {
+                const text = String(value || '').trim().replace(/^'/, '');
+                const match = text.match(/^(\d{1,4})[\/-](\d{1,2})[\/-](\d{1,4})/);
+                if (match) {
+                    const yearFirst = match[1].length === 4;
+                    parts = [Number(yearFirst ? match[1] : match[3]), Number(yearFirst ? match[2] : match[1]), Number(yearFirst ? match[3] : match[2])];
+                }
+            }
+            if (!parts) return '';
+            const checked = new Date(parts[0], parts[1] - 1, parts[2]);
+            if (checked.getFullYear() !== parts[0] || checked.getMonth() !== parts[1] - 1 || checked.getDate() !== parts[2]) return '';
+            return String(parts[0]).padStart(4, '0') + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2]).padStart(2, '0');
+        }
+        async function classifyDeveloperRows(rows, XLSX) {
+            if (!isMoneyGramPartner() || rows.length < 2) return {};
+            const headers = rows[0].map(value => normalize(value));
+            const referenceIndex = headers.findIndex(header => ['reference id', 'reference_id', 'reference no', 'reference'].includes(header));
+            const dateIndex = headers.findIndex(header => ['tran date', 'tran_date', 'transaction date', 'date'].includes(header));
+            if (referenceIndex < 0 || dateIndex < 0) return {};
+            const pairs = rows.slice(1).map((row, index) => ({
+                index: index,
+                reference_id: String(row[referenceIndex] ?? '').trim(),
+                tran_date: normalizeLookupDate(row[dateIndex], XLSX)
+            }));
+            const results = {};
+            const chunks = [];
+            for (let offset = 0; offset < pairs.length; offset += 750) chunks.push(pairs.slice(offset, offset + 750));
+            let completedRows = 0;
+            async function worker() {
+                while (chunks.length) {
+                    const chunk = chunks.shift();
+                    if (!chunk) return;
+                    const formData = new FormData();
+                    formData.append('csrf_token', csrfToken ? csrfToken.value : '');
+                    formData.append('payload', JSON.stringify({ pairs: chunk }));
+                    const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/settlement-daily-classify.php', { method: 'POST', body: formData });
+                    const payload = await response.json().catch(() => null);
+                    if (!response.ok || !payload || !payload.success) throw new Error((payload && payload.error) || 'Unable to classify settlement rows.');
+                    Object.assign(results, payload.results || {});
+                    completedRows += chunk.length;
+                    if (window.Swal && window.Swal.isVisible()) {
+                        window.Swal.update({ text: 'Checking system records: ' + completedRows.toLocaleString() + ' of ' + pairs.length.toLocaleString() + ' rows.' });
+                        window.Swal.showLoading();
+                    }
+                }
+            }
+            await Promise.all(Array.from({ length: Math.min(3, Math.max(1, chunks.length)) }, worker));
+            return results;
+        }
         async function previewFile(file) {
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({
+                    title: 'Loading preview...',
+                    text: 'Reading Excel data and checking system records.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => window.Swal.showLoading()
+                });
+            }
             try {
                 const XLSX = await ensureSheetJs();
                 const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const normalRows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false }).slice(0, 101) : [];
-                const rawDeveloperRows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }).slice(0, 101) : [];
-                const developerRows = rawDeveloperRows.map((row, rowIndex) => [rowIndex === 0 ? 'Data Source' : 'From Excel', ...row]);
+                const normalRows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false }) : [];
+                const developerRows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }) : [];
+                const classifications = await classifyDeveloperRows(developerRows, XLSX);
+                const sourceColumnCount = developerRows.length ? (() => { const empty = developerRows[0].findIndex(value => String(value ?? '').trim() === ''); return empty >= 0 ? empty : developerRows[0].length; })() : 0;
+                const existedHeader = ['Account Number', 'Agent Name', 'Legacy ID', 'Tran Date', 'Transaction ID', 'Reference ID', 'Product', 'Tran Type', 'Orig Cntry', 'Rcv Cntry', 'FX Rate trn', 'Margin', 'Base Tran Amt', 'Fee Tran Amt', 'Fx Rev Share Tran Amt', 'Comm Tran Amt', 'db_fx_rate_trn', 'db_margin', 'db_base_tran_amt', 'db_fee_tran_amt', 'db_fx_rev_share_tran_amt', 'db_comm_tran_amt', 'Total Tran Amt', 'Settlement Currency', 'Transaction Currency', 'Remarks'];
+                const sourceAliases = [
+                    ['account number', 'account_number'], ['agent name', 'agent_name'], ['legacy id', 'legacy_id'], ['tran date', 'tran_date'],
+                    ['transaction id', 'transaction_id'], ['reference id', 'reference_id'], ['product'], ['tran type', 'tran_type'],
+                    ['orig cntry', 'orig_cntry'], ['rcv cntry', 'rcv_cntry'], ['fx rate trn', 'fx_rate_trn', 'tran fx rate'], ['margin'],
+                    ['base tran amt', 'base_tran_amt'], ['fee tran amt', 'fee_tran_amt'], ['fx rev share tran amt', 'fx_rev_share_tran_amt'],
+                    ['comm tran amt', 'comm_tran_amt'], ['total tran amt', 'total_tran_amt'], ['settlement currency', 'settlement_currency'],
+                    ['transaction currency', 'transaction_currency']
+                ];
+                const normalizedSourceHeaders = developerRows.length ? developerRows[0].map(value => normalize(value)) : [];
+                function sourceValue(row, aliases) {
+                    const index = normalizedSourceHeaders.findIndex(header => aliases.includes(header));
+                    return index >= 0 ? row[index] ?? '' : '';
+                }
+                function buildExistedRow(row, database) {
+                    const excelValues = sourceAliases.map(aliases => sourceValue(row, aliases));
+                    return [
+                        ...excelValues.slice(0, 10),
+                        ...excelValues.slice(10, 16),
+                        database ? database.fx_rate_trn ?? '' : '', database ? database.margin ?? '' : '',
+                        database ? database.base_tran_amt ?? '' : '', database ? database.fee_tran_amt ?? '' : '',
+                        database ? database.fx_rev_share_tran_amt ?? '' : '', database ? database.comm_tran_amt ?? '' : '',
+                        ...excelValues.slice(16),
+                        ''
+                    ];
+                }
+                const existedDeveloperRows = developerRows.length ? [existedHeader] : [];
+                const nonExistedDeveloperRows = developerRows.length ? [developerRows[0].slice(0, sourceColumnCount)] : [];
+                developerRows.slice(1).forEach((row, index) => {
+                    const result = classifications[String(index)] || { exists: false, database: null };
+                    if (result.exists) {
+                        existedDeveloperRows.push(buildExistedRow(row, result.database || null));
+                    } else {
+                        nonExistedDeveloperRows.push(row.slice(0, sourceColumnCount));
+                    }
+                });
                 const content = document.createElement('div');
                 const modes = document.createElement('div');
                 modes.className = 'settlement-daily-preview-modes';
@@ -175,45 +282,126 @@ try {
                 const wrap = document.createElement('div');
                 wrap.className = 'settlement-daily-preview-wrap';
                 content.append(modes, payoutTabs, wrap);
-                const developerNumericHeaders = new Set(['margin', 'base tran amt', 'fee tran amt', 'fx rev share tran amt', 'comm tran amt', 'total tran amt']);
+                const developerNumericHeaders = new Set(['fx rate trn', 'margin', 'base tran amt', 'fee tran amt', 'fx rev share tran amt', 'comm tran amt', 'total tran amt', 'db_fx_rate_trn', 'db_margin', 'db_base_tran_amt', 'db_fee_tran_amt', 'db_fx_rev_share_tran_amt', 'db_comm_tran_amt']);
                 let activeDeveloperView = 'existing';
-                function developerRowsForView() { return developerRows; }
-                function renderPreview(rows, developerMode) {
+                function developerRowsForView(view) { return view === 'non-existing' ? nonExistedDeveloperRows : existedDeveloperRows; }
+                function comparableNumber(value) {
+                    const text = String(value ?? '').trim().replace(/,/g, '');
+                    return text !== '' && Number.isFinite(Number(text)) ? Number(text) : null;
+                }
+                function comparisonClass(row, columnIndex) {
+                    if (columnIndex < 10 || columnIndex > 21) return '';
+                    const pairOffset = columnIndex < 16 ? columnIndex - 10 : columnIndex - 16;
+                    const excelValue = comparableNumber(row[10 + pairOffset]);
+                    const databaseValue = comparableNumber(row[16 + pairOffset]);
+                    const databaseMissing = databaseValue === null || databaseValue === 0;
+                    const excelMissing = excelValue === null || excelValue === 0;
+                    if (databaseValue !== null && excelValue !== null && Math.abs(databaseValue).toFixed(2) === Math.abs(excelValue).toFixed(2)) return 'is-amount-match';
+                    if (databaseMissing && excelMissing) return '';
+                    if (databaseMissing !== excelMissing) {
+                        const currentMissing = columnIndex < 16 ? excelMissing : databaseMissing;
+                        return currentMissing ? 'is-amount-missing' : 'is-amount-present';
+                    }
+                    return 'is-amount-mismatch';
+                }
+                function renderPreview(rows, developerMode, existedMode, requestedPage) {
                     wrap.innerHTML = '';
                     if (!rows.length) {
                         wrap.textContent = 'No data rows found.';
                         return;
                     }
                     const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const tbody = document.createElement('tbody');
                     const firstEmptyHeader = rows[0].findIndex(value => String(value ?? '').trim() === '');
                     const columnCount = firstEmptyHeader >= 0 ? firstEmptyHeader : rows[0].length;
                     const normalizedHeaders = rows[0].map(value => normalize(value));
-                    rows.forEach((row, rowIndex) => {
+                    const firstDataRow = 1;
+                    const pageSize = 500;
+                    const totalDataRows = Math.max(0, rows.length - 1);
+                    const totalPages = Math.max(1, Math.ceil(totalDataRows / pageSize));
+                    const currentPage = Math.max(0, Math.min(totalPages - 1, Number(requestedPage || 0)));
+                    if (existedMode) {
+                        const groupRow = document.createElement('tr');
+                        rows[0].forEach((header, columnIndex) => {
+                            if (columnIndex > 10 && columnIndex < 16) return;
+                            if (columnIndex > 16 && columnIndex < 22) return;
+                            const th = document.createElement('th');
+                            if (columnIndex === 10) { th.colSpan = 6; th.className = 'is-excel-group'; th.textContent = 'FROM SETTLEMENT PARTNER DETAIL EXCEL DATA'; }
+                            else if (columnIndex === 16) { th.colSpan = 6; th.className = 'is-database-group'; th.textContent = 'FROM PARTNER DAILY DATA'; }
+                            else { th.rowSpan = 2; th.textContent = header; if (developerNumericHeaders.has(normalize(header))) th.classList.add('is-numeric'); }
+                            groupRow.appendChild(th);
+                        });
+                        const childRow = document.createElement('tr');
+                        rows[0].slice(10, 22).forEach((header, index) => { const th = document.createElement('th'); th.className = index < 6 ? 'is-excel-group' : 'is-database-group'; th.classList.add('is-numeric'); th.textContent = header; childRow.appendChild(th); });
+                        thead.append(groupRow, childRow);
+                    } else {
+                        const headerRow = document.createElement('tr');
+                        rows[0].slice(0, columnCount).forEach((header, columnIndex) => {
+                            const th = document.createElement('th');
+                            th.textContent = String(header ?? '');
+                            if (developerMode && developerNumericHeaders.has(normalizedHeaders[columnIndex])) th.classList.add('is-numeric');
+                            headerRow.appendChild(th);
+                        });
+                        thead.appendChild(headerRow);
+                    }
+                    const pageStart = firstDataRow + currentPage * pageSize;
+                    rows.slice(pageStart, pageStart + pageSize).forEach((row, dataIndex) => {
                         const tr = document.createElement('tr');
+                        const rowIndex = pageStart + dataIndex;
                         Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] ?? '').forEach((value, columnIndex) => {
-                            const cell = document.createElement(rowIndex === 0 ? 'th' : 'td');
+                            const cell = document.createElement('td');
+                            if (developerMode && developerNumericHeaders.has(normalizedHeaders[columnIndex])) cell.classList.add('is-numeric');
+                            if (existedMode && rowIndex > 0) {
+                                const amountClass = comparisonClass(row, columnIndex);
+                                if (amountClass) cell.classList.add(amountClass);
+                            }
                             const numericText = String(value ?? '').trim().replace(/,/g, '');
                             const shouldFormat = developerMode && rowIndex > 0 && developerNumericHeaders.has(normalizedHeaders[columnIndex]) && numericText !== '' && Number.isFinite(Number(numericText));
                             cell.textContent = shouldFormat ? Number(numericText).toFixed(2) : String(value ?? '');
                             tr.appendChild(cell);
                         });
-                        table.appendChild(tr);
+                        tbody.appendChild(tr);
                     });
+                    if (developerMode && tbody.children.length === 0) {
+                        const remarkRow = document.createElement('tr');
+                        remarkRow.className = 'settlement-daily-empty-row';
+                        const remarkCell = document.createElement('td');
+                        remarkCell.colSpan = columnCount;
+                        remarkCell.textContent = existedMode ? 'No existing data found.' : 'No non-existing data found.';
+                        remarkRow.appendChild(remarkCell);
+                        tbody.appendChild(remarkRow);
+                    }
+                    table.append(thead, tbody);
                     wrap.appendChild(table);
+                    if (totalPages > 1) {
+                        const pager = document.createElement('div');
+                        pager.className = 'settlement-daily-preview-pager';
+                        const previous = document.createElement('button');
+                        previous.type = 'button'; previous.textContent = 'Previous'; previous.disabled = currentPage === 0;
+                        previous.addEventListener('click', () => renderPreview(rows, developerMode, existedMode, currentPage - 1));
+                        const status = document.createElement('span');
+                        status.textContent = 'Rows ' + (currentPage * pageSize + 1).toLocaleString() + '–' + Math.min((currentPage + 1) * pageSize, totalDataRows).toLocaleString() + ' of ' + totalDataRows.toLocaleString();
+                        const next = document.createElement('button');
+                        next.type = 'button'; next.textContent = 'Next'; next.disabled = currentPage >= totalPages - 1;
+                        next.addEventListener('click', () => renderPreview(rows, developerMode, existedMode, currentPage + 1));
+                        pager.append(previous, status, next);
+                        wrap.appendChild(pager);
+                    }
                 }
-                renderPreview(normalRows, false);
+                renderPreview(normalRows, false, false);
                 modes.querySelectorAll('input[name="settlementDailyPreviewMode"]').forEach(input => {
                     input.addEventListener('change', () => {
                         const developerMode = input.value === 'developer';
                         payoutTabs.hidden = !developerMode;
-                        renderPreview(developerMode ? developerRowsForView(activeDeveloperView) : normalRows, developerMode);
+                        renderPreview(developerMode ? developerRowsForView(activeDeveloperView) : normalRows, developerMode, developerMode && activeDeveloperView === 'existing');
                     });
                 });
                 payoutTabs.querySelectorAll('button[data-view]').forEach(button => {
                     button.addEventListener('click', () => {
                         activeDeveloperView = button.dataset.view || 'existing';
                         payoutTabs.querySelectorAll('button').forEach(item => item.classList.toggle('is-active', item === button));
-                        renderPreview(developerRowsForView(activeDeveloperView), true);
+                        renderPreview(developerRowsForView(activeDeveloperView), true, activeDeveloperView === 'existing');
                     });
                 });
                 if (window.Swal && typeof window.Swal.fire === 'function') {

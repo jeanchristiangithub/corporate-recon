@@ -74,9 +74,37 @@ try {
 		}
 
 		/* Partner table: sticky header and scrollable body */
-		.rpd-results .rwd-results-table-wrap {
+		#rpdResults .rwd-results-table-wrap {
 			overflow: auto;
 			/* height will be set dynamically by JS */
+			scrollbar-color: #df3345 #f1f3f5 !important;
+			scrollbar-width: auto;
+			color-scheme: light;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar {
+			width: 12px;
+			height: 12px;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-track {
+			background: #f1f3f5 !important;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb,
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:horizontal,
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:vertical {
+			background-color: #df3345 !important;
+			border: 2px solid #f1f3f5;
+			border-radius: 999px;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:hover {
+			background-color: #bd2637 !important;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-corner {
+			background: #f1f3f5 !important;
 		}
 
 		.rpd-results .rwd-results-table-wrap table thead th {
@@ -318,7 +346,13 @@ try {
 		.txn-detail-modal__body {
 			padding: 14px 28px 26px;
 			overflow: auto;
+			scrollbar-color: #df3345 #f1f3f5;
+			scrollbar-width: thin;
 		}
+		.txn-detail-modal__body::-webkit-scrollbar { width: 10px; height: 10px; }
+		.txn-detail-modal__body::-webkit-scrollbar-track { background: #f1f3f5; }
+		.txn-detail-modal__body::-webkit-scrollbar-thumb { background: #df3345; border: 2px solid #f1f3f5; border-radius: 999px; }
+		.txn-detail-modal__body::-webkit-scrollbar-thumb:hover { background: #bd2637; }
 
 		.txn-detail-section-title { margin: 0 0 10px; padding-bottom: 7px; border-bottom: 1px solid #d8dee7; color: #2f3137; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 		.txn-detail-section-title .material-icons { color: #df3345; font-size: 18px; }
@@ -876,9 +910,7 @@ try {
 				else shown = escapeHtml(shown);
 				return '<dt>' + escapeHtml(label) + ':</dt><dd>' + shown + '</dd>';
 			};
-			const status = pick('cad_status', 'status', 'transaction_status');
-			const left = text('CAD Status', status, { status: true }) +
-				text('Transaction Date', pick('tran_date', 'transaction_date'), { date: true }) +
+			const left = text('Transaction Date', pick('tran_date', 'transaction_date'), { date: true }) +
 				text('Transaction ID', pick('transaction_id')) +
 				text('Reference ID', pick('reference_id')) +
 				text('Product Type', pick('product')) +
@@ -895,11 +927,13 @@ try {
 				text('Margin', pick('margin')) +
 				text('Fee Amount', pick('fee_tran_amt'), { amount: true });
 			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by', 'created_by'));
-			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : formatCurrencyAbsolute(value)) + '</span></div>';
+			const transactionCurrency = String(pick('transaction_currency')).trim().toUpperCase();
+			const currencySign = transactionCurrency === 'PHP' ? '\u20B1' : (transactionCurrency === 'USD' ? '$' : '');
+			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : (currencySign ? currencySign + ' ' : '') + formatCurrencyAbsolute(value)) + '</span></div>';
 			return '<h5 class="txn-detail-section-title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5>' +
 				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + left + '</dl><dl class="txn-detail-list">' + right + '</dl></div>' +
 				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + forex + '</dl><dl class="txn-detail-list">' + upload + '</dl></div>' +
-				'<div class="txn-detail-amounts">' + amount('Base Amount', pick('base_amt')) + amount('Forex Revenue Share Amount', pick('fx_rev_share_amt')) + amount('Commission Amount', pick('comm_amt')) + '</div>';
+				'<div class="txn-detail-amounts">' + amount('Principal Amount', pick('base_amt')) + amount('Forex Revenue Share Amount', pick('fx_rev_share_amt')) + amount('Commission Amount', pick('comm_amt')) + '</div>';
 		}
 
 		function closePartnerDetailModal() {

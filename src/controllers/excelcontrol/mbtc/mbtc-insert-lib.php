@@ -3,6 +3,7 @@
 // Reusable insertion helper for MBTC web and partner payloads
 
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/mbtc-helper.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -70,10 +71,11 @@ class MbtcInsert {
 
     public function insertPartnerData(string $company, array $payloads): array{
         $pdo = $this->pdo;
+        $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $pdo->beginTransaction();
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
-        $sql = 'INSERT INTO mbtc_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+        $sql = 'INSERT INTO mbtc_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
         $stmt = $pdo->prepare($sql);
 
         foreach($payloads as $pl){
@@ -118,7 +120,7 @@ class MbtcInsert {
                 $usd = mbtc_partner_normalize_currency($usdRaw);
                 $in_php = mbtc_partner_normalize_currency($inPhpRaw);
 
-                $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now]);
+                $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now, $uploadedBy]);
                 $inserted += $stmt->rowCount();
             }
         }

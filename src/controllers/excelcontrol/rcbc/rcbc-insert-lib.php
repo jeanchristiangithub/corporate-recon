@@ -3,6 +3,7 @@
 // Reusable insertion helper for RCBC web and partner payloads
 
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/rcbc-helper.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -70,6 +71,7 @@ class RcbcInsert {
 
     public function insertPartnerData(string $company, array $payloads): array{
         $pdo = $this->pdo;
+        $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $pdo->beginTransaction();
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
@@ -108,7 +110,7 @@ class RcbcInsert {
                     return $ts !== false ? date('Y-m-d', $ts) : null;
                 };
 
-                $mapValue = function(string $col, array $r) use ($getRaw, $normalizeDate, $now, $company){
+                $mapValue = function(string $col, array $r) use ($getRaw, $normalizeDate, $now, $company, $uploadedBy){
                     switch($col){
                         case 'payout_id': return $getRaw($r, ['payout_id','transaction_id','Transaction Id','TransactionId','Reference No.','reference_no','ref_no'], '');
                         case 'transaction_id': return $getRaw($r, ['transaction_id','payout_id','Transaction Id','TransactionId','Reference No.','reference_no','ref_no'], '');
@@ -134,6 +136,7 @@ class RcbcInsert {
                         case 'partnername': return $getRaw($r, ['partnerName','partnername'], $company);
                         case 'created_at': return $now;
                         case 'updated_at': return $now;
+                        case 'uploaded_by': return $uploadedBy;
                         default:
                             return $getRaw($r, [$col, strtoupper($col), ucwords(str_replace('_',' ', $col))], null);
                     }
@@ -160,7 +163,7 @@ class RcbcInsert {
                 }
             } else {
                 // legacy insert path
-                $sql = 'INSERT INTO rcbc_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+                $sql = 'INSERT INTO rcbc_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
                 $stmt = $pdo->prepare($sql);
                 foreach($rows as $r){
                     $dateRaw = isset($r['Date']) ? $r['Date'] : $dateStr;
@@ -187,7 +190,7 @@ class RcbcInsert {
                     $usd = rcbc_partner_normalize_currency($usdRaw);
                     $in_php = rcbc_partner_normalize_currency($inPhpRaw);
 
-                    $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now]);
+                    $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now, $uploadedBy]);
                     $inserted += $stmt->rowCount();
                 }
             }

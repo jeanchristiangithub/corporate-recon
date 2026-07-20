@@ -167,6 +167,31 @@ $partnerInputChars = min($partnerInputChars, 90);
         .summary-report-content .mg-cover__wrap {
             overflow: auto;
             max-height: 68vh;
+            scrollbar-color: #dc3545 #f3f4f6;
+            scrollbar-width: auto;
+        }
+
+        .summary-report-content .mg-cover__wrap::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .summary-report-content .mg-cover__wrap::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+
+        .summary-report-content .mg-cover__wrap::-webkit-scrollbar-thumb {
+            background: #dc3545;
+            border: 2px solid #f3f4f6;
+            border-radius: 999px;
+        }
+
+        .summary-report-content .mg-cover__wrap::-webkit-scrollbar-thumb:hover {
+            background: #b02a37;
+        }
+
+        .summary-report-content .mg-cover__wrap::-webkit-scrollbar-corner {
+            background: #f3f4f6;
         }
 
         .summary-report-content .mg-cover table {
@@ -273,35 +298,35 @@ $partnerInputChars = min($partnerInputChars, 90);
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(-n+3),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(-n+12),
         .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+2):nth-child(-n+13) {
-            background: #f8bac1;
+            background: #fcebed;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(3),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(n+4):nth-child(-n+5),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+13):nth-child(-n+19),
         .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+14):nth-child(-n+20) {
-            background: #f9cbd0;
+            background: #fff;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(4),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(6),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+20),
         .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21) {
-            background: #fbdce0;
+            background: #fef5f6;
         }
 
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(1) th:nth-child(4),
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(2) th:nth-child(6),
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(3) th:nth-child(n+20):nth-child(-n+23),
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21):nth-child(-n+24) {
-            background: #fad2d7;
+            background: #fdf0f2;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(5),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(7),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+24),
         .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+25) {
-            background: #fbdce0;
+            background: #fef5f6;
         }
 
         .summary-report-content .mg-cover__message {

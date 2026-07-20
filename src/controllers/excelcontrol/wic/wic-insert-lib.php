@@ -3,6 +3,7 @@
 // Reusable insertion helper for WIC web and partner payloads
 
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/wic-helper.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -70,6 +71,7 @@ class WicInsert {
 
     public function insertPartnerData(string $company, array $payloads): array{
         $pdo = $this->pdo;
+        $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $pdo->beginTransaction();
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
@@ -104,6 +106,7 @@ class WicInsert {
                 if(in_array('amount', $existingCols)) $insertCols[] = 'amount';
                 if(in_array('coin', $existingCols)) $insertCols[] = 'coin';
                 if(in_array('created_at', $existingCols)) $insertCols[] = 'created_at';
+                if(in_array('uploaded_by', $existingCols)) $insertCols[] = 'uploaded_by';
                 $insertSql .= implode(',', $insertCols) . ') VALUES (' . rtrim(str_repeat('?,', count($insertCols)), ',') . ')';
                 $insStmt = $pdo->prepare($insertSql);
 
@@ -125,12 +128,13 @@ class WicInsert {
                     if(in_array('amount', $existingCols)) $params[] = $amt;
                     if(in_array('coin', $existingCols)) $params[] = $coin;
                     if(in_array('created_at', $existingCols)) $params[] = $now;
+                    if(in_array('uploaded_by', $existingCols)) $params[] = $uploadedBy;
                     $insStmt->execute($params);
                     $inserted += $insStmt->rowCount();
                 }
             } else {
                 // legacy insert path
-                $sql = 'INSERT INTO wic_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+                $sql = 'INSERT INTO wic_partner_data (partnerName, `date`, cover_date, `time`, reference_no, rts_tracer_no, provider, beneficiary_name, remitter_name, `php`, `usd`, in_php, created_at, updated_at, uploaded_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
                 $stmt = $pdo->prepare($sql);
                 foreach($rows as $r){
                     $dateRaw = isset($r['Date']) ? $r['Date'] : $dateStr;
@@ -157,7 +161,7 @@ class WicInsert {
                     $usd = wic_partner_normalize_currency($usdRaw);
                     $in_php = wic_partner_normalize_currency($inPhpRaw);
 
-                    $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now]);
+                    $stmt->execute([$company, $date, $cover, $time, $reference, $rts, $provider, $beneficiary, $remitter, $php, $usd, $in_php, $now, $now, $uploadedBy]);
                     $inserted += $stmt->rowCount();
                 }
             }

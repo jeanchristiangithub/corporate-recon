@@ -3,6 +3,7 @@
 // Reusable insertion helper for MONEYGRAM web and partner payloads
 
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/moneygram-helper.php';
 require_once __DIR__ . '/../../recon/daycard-locks-common.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
@@ -382,6 +383,7 @@ class MoneygramInsert {
 
     public function insertPartnerData(string $company, array $payloads): array{
         $pdo = $this->pdo;
+        $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
         $errorDetails = [];
@@ -599,6 +601,7 @@ class MoneygramInsert {
         if(isset($availableColumns['partnername'])) $insertColumns[] = $availableColumns['partnername'];
         if(isset($availableColumns['created_at'])) $insertColumns[] = $availableColumns['created_at'];
         if(isset($availableColumns['updated_at'])) $insertColumns[] = $availableColumns['updated_at'];
+        if(isset($availableColumns['uploaded_by'])) $insertColumns[] = $availableColumns['uploaded_by'];
 
         if(empty($insertColumns)){
             return ['success'=>false,'error'=>'No compatible columns found in moneygram_partner_data','inserted'=>0];
@@ -621,6 +624,8 @@ class MoneygramInsert {
                         $values[] = trim($company);
                     } elseif($colLower === 'created_at' || $colLower === 'updated_at'){
                         $values[] = $now;
+                    } elseif($colLower === 'uploaded_by'){
+                        $values[] = $uploadedBy;
                     } else {
                         $values[] = null;
                     }
