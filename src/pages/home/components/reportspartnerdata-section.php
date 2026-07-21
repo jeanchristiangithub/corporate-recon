@@ -926,7 +926,7 @@ try {
 				text('Transaction Forex Rate', pick('fx_rate_trn', 'tran_fx_rate')) +
 				text('Margin', pick('margin')) +
 				text('Fee Amount', pick('fee_tran_amt'), { amount: true });
-			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by', 'created_by'));
+			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by_name', 'uploaded_by', 'created_by'));
 			const transactionCurrency = String(pick('transaction_currency')).trim().toUpperCase();
 			const currencySign = transactionCurrency === 'PHP' ? '\u20B1' : (transactionCurrency === 'USD' ? '$' : '');
 			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : (currencySign ? currencySign + ' ' : '') + formatCurrencyAbsolute(value)) + '</span></div>';

@@ -1228,10 +1228,12 @@ try {
 			const hasSend = hasValue(data.date_send);
 			const isPayout = hasClaimed;
 			const isCancelled = hasCancelled && (hasClaimed || hasSend);
+			const currencyCode = String(data.currency || '').trim().toUpperCase();
+			const currencySymbol = currencyCode === 'PHP' ? '₱' : (currencyCode === 'USD' ? '$' : '');
 			const money = key => {
 				const number = Number(data[key]);
 				const formatted = Number.isFinite(number) ? number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value(key);
-				return formatted;
+				return (currencySymbol ? currencySymbol + ' ' : '') + formatted;
 			};
 
 			let transactionRows = row('CAD Status', '-');
