@@ -266,6 +266,10 @@ try {
 						<option value="sendout_cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
+				<label for="rwdReferenceId" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
+					<span style="font-size:0.75rem;color:#6b7280">CCREF NO</span>
+					<input id="rwdReferenceId" name="reference_id" type="text" placeholder="Enter CCREF NO" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
+				</label>
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
 				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="display:none;padding:0.55rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff;white-space:nowrap">Export Excel</button>
 				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
@@ -433,7 +437,7 @@ try {
 		let virtualWebIsSendout = false;
 		let autoFilterTimer = null;
 		let isClearingFilters = false;
-		const autoFilterIds = ['rwdType','rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
+		const autoFilterIds = ['rwdType','rwdReferenceId','rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
 		const partners = <?= json_encode($partners) ?>;
 
 		// Local partner autocomplete mirrors Partner Data Reports.
@@ -1096,6 +1100,7 @@ try {
 				const areaEl = document.getElementById('rwdArea');
 				const branchNameEl = document.getElementById('rwdBranchName');
 				const branchIdEl = document.getElementById('rwdBranchId');
+				const referenceIdEl = document.getElementById('rwdReferenceId');
 
 				if(mainEl){ mainEl.value = ''; mainEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(zoneEl){ zoneEl.value = ''; zoneEl.dispatchEvent(new Event('change',{bubbles:true})); }
@@ -1103,6 +1108,7 @@ try {
 				if(areaEl){ areaEl.value = ''; areaEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(branchNameEl){ branchNameEl.value = ''; branchNameEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(branchIdEl){ branchIdEl.value = ''; branchIdEl.dispatchEvent(new Event('change',{bubbles:true})); }
+				if(referenceIdEl){ referenceIdEl.value = ''; referenceIdEl.dispatchEvent(new Event('change',{bubbles:true})); }
 
 				// Hide the results table for the selected partner and clear stored report data.
 				// Partner input and Start/End dates are intentionally retained.
@@ -1320,6 +1326,7 @@ try {
 			// --- Date validation: require both Start and End date before enabling filters/View ---
 			const startDateEl = document.getElementById('rwdStartDate');
 			const endDateEl = document.getElementById('rwdEndDate');
+			const referenceIdEl = document.getElementById('rwdReferenceId');
 			const filterIds = ['rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
 
 			function showDurationAlert(message){
@@ -1336,6 +1343,17 @@ try {
 				return Promise.resolve();
 			}
 
+			function getRequiredSearchMessage(partnerValue, startValue, endValue){
+				const missing = [];
+				if (!String(partnerValue || '').trim()) missing.push('Corporate Partner');
+				if (!String(startValue || '').trim()) missing.push('Start date');
+				if (!String(endValue || '').trim()) missing.push('End date');
+				if (!missing.length) return '';
+				if (missing.length === 1) return missing[0] + ' is required.';
+				if (missing.length === 2) return missing[0] + ' and ' + missing[1] + ' are required.';
+				return 'Corporate Partner, Start date, and End date are required.';
+			}
+
 			function syncEndDateToStartDate(){
 				if(startDateEl && endDateEl && startDateEl.value){
 					endDateEl.value = startDateEl.value;
@@ -1350,7 +1368,8 @@ try {
 					el.disabled = !enabled;
 					if(!enabled){ el.classList.add('rwd-disabled'); } else { el.classList.remove('rwd-disabled'); }
 				});
-				viewBtn.disabled = !enabled;
+				// Keep View clickable so required-field warnings can be displayed.
+				viewBtn.disabled = false;
 			}
 
 			function showDateRequiredMessage(e){
@@ -1361,8 +1380,15 @@ try {
 			function updateDateValidationState(){
 				const s = String(startDateEl.value || '').trim();
 				const t = String(endDateEl.value || '').trim();
-				const ok = (s !== '' && t !== '');
-				setFiltersEnabled(ok);
+				const hasDateRange = (s !== '' && t !== '');
+				filterIds.forEach(id => {
+					const el = document.getElementById(id);
+					if (!el) return;
+					el.disabled = !hasDateRange;
+					el.classList.toggle('rwd-disabled', !hasDateRange);
+				});
+				// Validation runs on click; do not silently disable the action.
+				viewBtn.disabled = false;
 			}
 
 			// On load: disable filters and view button
@@ -1371,6 +1397,7 @@ try {
 			// Wire date input events
 			if(startDateEl){ startDateEl.addEventListener('change', syncEndDateToStartDate); startDateEl.addEventListener('input', syncEndDateToStartDate); }
 			if(endDateEl){ endDateEl.addEventListener('change', updateDateValidationState); endDateEl.addEventListener('input', updateDateValidationState); }
+			if(referenceIdEl){ referenceIdEl.addEventListener('input', updateDateValidationState); referenceIdEl.addEventListener('change', updateDateValidationState); }
 
 			// Intercept clicks on autocomplete containers to show message when disabled
 			filterIds.forEach(id => {
@@ -1395,7 +1422,9 @@ try {
 					if(!clickedView) return; // ignore clicks on other buttons
 					const s = String(startDateEl.value || '').trim();
 					const t = String(endDateEl.value || '').trim();
-					if(!s || !t){ ev.preventDefault(); showDateRequiredMessage(ev); }
+					const referenceId = String((referenceIdEl || {}).value || '').trim();
+					const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, s, t);
+					if(requiredMessage){ ev.preventDefault(); showDurationAlert(requiredMessage); }
 				});
 			}
 
@@ -1526,6 +1555,7 @@ try {
 					area: currentFilters.area || '',
 					branch_name: currentFilters.branch_name || '',
 					branch_id: currentFilters.branch_id || '',
+					reference_id: currentFilters.reference_id || '',
 					type: currentFilters.type || '',
 					currency: currentFilters.currency || '',
 					page: String(page),
@@ -1552,20 +1582,16 @@ try {
 		}
 
 		async function runReport() {
-			// Validate corporate partner and dates before running
-			if (!input.value || input.value.trim() === '') {
-				await showDurationAlert('Please select a corporate partner to view transactions.');
-				input.focus();
-				return;
-			}
-
+			// Corporate Partner is optional when an exact CCREF NO is provided.
+			const referenceId = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
 			const sd = String(document.getElementById('rwdStartDate').value || '').trim();
 			const ed = String(document.getElementById('rwdEndDate').value || '').trim();
-			if (!sd || !ed) {
-				await showDurationAlert('Please select Start Date and End Date first.');
+			const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, sd, ed);
+			if (requiredMessage) {
+				await showDurationAlert(requiredMessage);
 				return;
 			}
-			if (sd > ed) {
+			if (sd && ed && sd > ed) {
 				await showDurationAlert('Start Date cannot be greater than End Date.');
 				return;
 			}
@@ -1579,10 +1605,11 @@ try {
 			const area = document.getElementById('rwdArea').value || '';
 			const branch_name = document.getElementById('rwdBranchName').value || '';
 			const branch_id = document.getElementById('rwdBranchId').value || '';
+			const reference_id = (document.getElementById('rwdReferenceId') || {}).value || '';
             const type = document.getElementById('rwdType') ? (document.getElementById('rwdType').value || '') : '';
             const currency = currencyFilter ? (currencyFilter.value || '') : '';
 
-			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, type, currency };
+			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, reference_id, type, currency };
 			await fetchTransactions(1);
 		}
 
@@ -1602,7 +1629,8 @@ try {
 			const partnerValue = String(input.value || '').trim();
 			const startDateValue = String((document.getElementById('rwdStartDate') || {}).value || '').trim();
 			const endDateValue = String((document.getElementById('rwdEndDate') || {}).value || '').trim();
-			if (!partnerValue || !startDateValue || !endDateValue) return;
+			const referenceIdValue = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
+			if ((!partnerValue && !referenceIdValue) || ((!startDateValue || !endDateValue) && !referenceIdValue)) return;
 			if (autoFilterTimer) clearTimeout(autoFilterTimer);
 			autoFilterTimer = setTimeout(async function() {
 				autoFilterTimer = null;
@@ -1708,13 +1736,15 @@ try {
 				const area = (document.getElementById('rwdArea') || {}).value || '';
 				const branch_name = (document.getElementById('rwdBranchName') || {}).value || '';
 				const branch_id = (document.getElementById('rwdBranchId') || {}).value || '';
+				const reference_id = (document.getElementById('rwdReferenceId') || {}).value || '';
 				const currency = currencyFilter ? (currencyFilter.value || '') : '';
 
-				if (!startDate || !endDate) {
-					await showDurationAlert('Please select Start Date and End Date first.');
+				const requiredMessage = reference_id.trim() ? '' : getRequiredSearchMessage(partner, startDate, endDate);
+				if (requiredMessage) {
+					await showDurationAlert(requiredMessage);
 					return;
 				}
-				if (startDate > endDate) {
+				if (startDate && endDate && startDate > endDate) {
 					await showDurationAlert('Start Date cannot be greater than End Date.');
 					return;
 				}
@@ -1730,16 +1760,20 @@ try {
 					area: area || '',
 					branch_name: branch_name || '',
 					branch_id: branch_id || '',
+					reference_id: reference_id || '',
 					currency: currency || ''
 				});
 
 				// Build filename on client side (sanitization on server too)
 				function sanitizeFilename(s) { return (s || '').replace(/[\\/:*?"<>|]+/g, '_'); }
-				const partnerPart = (partner || '').replace(/\s+/g, '_');
+				const partnerPart = partner ? partner.replace(/\s+/g, '_') : 'ALL_PARTNERS';
 				const typePart = (type || '') === '' ? 'ALL' : type.toUpperCase();
 				const currencyPart = currency || 'ALL';
 				const branchPart = branch_name ? sanitizeFilename(branch_name) : '';
-				const filenameParts = [partnerPart, `${startDate}_to_${endDate}`, typePart, currencyPart];
+				const dateOrReferencePart = startDate && endDate
+					? `${startDate}_to_${endDate}`
+					: `CCREF_${sanitizeFilename(reference_id)}`;
+				const filenameParts = [partnerPart, dateOrReferencePart, typePart, currencyPart];
 				if (branchPart) filenameParts.push(branchPart);
 				const filename = filenameParts.join('_') + '.xlsx';
 

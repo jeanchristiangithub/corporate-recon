@@ -13,7 +13,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
     exit;
 }
-
 if (empty($_SESSION['user'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Unauthorized.']);
@@ -30,65 +29,136 @@ if ($storedToken === '' || !hash_equals($storedToken, $sentToken)) {
 
 $payload = json_decode((string)($_POST['payload'] ?? ''), true);
 $pairs = is_array($payload) && isset($payload['pairs']) && is_array($payload['pairs']) ? $payload['pairs'] : [];
+
+function settlementDailyAmount(mixed $value): ?float
+{
+    if ($value === null) return null;
+    $text = trim((string)$value);
+    if ($text === '') return null;
+    $negative = preg_match('/^\(.*\)$/', $text) === 1;
+    $text = trim($text, "() \t\n\r\0\x0B");
+    $text = str_replace([',', ' '], '', $text);
+    if (!is_numeric($text)) return null;
+    $number = (float)$text;
+    return $negative ? -abs($number) : $number;
+}
+
+function settlementDailyMatchKey(string $referenceId, mixed $value, bool $isDate): string
+{
+    // MoneyGram settlement files can present a database-negative amount as a
+    // positive value (and accounting-formatted negatives as `(123.45)`). The
+    // Existed Data comparison is therefore based on monetary magnitude after
+    // settlementDailyAmount() has normalized the Excel value.
+    $normalized = $isDate ? (string)$value : number_format(abs((float)$value), 6, '.', '');
+    return $referenceId . "\0" . $normalized;
+}
+
+/** @return array<int,array{exists:bool,database:?array,matched_by:string}> */
+function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column, bool $isDate): array
+{
+    $allowedColumns = ['tran_date', 'base_tran_amt', 'fx_rev_share_tran_amt', 'comm_tran_amt'];
+    if ($candidates === [] || !in_array($column, $allowedColumns, true)) return [];
+
+    $unique = [];
+    foreach ($candidates as $index => $candidate) {
+        $key = settlementDailyMatchKey($candidate['reference_id'], $candidate['value'], $isDate);
+        $unique[$key]['reference_id'] = $candidate['reference_id'];
+        $unique[$key]['value'] = $candidate['value'];
+        $unique[$key]['indexes'][] = (int)$index;
+    }
+
+    $clauses = [];
+    $parameters = [];
+    $matchExpression = $isDate ? '`' . $column . '`' : 'ABS(`' . $column . '`)';
+    foreach ($unique as $candidate) {
+        $clauses[] = '(reference_id = ? AND ' . $matchExpression . ' = ?)';
+        $parameters[] = $candidate['reference_id'];
+        $parameters[] = $isDate ? $candidate['value'] : abs((float)$candidate['value']);
+    }
+    $summaryStatement = $pdo->prepare(
+        'SELECT reference_id, ' . $matchExpression . ' AS match_value, COUNT(*) AS match_count, MAX(id) AS selected_id
+         FROM moneygram_partner_data WHERE ' . implode(' OR ', $clauses) . '
+         GROUP BY reference_id, ' . $matchExpression
+    );
+    $summaryStatement->execute($parameters);
+    $summaries = $summaryStatement->fetchAll(PDO::FETCH_ASSOC);
+
+    $selectedIds = array_values(array_unique(array_filter(array_map(
+        static fn(array $row): int => (int)($row['selected_id'] ?? 0),
+        $summaries
+    ))));
+    $dataById = [];
+    if ($selectedIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
+        $dataStatement = $pdo->prepare(
+            'SELECT id, tran_date, fx_rate_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt
+             FROM moneygram_partner_data WHERE id IN (' . $placeholders . ')'
+        );
+        $dataStatement->execute($selectedIds);
+        foreach ($dataStatement->fetchAll(PDO::FETCH_ASSOC) as $row) $dataById[(int)$row['id']] = $row;
+    }
+
+    $results = [];
+    foreach ($summaries as $summary) {
+        $key = settlementDailyMatchKey((string)$summary['reference_id'], $summary['match_value'], $isDate);
+        if (!isset($unique[$key])) continue;
+        $database = $dataById[(int)$summary['selected_id']] ?? null;
+        if (is_array($database)) unset($database['id']);
+        foreach ($unique[$key]['indexes'] as $index) {
+            $results[$index] = [
+                'exists' => (int)$summary['match_count'] > 0,
+                'database' => $database,
+                'matched_by' => $column,
+            ];
+        }
+    }
+    return $results;
+}
+
 try {
     $pdo = fileRecDbConnection();
-    $validPairs = [];
+    $inputRows = [];
     $results = [];
     foreach ($pairs as $pair) {
         $index = filter_var($pair['index'] ?? null, FILTER_VALIDATE_INT);
+        if ($index === false || $index < 0) continue;
         $referenceId = trim((string)($pair['reference_id'] ?? ''));
-        $tranDate = trim((string)($pair['tran_date'] ?? ''));
-        if ($index === false || $index < 0 || $referenceId === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $tranDate)) {
-            if ($index !== false && $index >= 0) $results[(string)$index] = ['exists' => false, 'database' => null];
-            continue;
-        }
-
-        $key = $referenceId . "\0" . $tranDate;
-        $validPairs[$key]['reference_id'] = $referenceId;
-        $validPairs[$key]['tran_date'] = $tranDate;
-        $validPairs[$key]['indexes'][] = $index;
+        $inputRows[$index] = [
+            'reference_id' => $referenceId,
+            'tran_date' => trim((string)($pair['tran_date'] ?? '')),
+            'base_tran_amt' => settlementDailyAmount($pair['base_tran_amt'] ?? null),
+            'fx_rev_share_tran_amt' => settlementDailyAmount($pair['fx_rev_share_tran_amt'] ?? null),
+            'comm_tran_amt' => settlementDailyAmount($pair['comm_tran_amt'] ?? null),
+        ];
+        $results[$index] = ['exists' => false, 'database' => null, 'matched_by' => null];
     }
 
-    $recordsByKey = [];
-    if ($validPairs !== []) {
-        $clauses = [];
-        $parameters = [];
-        foreach ($validPairs as $pair) {
-            $clauses[] = '(reference_id = ? AND tran_date = ?)';
-            $parameters[] = $pair['reference_id'];
-            $parameters[] = $pair['tran_date'];
+    $stages = [
+        ['column' => 'tran_date', 'date' => true],
+        ['column' => 'base_tran_amt', 'date' => false],
+        ['column' => 'fx_rev_share_tran_amt', 'date' => false],
+        ['column' => 'comm_tran_amt', 'date' => false],
+    ];
+    foreach ($stages as $stage) {
+        $candidates = [];
+        foreach ($inputRows as $index => $row) {
+            if ($results[$index]['exists'] || $row['reference_id'] === '') continue;
+            $value = $row[$stage['column']];
+            if ($stage['date']) {
+                if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) continue;
+            } elseif ($value === null || abs((float)$value) < 0.0000001) {
+                continue;
+            }
+            $candidates[$index] = ['reference_id' => $row['reference_id'], 'value' => $value];
         }
-        $summaryStatement = $pdo->prepare(
-            'SELECT reference_id, tran_date, COUNT(*) AS match_count, MAX(id) AS selected_id
-             FROM moneygram_partner_data WHERE ' . implode(' OR ', $clauses) . '
-             GROUP BY reference_id, tran_date'
-        );
-        $summaryStatement->execute($parameters);
-        $summaries = $summaryStatement->fetchAll(PDO::FETCH_ASSOC);
-        $selectedIds = array_values(array_filter(array_map(static fn(array $row): int => (int)($row['selected_id'] ?? 0), $summaries)));
-        $dataById = [];
-        if ($selectedIds !== []) {
-            $idPlaceholders = implode(',', array_fill(0, count($selectedIds), '?'));
-            $dataStatement = $pdo->prepare(
-                'SELECT id, fx_rate_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt
-                 FROM moneygram_partner_data WHERE id IN (' . $idPlaceholders . ')'
-            );
-            $dataStatement->execute($selectedIds);
-            foreach ($dataStatement->fetchAll(PDO::FETCH_ASSOC) as $dataRow) $dataById[(int)$dataRow['id']] = $dataRow;
+        foreach (settlementDailyBatchLookup($pdo, $candidates, $stage['column'], $stage['date']) as $index => $match) {
+            $results[$index] = $match;
         }
-        foreach ($summaries as $summary) {
-            $key = (string)$summary['reference_id'] . "\0" . (string)$summary['tran_date'];
-            $database = $dataById[(int)$summary['selected_id']] ?? null;
-            if (is_array($database)) unset($database['id']);
-            $recordsByKey[$key] = ['exists' => (int)$summary['match_count'] > 0, 'database' => $database];
-        }
-    }
-    foreach ($validPairs as $key => $pair) {
-        $record = $recordsByKey[$key] ?? ['exists' => false, 'database' => null];
-        foreach ($pair['indexes'] as $index) $results[(string)$index] = $record;
     }
 
-    echo json_encode(['success' => true, 'results' => $results], JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
+    $encodedResults = [];
+    foreach ($results as $index => $result) $encodedResults[(string)$index] = $result;
+    echo json_encode(['success' => true, 'results' => $encodedResults], JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
 } catch (Throwable $exception) {
     error_log('[settlement-daily-classify] ' . $exception->getMessage());
     http_response_code(500);

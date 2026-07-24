@@ -471,6 +471,10 @@ try {
 						<option value="sendout-cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
+				<label for="rpdReferenceId" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
+					<span style="font-size:0.75rem;color:#6b7280">REFERENCE ID</span>
+					<input id="rpdReferenceId" name="reference_id" type="text" placeholder="Enter Reference ID" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
+				</label>
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
 				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Export to Excel</button>
 				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
@@ -585,6 +589,7 @@ try {
 		const hideBtn = document.getElementById('rpdHideBtn');
 		const typeFilter = document.getElementById('rpdType');
 		const currencyFilter = document.getElementById('rpdCurrencyFilter');
+		const referenceIdFilter = document.getElementById('rpdReferenceId');
 		const pagination = document.getElementById('rpdPagination');
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
 		const prevBtn = document.getElementById('rpdPrevBtn');
@@ -1005,6 +1010,7 @@ try {
 					end_date: currentFilters.endDate,
 					type: currentFilters.type || '',
 					settlement_currency: currentFilters.currency || '',
+					reference_id: currentFilters.referenceId || '',
 					page: String(page),
 					per_page: String(DEFAULT_PAGE_SIZE)
 				});
@@ -1034,26 +1040,34 @@ try {
 			const partnerVal = input.value && input.value.trim() ? input.value.trim() : '';
 			const startDate = (document.getElementById('rpdStartDate') || {}).value || '';
 			const endDate = (document.getElementById('rpdEndDate') || {}).value || '';
+			const referenceId = referenceIdFilter ? referenceIdFilter.value.trim() : '';
 
 			// clear previous markers
 			if (sdEl) sdEl.classList.remove('rpd-invalid');
 			if (edEl) edEl.classList.remove('rpd-invalid');
 
 			if (!partnerVal) missing.push('Corporate Partner');
-			if (!startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
-			if (!endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
+			if (!referenceId && !startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
+			if (!referenceId && !endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
 
 			if (missing.length > 0) {
 				showRequiredModal(missing);
 				if (!partnerVal) input.focus();
 				return;
 			}
-			if (startDate > endDate) {
+			if (startDate && endDate && startDate > endDate) {
 				await showDurationAlert('Start Date cannot be greater than End Date.');
 				return;
 			}
 
-			currentFilters = { partner: partnerVal, startDate, endDate, type: typeFilter ? typeFilter.value : '', currency: currencyFilter ? currencyFilter.value : '' };
+			currentFilters = {
+				partner: partnerVal,
+				startDate,
+				endDate,
+				type: typeFilter ? typeFilter.value : '',
+				currency: currencyFilter ? currencyFilter.value : '',
+				referenceId
+			};
 			await fetchTransactions(1);
 		}
 
@@ -1103,6 +1117,14 @@ try {
 		if (hideBtn) {
 			hideBtn.addEventListener('click', function(e) {
 				e.preventDefault();
+				if (form) form.reset();
+				if (sdEl) sdEl.classList.remove('rpd-invalid');
+				if (edEl) edEl.classList.remove('rpd-invalid');
+				const partnerSuggestions = document.getElementById('rpdPartnerSuggestions');
+				if (partnerSuggestions) {
+					partnerSuggestions.innerHTML = '';
+					partnerSuggestions.hidden = true;
+				}
 				hideReportData();
 			});
 		}
@@ -1472,7 +1494,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 
 			// Moneygram: request server-side Excel export including Legacy ID
 			if(csvIsMoneygram){
-				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '' });
+				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '', reference_id: currentFilters && currentFilters.referenceId ? currentFilters.referenceId : '' });
 				const url = `${getAppBasePath()}/src/controllers/excelcontrol/partner-data-export.php?${params.toString()}`;
 				exportBtn.disabled = true;
 				exportBtn.textContent = 'Preparing...';

@@ -71,7 +71,8 @@ try {
         exit;
     }
 
-    if ($start_date === '' || $end_date === '') {
+    $referenceIdFilter = trim((string)($_GET['reference_id'] ?? ''));
+    if (($start_date === '' || $end_date === '') && $referenceIdFilter === '') {
         echo json_encode(['success' => false, 'error' => 'Start date and End date are required']);
         exit;
     }
@@ -105,9 +106,11 @@ try {
         $whereParts[] = "`$partnerCol` = ?";
         $paramsExec[] = $partner;
     }
-    if ($dateCol !== null) {
+    if ($dateCol !== null && $start_date !== '') {
         $whereParts[] = 'DATE(`' . $dateCol . '`) >= ?';
         $paramsExec[] = $start_date;
+    }
+    if ($dateCol !== null && $end_date !== '') {
         $whereParts[] = 'DATE(`' . $dateCol . '`) <= ?';
         $paramsExec[] = $end_date;
     }
@@ -138,6 +141,10 @@ try {
     if (in_array($currencyFilter, ['PHP', 'USD'], true) && isset($existing['settlement_currency'])) {
         $whereParts[] = 'UPPER(TRIM(settlement_currency)) = ?';
         $paramsExec[] = $currencyFilter;
+    }
+    if ($referenceIdFilter !== '' && isset($existing['reference_id'])) {
+        $whereParts[] = 'TRIM(reference_id) = ?';
+        $paramsExec[] = $referenceIdFilter;
     }
 
     $whereSql = !empty($whereParts) ? ' WHERE ' . implode(' AND ', $whereParts) : '';

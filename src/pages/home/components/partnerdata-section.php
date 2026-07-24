@@ -1251,9 +1251,9 @@ try {
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     await waitForNextFrame();
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
+                    progressText.textContent = 'Preparing duplicate check for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's') + '...';
                     const allDuplicates = [];
-                    const allPairs = [];
+                    const pairMap = new Map();
 
                     payloads.forEach(pl => {
                         (pl.rows||[]).forEach(r=>{
@@ -1261,11 +1261,17 @@ try {
                             const rawDate = getMoneygramTranDate(r, pl);
                             const dateFull = normalizeClientDate(rawDate);
                             const dateOnly = dateFull ? dateFull.split(' ')[0] : '';
-                            if(transactionId) allPairs.push({ transaction_id: transactionId, tran_date: dateOnly });
+                            if(transactionId){
+                                const pairKey = transactionId + '|' + dateOnly;
+                                pairMap.set(pairKey, { transaction_id: transactionId, tran_date: dateOnly });
+                            }
                         });
                     });
 
+                    const allPairs = Array.from(pairMap.values());
+
                     if(allPairs.length > 0){
+                        progressText.textContent = 'Checking ' + allPairs.length.toLocaleString() + ' unique transactions for duplicates...';
                         throwIfUploadCancelled();
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: allPairs }) });
                         const chkTxt = await chkResRaw.text();
@@ -1276,7 +1282,7 @@ try {
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                     }
                     progressBar.style.width = '45%';
-                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? totalFiles : 0) + ' of ' + totalFiles;
+                    progressText.textContent = 'Duplicate check completed for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's');
 
                     if(allDuplicates.length > 0){
                         const msg = 'Data with the same Transaction ID and Transaction DATE already exists. Do you want to overwrite the existing data?';

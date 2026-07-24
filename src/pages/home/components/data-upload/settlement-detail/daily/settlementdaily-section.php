@@ -39,7 +39,7 @@ try {
                 </div>
             </label>
 
-            <label class="settlement-daily-field">
+            <label class="settlement-daily-field settlement-daily-field--partner-id">
                 <span>Partner ID</span>
                 <input id="settlementDailyPartnerId" type="text" maxlength="4" placeholder="ID">
             </label>
@@ -185,11 +185,17 @@ try {
             const headers = rows[0].map(value => normalize(value));
             const referenceIndex = headers.findIndex(header => ['reference id', 'reference_id', 'reference no', 'reference'].includes(header));
             const dateIndex = headers.findIndex(header => ['tran date', 'tran_date', 'transaction date', 'date'].includes(header));
+            const baseAmountIndex = headers.findIndex(header => ['base tran amt', 'base_tran_amt', 'base amt', 'base_amt'].includes(header));
+            const fxShareAmountIndex = headers.findIndex(header => ['fx rev share tran amt', 'fx_rev_share_tran_amt', 'fx rev share amt', 'fx_rev_share_amt'].includes(header));
+            const commissionAmountIndex = headers.findIndex(header => ['comm tran amt', 'comm_tran_amt', 'comm amt', 'comm_amt'].includes(header));
             if (referenceIndex < 0 || dateIndex < 0) return {};
             const pairs = rows.slice(1).map((row, index) => ({
                 index: index,
                 reference_id: String(row[referenceIndex] ?? '').trim(),
-                tran_date: normalizeLookupDate(row[dateIndex], XLSX)
+                tran_date: normalizeLookupDate(row[dateIndex], XLSX),
+                base_tran_amt: baseAmountIndex >= 0 ? row[baseAmountIndex] ?? '' : '',
+                fx_rev_share_tran_amt: fxShareAmountIndex >= 0 ? row[fxShareAmountIndex] ?? '' : '',
+                comm_tran_amt: commissionAmountIndex >= 0 ? row[commissionAmountIndex] ?? '' : ''
             }));
             const results = {};
             const chunks = [];
@@ -235,7 +241,7 @@ try {
                 const developerRows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }) : [];
                 const classifications = await classifyDeveloperRows(developerRows, XLSX);
                 const sourceColumnCount = developerRows.length ? (() => { const empty = developerRows[0].findIndex(value => String(value ?? '').trim() === ''); return empty >= 0 ? empty : developerRows[0].length; })() : 0;
-                const existedHeader = ['Account Number', 'Agent Name', 'Legacy ID', 'Tran Date', 'Transaction ID', 'Reference ID', 'Product', 'Tran Type', 'Orig Cntry', 'Rcv Cntry', 'FX Rate trn', 'Margin', 'Base Tran Amt', 'Fee Tran Amt', 'Fx Rev Share Tran Amt', 'Comm Tran Amt', 'db_fx_rate_trn', 'db_margin', 'db_base_tran_amt', 'db_fee_tran_amt', 'db_fx_rev_share_tran_amt', 'db_comm_tran_amt', 'Total Tran Amt', 'Settlement Currency', 'Transaction Currency', 'Remarks'];
+                const existedHeader = ['Account Number', 'Agent Name', 'Legacy ID', 'Tran Date', 'Transaction ID', 'Reference ID', 'Product', 'Tran Type', 'Orig Cntry', 'Rcv Cntry', 'FX Rate trn', 'Margin', 'Base Tran Amt', 'Fee Tran Amt', 'Fx Rev Share Tran Amt', 'Comm Tran Amt', 'db_tran_date', 'db_fx_rate_trn', 'db_margin', 'db_base_tran_amt', 'db_fee_tran_amt', 'db_fx_rev_share_tran_amt', 'db_comm_tran_amt', 'Total Tran Amt', 'Settlement Currency', 'Transaction Currency'];
                 const sourceAliases = [
                     ['account number', 'account_number'], ['agent name', 'agent_name'], ['legacy id', 'legacy_id'], ['tran date', 'tran_date'],
                     ['transaction id', 'transaction_id'], ['reference id', 'reference_id'], ['product'], ['tran type', 'tran_type'],
@@ -254,11 +260,11 @@ try {
                     return [
                         ...excelValues.slice(0, 10),
                         ...excelValues.slice(10, 16),
+                        database ? database.tran_date ?? '' : '',
                         database ? database.fx_rate_trn ?? '' : '', database ? database.margin ?? '' : '',
                         database ? database.base_tran_amt ?? '' : '', database ? database.fee_tran_amt ?? '' : '',
                         database ? database.fx_rev_share_tran_amt ?? '' : '', database ? database.comm_tran_amt ?? '' : '',
-                        ...excelValues.slice(16),
-                        ''
+                        ...excelValues.slice(16)
                     ];
                 }
                 const existedDeveloperRows = developerRows.length ? [existedHeader] : [];
@@ -290,10 +296,10 @@ try {
                     return text !== '' && Number.isFinite(Number(text)) ? Number(text) : null;
                 }
                 function comparisonClass(row, columnIndex) {
-                    if (columnIndex < 10 || columnIndex > 21) return '';
-                    const pairOffset = columnIndex < 16 ? columnIndex - 10 : columnIndex - 16;
+                    if ((columnIndex < 10 || columnIndex > 15) && (columnIndex < 17 || columnIndex > 22)) return '';
+                    const pairOffset = columnIndex < 16 ? columnIndex - 10 : columnIndex - 17;
                     const excelValue = comparableNumber(row[10 + pairOffset]);
-                    const databaseValue = comparableNumber(row[16 + pairOffset]);
+                    const databaseValue = comparableNumber(row[17 + pairOffset]);
                     const databaseMissing = databaseValue === null || databaseValue === 0;
                     const excelMissing = excelValue === null || excelValue === 0;
                     if (databaseValue !== null && excelValue !== null && Math.abs(databaseValue).toFixed(2) === Math.abs(excelValue).toFixed(2)) return 'is-amount-match';
@@ -325,15 +331,15 @@ try {
                         const groupRow = document.createElement('tr');
                         rows[0].forEach((header, columnIndex) => {
                             if (columnIndex > 10 && columnIndex < 16) return;
-                            if (columnIndex > 16 && columnIndex < 22) return;
+                            if (columnIndex > 16 && columnIndex < 23) return;
                             const th = document.createElement('th');
                             if (columnIndex === 10) { th.colSpan = 6; th.className = 'is-excel-group'; th.textContent = 'FROM SETTLEMENT PARTNER DETAIL EXCEL DATA'; }
-                            else if (columnIndex === 16) { th.colSpan = 6; th.className = 'is-database-group'; th.textContent = 'FROM PARTNER DAILY DATA'; }
+                            else if (columnIndex === 16) { th.colSpan = 7; th.className = 'is-database-group'; th.textContent = 'FROM PARTNER DAILY DATA'; }
                             else { th.rowSpan = 2; th.textContent = header; if (developerNumericHeaders.has(normalize(header))) th.classList.add('is-numeric'); }
                             groupRow.appendChild(th);
                         });
                         const childRow = document.createElement('tr');
-                        rows[0].slice(10, 22).forEach((header, index) => { const th = document.createElement('th'); th.className = index < 6 ? 'is-excel-group' : 'is-database-group'; th.classList.add('is-numeric'); th.textContent = header; childRow.appendChild(th); });
+                        rows[0].slice(10, 23).forEach((header, index) => { const th = document.createElement('th'); th.className = index < 6 ? 'is-excel-group' : 'is-database-group'; if (developerNumericHeaders.has(normalize(header))) th.classList.add('is-numeric'); th.textContent = header; childRow.appendChild(th); });
                         thead.append(groupRow, childRow);
                     } else {
                         const headerRow = document.createElement('tr');
@@ -541,6 +547,95 @@ try {
             if (rejectedBatchFiles.length) await showBatchFileAlert();
         }
 
+        async function prepareRowsForUpload(file, XLSX) {
+            const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            if (!sheet) return [];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+            if (rows.length < 2) return [];
+            const headers = rows[0].map(value => normalize(value));
+            const aliases = {
+                account_number: ['account number', 'account_number'], agent_name: ['agent name', 'agent_name'], legacy_id: ['legacy id', 'legacy_id'],
+                tran_date: ['tran date', 'tran_date'], transaction_id: ['transaction id', 'transaction_id'], reference_id: ['reference id', 'reference_id'],
+                product: ['product'], tran_type: ['tran type', 'tran_type'], orig_cntry: ['orig cntry', 'orig_cntry'], rcv_cntry: ['rcv cntry', 'rcv_cntry'],
+                fx_rate_trn: ['fx rate trn', 'fx_rate_trn', 'tran fx rate'], fx_date_trn: ['fx date trn', 'fx_date_trn', 'fx date'], margin: ['margin'],
+                base_tran_amt: ['base tran amt', 'base_tran_amt', 'base amt'], fee_tran_amt: ['fee tran amt', 'fee_tran_amt', 'fee amt'],
+                fx_rev_share_tran_amt: ['fx rev share tran amt', 'fx_rev_share_tran_amt', 'fx rev share amt'], comm_tran_amt: ['comm tran amt', 'comm_tran_amt', 'comm amt'],
+                total_tran_amt: ['total tran amt', 'total_tran_amt'], settlement_currency: ['settlement currency', 'settlement_currency'],
+                transaction_currency: ['transaction currency', 'transaction_currency']
+            };
+            const indexes = {};
+            Object.keys(aliases).forEach(key => { indexes[key] = headers.findIndex(header => aliases[key].includes(header)); });
+            const classifications = await classifyDeveloperRows(rows, XLSX);
+            return rows.slice(1).map((row, index) => {
+                if (!row.some(value => String(value ?? '').trim() !== '')) return null;
+                const value = key => indexes[key] >= 0 ? row[indexes[key]] ?? '' : '';
+                const result = classifications[String(index)] || { exists: false, database: null, matched_by: null };
+                return {
+                    account_number: value('account_number'), agent_name: value('agent_name'), legacy_id: value('legacy_id'),
+                    tran_date: normalizeLookupDate(value('tran_date'), XLSX), transaction_id: value('transaction_id'), reference_id: value('reference_id'),
+                    product: value('product'), tran_type: value('tran_type'), orig_cntry: value('orig_cntry'), rcv_cntry: value('rcv_cntry'),
+                    fx_rate_trn: value('fx_rate_trn'), fx_date_trn: normalizeLookupDate(value('fx_date_trn'), XLSX) || value('fx_date_trn'), margin: value('margin'),
+                    base_tran_amt: value('base_tran_amt'), fee_tran_amt: value('fee_tran_amt'), fx_rev_share_tran_amt: value('fx_rev_share_tran_amt'),
+                    comm_tran_amt: value('comm_tran_amt'), total_tran_amt: value('total_tran_amt'), settlement_currency: value('settlement_currency'),
+                    transaction_currency: value('transaction_currency'), exists: !!result.exists,
+                    db_tran_date: result.database ? result.database.tran_date || '' : ''
+                };
+            }).filter(row => row !== null);
+        }
+
+        async function saveUploadRows(rows) {
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken ? csrfToken.value : '');
+            formData.append('payload', JSON.stringify({ partner_id: partnerId.value, partner_name: selectedPartner(), upload_mode: uploaderMode, rows: rows }));
+            const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/settlement-daily-save.php', { method: 'POST', body: formData });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || !payload || !payload.success) throw new Error((payload && payload.error) || 'Unable to save settlement data.');
+            return payload;
+        }
+
+        async function uploadSelectedFiles() {
+            if (upload.disabled) return;
+            if (!isMoneyGramPartner()) {
+                if (window.Swal) await window.Swal.fire({ icon: 'warning', title: 'MoneyGram Only', text: 'This settlement upload workflow is currently available only for MoneyGram.', confirmButtonColor: '#dc3545' });
+                return;
+            }
+            upload.disabled = true;
+            const totals = { settlement_inserted: 0, settlement_updated: 0, settlement_amended: 0 };
+            const totalRows = files.reduce((sum, file) => sum + Number(fileRowCounts.get(file) || 0), 0);
+            let processedRows = 0;
+            try {
+                if (window.Swal) window.Swal.fire({ title: 'Uploading settlement data...', text: 'Preparing Excel records.', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => window.Swal.showLoading() });
+                const XLSX = await ensureSheetJs();
+                for (const file of files) {
+                    const preparedRows = await prepareRowsForUpload(file, XLSX);
+                    for (let offset = 0; offset < preparedRows.length; offset += 750) {
+                        const chunk = preparedRows.slice(offset, offset + 750);
+                        if (window.Swal) { window.Swal.update({ text: 'Writing ' + processedRows.toLocaleString() + ' of ' + totalRows.toLocaleString() + ' rows.' }); window.Swal.showLoading(); }
+                        const result = await saveUploadRows(chunk);
+                        Object.keys(totals).forEach(key => { totals[key] += Number(result[key] || 0); });
+                        processedRows += chunk.length;
+                    }
+                }
+                files = [];
+                fileRowCounts.clear();
+                input.value = '';
+                renderFiles();
+                if (window.Swal) await window.Swal.fire({
+                    icon: 'success', title: 'Upload Completed', confirmButtonColor: '#dc3545',
+                    html: 'Settlement inserted: <b>' + totals.settlement_inserted.toLocaleString() + '</b><br>' +
+                        (uploaderMode === 'endMonth'
+                            ? 'Settlement amended: <b>' + totals.settlement_amended.toLocaleString() + '</b>'
+                            : 'Settlement updated: <b>' + totals.settlement_updated.toLocaleString() + '</b>')
+                });
+            } catch (error) {
+                console.error('[settlement-upload]', error);
+                if (window.Swal) await window.Swal.fire({ icon: 'error', title: 'Upload Failed', text: error.message || 'Unable to upload settlement data.', confirmButtonColor: '#dc3545' });
+            } finally {
+                refreshState();
+            }
+        }
+
         function closeSuggestions() { suggestions.hidden = true; suggestions.innerHTML = ''; }
         function renderSuggestions() {
             const query = normalize(partner.value);
@@ -572,9 +667,7 @@ try {
         dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-over'));
         dropzone.addEventListener('drop', event => { event.preventDefault(); dropzone.classList.remove('is-over'); if (readyForFiles()) addFiles(event.dataTransfer.files); });
         input.addEventListener('change', () => addFiles(input.files));
-        upload.addEventListener('click', () => {
-            root.dispatchEvent(new CustomEvent('settlementdaily:upload', { bubbles: true, detail: { partner: selectedPartner(), partnerId: partnerId.value, files: files.slice() } }));
-        });
+        upload.addEventListener('click', uploadSelectedFiles);
 
         window.AutoReconUploadPending = window.AutoReconUploadPending || {};
         window.AutoReconUploadPending.settlementDaily = {

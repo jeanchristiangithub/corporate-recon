@@ -381,6 +381,80 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
     ]];
 }
 
+function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, string $endDate, string $currency): array
+{
+    $amountFields = [
+        'principal' => 'base_tran_amt',
+        'fee' => 'fee_tran_amt',
+        'fx' => 'fx_rev_share_tran_amt',
+        'commission' => 'comm_tran_amt',
+    ];
+    $selects = [
+        'DATE(psd.tran_date) AS report_date',
+        "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'REC' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) = 'RRC' THEN -1 ELSE 0 END) AS payout_volume",
+        "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'SEN' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) IN ('RSN', 'REF') THEN -1 ELSE 0 END) AS sendout_volume",
+    ];
+    foreach ($amountFields as $key => $column) {
+        $qualifiedColumn = 'psd.' . summary_quote_identifier($column);
+        $numeric = 'ABS(CAST(REPLACE(REPLACE(REPLACE(COALESCE(' . $qualifiedColumn . ', 0), ",", ""), "PHP", ""), "$", "") AS DECIMAL(18, 2)))';
+        $selects[] = "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'REC' THEN {$numeric} WHEN UPPER(TRIM(psd.tran_type)) = 'RRC' THEN -{$numeric} ELSE 0 END) AS payout_{$key}";
+        $selects[] = "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'SEN' THEN {$numeric} WHEN UPPER(TRIM(psd.tran_type)) IN ('RSN', 'REF') THEN -{$numeric} ELSE 0 END) AS sendout_{$key}";
+    }
+
+    $sql = 'SELECT ' . implode(', ', $selects)
+        . ' FROM partner_settlement_data psd'
+        . ' INNER JOIN moneygram_partner_data mpd'
+        . ' ON psd.tran_date = mpd.tran_date'
+        . ' AND psd.reference_id = mpd.reference_id'
+        . ' AND psd.tran_type = mpd.tran_type'
+        . ' WHERE psd.tran_date BETWEEN ? AND ?'
+        . ' AND UPPER(TRIM(psd.transaction_currency)) = ?'
+        . " AND UPPER(TRIM(psd.tran_type)) IN ('REC', 'RRC', 'SEN', 'RSN', 'REF')"
+        . ' GROUP BY DATE(psd.tran_date) ORDER BY DATE(psd.tran_date)';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$startDate, $endDate, strtoupper(trim($currency))]);
+
+    $rows = [];
+    $totals = [
+        'payout' => summary_empty_amounts(),
+        'sendout' => summary_empty_amounts(),
+        'settlement_volume' => 0,
+        'settlement_amount' => 0.0,
+    ];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $payout = ['volume' => (int) ($record['payout_volume'] ?? 0)];
+        $sendout = ['volume' => (int) ($record['sendout_volume'] ?? 0)];
+        foreach (array_keys($amountFields) as $key) {
+            $payout[$key] = (float) ($record['payout_' . $key] ?? 0);
+            $sendout[$key] = (float) ($record['sendout_' . $key] ?? 0);
+        }
+        $settlementAmount = $payout['principal']
+            - $sendout['principal']
+            - $sendout['fee']
+            + $sendout['commission'];
+        $settlementVolume = $payout['volume'] + $sendout['volume'];
+        $row = [
+            'date' => (string) ($record['report_date'] ?? ''),
+            'payout' => $payout,
+            'sendout' => $sendout,
+            'settlement_volume' => $settlementVolume,
+            'settlement_amount' => $settlementAmount,
+        ];
+        $rows[] = $row;
+        $totals['payout'] = summary_add_amounts($totals['payout'], $payout);
+        $totals['sendout'] = summary_add_amounts($totals['sendout'], $sendout);
+        $totals['settlement_volume'] += $settlementVolume;
+        $totals['settlement_amount'] += $settlementAmount;
+    }
+
+    return [
+        'partner' => 'MONEYGRAM',
+        'currency' => strtoupper(trim($currency)),
+        'rows' => $rows,
+        'totals' => $totals,
+    ];
+}
+
 function summary_column_in_where(array $columns, array $candidates, array $values): array
 {
     $column = summary_first_column($candidates, $columns);
@@ -544,6 +618,7 @@ try {
     if ($isMoneygram) {
         $currencyReports = [];
         $sendoutReports = [];
+        $settlementReports = [];
         $payoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'REC');
         $payoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RRC');
         $sendoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'SEN');
@@ -552,7 +627,7 @@ try {
         $sendoutWebWhere = summary_column_is_not_nullish_where($webColumns, ['date_send']);
         $webCancellationWhere = summary_column_is_not_nullish_where($webColumns, ['date_cancelled', 'date_cancellation']);
         $kpxCancellationCandidates = ['date_cancelled', 'date_cancellation'];
-        $webNotCancelledWhere = summary_web_has_no_cancellation_where($webColumns, 'ml_web_data');
+        $webNotCancelledWhere = summary_column_is_nullish_where($webColumns, $kpxCancellationCandidates);
 
         foreach (['PHP', 'USD'] as $currencyCode) {
             $payoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
@@ -578,7 +653,11 @@ try {
                 'date_candidates' => ['date_cancelled', 'date_cancellation'],
                 'amount_candidates' => ['amount', 'php', 'in_php'],
                 'commission_candidates' => ['ctp', 'commission', 'in_php'],
-                'where' => summary_merge_where($webCancellationWhere, summary_column_is_not_nullish_where($webColumns, ['date_claimed'])),
+                'where' => summary_merge_where(
+                    $webCancellationWhere,
+                    $payoutWebWhere,
+                    summary_column_is_not_nullish_where($webColumns, ['date_claimed'])
+                ),
             ]);
             $currencyReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $payoutPartnerDaily, $payoutWebDaily, $payoutDuplicateDaily, $payoutCancelledPartnerDaily, $payoutWebCancelledDaily, true);
             $currencyReports[strtolower($currencyCode)]['currency'] = $currencyCode;
@@ -606,10 +685,11 @@ try {
                 'date_candidates' => ['date_cancelled', 'date_cancellation'],
                 'amount_candidates' => ['amount', 'php', 'in_php'],
                 'commission_candidates' => ['charge', 'ctp', 'commission', 'in_php'],
-                'where' => summary_merge_where($webCancellationWhere, summary_column_is_not_nullish_where($webColumns, ['date_send'])),
+                'where' => summary_merge_where($webCancellationWhere, $sendoutWebWhere),
             ]);
             $sendoutReports[strtolower($currencyCode)] = summary_build_rows_and_totals($startObj, $endDate, $sendoutPartnerDaily, $sendoutWebDaily, $sendoutDuplicateDaily, $sendoutCancelledPartnerDaily, $sendoutWebCancelledDaily, true);
             $sendoutReports[strtolower($currencyCode)]['currency'] = $currencyCode;
+            $settlementReports[strtolower($currencyCode)] = summary_fetch_moneygram_settlement_report($pdo, $startDate, $endDate, $currencyCode);
         }
 
         $rows = $currencyReports['php']['rows'];
@@ -627,6 +707,7 @@ try {
         $rows = $currencyReports['php']['rows'];
         $totals = $currencyReports['php']['totals'];
         $sendoutReports = null;
+        $settlementReports = null;
     } else {
         $partnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false);
         $webDaily = summary_fetch_daily($pdo, 'ml_web_data', $webColumns, $aliases, $startDate, $endDate, true);
@@ -636,6 +717,7 @@ try {
         $totals = $builtReport['totals'];
         $currencyReports = null;
         $sendoutReports = null;
+        $settlementReports = null;
     }
 
     $response = [
@@ -655,6 +737,9 @@ try {
     }
     if ($sendoutReports !== null) {
         $response['sendout_reports'] = $sendoutReports;
+    }
+    if ($settlementReports !== null) {
+        $response['settlement_reports'] = $settlementReports;
     }
 
     echo json_encode($response);

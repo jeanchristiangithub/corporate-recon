@@ -18,6 +18,7 @@ try {
     $area = isset($_GET['area']) ? trim((string)$_GET['area']) : '';
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
+    $reference_id = isset($_GET['reference_id']) ? trim((string)$_GET['reference_id']) : '';
     $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
 
     // Treat 'ALL' (case-insensitive) as empty / no-filter
@@ -38,14 +39,8 @@ try {
         $perPage = 10000;
     }
     
-    if ($partner === '') {
-        echo json_encode(['success' => false, 'error' => 'Corporate partner is required']);
-        exit;
-    }
-
-    // Enforce that both start_date and end_date are provided
-    if ($start_date === '' || $end_date === '') {
-        echo json_encode(['success' => false, 'error' => 'Start date and End date are required']);
+    if ($reference_id === '' && ($partner === '' || $start_date === '' || $end_date === '')) {
+        echo json_encode(['success' => false, 'error' => 'Corporate Partner, Start date, and End date are required.']);
         exit;
     }
     
@@ -70,9 +65,13 @@ try {
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
     $normalizedType = strtolower($type);
 
-    // Base filter by partner name
-    $whereSql = ' FROM ml_web_data WHERE partnerName = ?';
-    $params = [$partner];
+    // CCREF NO can be searched globally; otherwise scope results to the selected partner.
+    $whereSql = ' FROM ml_web_data WHERE 1 = 1';
+    $params = [];
+    if ($partner !== '') {
+        $whereSql .= ' AND partnerName = ?';
+        $params[] = $partner;
+    }
     
     // Decide which date column to use for filtering/ordering and for the UI date column.
     $dateColumn = 'date_claimed';
@@ -147,6 +146,11 @@ try {
     if ($branch_id !== '' && isset($availableColumns['branch_id'])) {
         $whereSql .= ' AND LOWER(COALESCE(branch_id, "")) LIKE ?';
         $params[] = '%' . strtolower($branch_id) . '%';
+    }
+
+    if ($reference_id !== '' && isset($availableColumns['ccref_no'])) {
+        $whereSql .= ' AND TRIM(COALESCE(ccref_no, "")) = ?';
+        $params[] = $reference_id;
     }
 
     if (in_array($currency, ['PHP', 'USD'], true) && isset($availableColumns['currency'])) {

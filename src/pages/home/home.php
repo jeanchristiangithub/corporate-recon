@@ -167,10 +167,23 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">insights</span>
                             <span class="label">Web Data Report</span>
                         </a></li>
-                        <li><a href="#" id="navReportsPartnerData" data-show="reportsPartnerDataSection">
-                            <span class="icon material-icons" aria-hidden="true">groups</span>
-                            <span class="label">Partner Data Report</span>
-                        </a></li>
+                        <li class="nav-subgroup">
+                            <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="partnerDataReportMenu">
+                                <span class="icon material-icons" aria-hidden="true">groups</span>
+                                <span class="label">Partner Data Report</span>
+                                <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                            </button>
+                            <ul id="partnerDataReportMenu" class="nav-subgroup-menu" style="display:none;">
+                                <li><a href="#" id="navReportsPartnerDataDaily" data-show="reportsPartnerDataSection">
+                                    <span class="icon material-icons" aria-hidden="true">today</span>
+                                    <span class="label">Daily</span>
+                                </a></li>
+                                <li><a href="#" id="navReportsPartnerDataSettlement" data-show="reportsPartnerDataSettlementSection">
+                                    <span class="icon material-icons" aria-hidden="true">payments</span>
+                                    <span class="label">Settlement</span>
+                                </a></li>
+                            </ul>
+                        </li>
                         <li><a href="#" id="navSummaryReport" data-show="summaryReportSection">
                             <span class="icon material-icons" aria-hidden="true">summarize</span>
                             <span class="label">Summary Report</span>
@@ -251,6 +264,10 @@ if ($currentUserId !== '') {
 
     <section id="reportsPartnerDataSection" class="reports-partnerdata-section" aria-label="Partner Data Report" style="display:none; padding:1rem">
         <?php include __DIR__ . '/components/reportspartnerdata-section.php'; ?>
+    </section>
+
+    <section id="reportsPartnerDataSettlementSection" class="reports-partnerdata-settlement-section" aria-label="Partner Data Report Settlement" style="display:none; padding:1rem">
+        <?php include __DIR__ . '/components/reportspartnersettlement-section.php'; ?>
     </section>
 
     <section id="summaryReportSection" class="summary-report-section" aria-label="Summary Report" style="display:none; padding:1rem">
@@ -421,6 +438,8 @@ if ($currentUserId !== '') {
                 settlementdaily: 'settlementDailySection',
                 settlementendmonth: 'settlementEndMonthSection',
                 partnerdata: 'partnerdataSection',
+                partnerdatareportdaily: 'reportsPartnerDataSection',
+                partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
                 profilesettings: 'profileSettingsSection',
@@ -448,11 +467,10 @@ if ($currentUserId !== '') {
     const underMaintenanceNavIds = [
         'navUploadedFileLogs',
         'navWebDataCancellation',
-        
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navReportsWebData','navReportsPartnerData','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
@@ -534,7 +552,7 @@ if ($currentUserId !== '') {
         });
     } catch (e) { /* ignore */ }
 
-    // Handle the second-level Settlement Detail menu.
+    // Handle second-level sidebar menus.
     try {
         document.querySelectorAll('.nav-subgroup-toggle').forEach(function(btn){
             btn.addEventListener('click', function(e){

@@ -154,7 +154,9 @@ try{
                 $where = [];
                 $params = [];
                 foreach($chunk as $pair){
-                    $where[] = "({$idCol} = ? AND DATE({$dateCol}) = ?)";
+                    // MoneyGram tran_date is a DATE column. Comparing it directly allows
+                    // the composite transaction/date index to service this lookup.
+                    $where[] = "({$idCol} = ? AND {$dateCol} = ?)";
                     $params[] = $pair[0];
                     $params[] = $pair[1];
                 }

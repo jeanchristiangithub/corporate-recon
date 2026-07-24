@@ -278,6 +278,32 @@ $partnerInputChars = min($partnerInputChars, 90);
             font-weight: 800;
         }
 
+        .summary-report-content .settlement-currency-options {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: .85rem;
+            color: #111827;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+
+        .summary-report-content .settlement-currency-options.is-visible {
+            display: flex;
+        }
+
+        .summary-report-content .settlement-currency-option {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            cursor: pointer;
+        }
+
+        .summary-report-content .settlement-currency-option input {
+            margin: 0;
+            accent-color: #dc3545;
+        }
+
         .summary-report-content .mg-cover__total td {
             background: #f8fafc;
             font-weight: 800;
@@ -296,37 +322,74 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(2),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(-n+3),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(-n+12),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+2):nth-child(-n+13) {
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(-n+15),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+2):nth-child(-n+16) {
             background: #fcebed;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(3),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(n+4):nth-child(-n+5),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+13):nth-child(-n+19),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+14):nth-child(-n+20) {
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+16):nth-child(-n+21),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+17):nth-child(-n+22) {
             background: #fff;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(4),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(6),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+20),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21) {
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+22),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+23) {
             background: #fef5f6;
         }
 
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(1) th:nth-child(4),
         .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(2) th:nth-child(6),
-        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(3) th:nth-child(n+20):nth-child(-n+23),
-        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+21):nth-child(-n+24) {
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:nth-child(3) th:nth-child(n+22):nth-child(-n+25),
+        .summary-report-content .mg-cover.is-moneygram.is-moneygram-sendout tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+23):nth-child(-n+26) {
             background: #fdf0f2;
         }
 
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(1) th:nth-child(5),
         .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(2) th:nth-child(7),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+24),
-        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+25) {
+        .summary-report-content .mg-cover.is-moneygram tbody tr:nth-child(3) th:nth-child(n+27),
+        .summary-report-content .mg-cover.is-moneygram tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) td:nth-child(n+28) {
             background: #fef5f6;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement table {
+            min-width: 1180px;
+            width: 100%;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement th,
+        .summary-report-content .mg-cover.is-moneygram-settlement td {
+            background: #fff !important;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement tbody tr:nth-child(1) th,
+        .summary-report-content .mg-cover.is-moneygram-settlement tbody tr:nth-child(2) th {
+            background: #fff !important;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__total td,
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__amount-due td {
+            height: 30px;
+            background: #fff !important;
+            font-weight: 800;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__total td {
+            bottom: 30px;
+            z-index: 5;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__amount-due td {
+            position: sticky;
+            bottom: 0;
+            z-index: 6;
+        }
+
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__amount-due td:nth-last-child(2) {
+            text-align: right;
         }
 
         .summary-report-content .mg-cover__message {
@@ -465,9 +528,21 @@ $partnerInputChars = min($partnerInputChars, 90);
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="payout" data-moneygram-currency="usd" role="tab" aria-selected="false">Payout USD</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="php" role="tab" aria-selected="false">Sendout PHP</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="usd" role="tab" aria-selected="false">Sendout USD</button>
+        <button class="moneygram-cover-tab" type="button" data-moneygram-cover="settlement" role="tab" aria-selected="false">Settlement</button>
         <div id="moneygramCoverHeading" class="mg-cover__heading">
             <div id="moneygramCoverTitle" class="mg-cover__title"></div>
             <div id="moneygramCoverCurrency" class="mg-cover__currency"></div>
+            <div id="settlementCurrencyOptions" class="settlement-currency-options" role="radiogroup" aria-label="Settlement currency">
+                <span>Currency:</span>
+                <label class="settlement-currency-option">
+                    <input type="radio" name="settlementCurrency" value="php" checked>
+                    PHP
+                </label>
+                <label class="settlement-currency-option">
+                    <input type="radio" name="settlementCurrency" value="usd">
+                    USD
+                </label>
+            </div>
         </div>
         <span class="summary-export-spacer" aria-hidden="true"></span>
         <button id="summaryExportExcel" class="summary-button summary-button--export" type="button" disabled>Export to Excel</button>
@@ -511,6 +586,10 @@ $partnerInputChars = min($partnerInputChars, 90);
     const moneygramCoverHeading = document.getElementById('moneygramCoverHeading');
     const moneygramCoverTitle = document.getElementById('moneygramCoverTitle');
     const moneygramCoverCurrency = document.getElementById('moneygramCoverCurrency');
+    const settlementCurrencyOptions = document.getElementById('settlementCurrencyOptions');
+    const settlementCurrencyRadios = settlementCurrencyOptions
+        ? Array.from(settlementCurrencyOptions.querySelectorAll('input[name="settlementCurrency"]'))
+        : [];
     const moneygramCoverBody = document.getElementById('moneygramCoverBody');
     const moneygramCoverMessage = document.getElementById('moneygramCoverMessage');
     const moneygramCoverTabs = document.getElementById('moneygramCoverTabs');
@@ -715,6 +794,9 @@ $partnerInputChars = min($partnerInputChars, 90);
         moneygramCoverTitle.textContent = title || '';
         moneygramCoverCurrency.textContent = currency || '';
         moneygramCoverHeading.classList.toggle('is-visible', hasHeading);
+        if (settlementCurrencyOptions) {
+            settlementCurrencyOptions.classList.remove('is-visible');
+        }
     }
 
     function netPartnerRevShare(partner, cancelled) {
@@ -736,11 +818,11 @@ $partnerInputChars = min($partnerInputChars, 90);
         const variance = amountGroup(row, 'variance');
         return '<tr>'
             + td(fmtDate(row.date))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
+            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fee)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
-            + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
+            + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
             + '</tr>';
     }
@@ -754,80 +836,109 @@ $partnerInputChars = min($partnerInputChars, 90);
         const variance = totals.variance || {};
         return '<tr class="mg-cover__total">'
             + td('Grand total')
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
+            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fee)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
-            + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.fx)) + td(fmtMoney(webCancelled.commission))
+            + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
             + '</tr>';
     }
 
-    function sendoutSettlement(sendoutSource, payoutSource) {
-        const sendoutPartner = amountGroup(sendoutSource, 'partner');
-        const sendoutCancelled = amountGroup(sendoutSource, 'partner_cancelled');
-        const sendoutNetPartner = amountGroup(sendoutSource, 'net_partner');
-        const sendoutVariance = amountGroup(sendoutSource, 'variance');
-        const payoutPartner = amountGroup(payoutSource, 'partner');
-        const payoutCancelled = amountGroup(payoutSource, 'partner_cancelled');
-        const payoutNetPartner = amountGroup(payoutSource, 'net_partner');
-        const count = Number(payoutPartner.volume || 0)
-            + Number(payoutCancelled.volume || 0)
-            + Number(sendoutPartner.volume || 0)
-            + Number(sendoutCancelled.volume || 0);
-        const amount = Number(sendoutPartner.principal || 0)
-            + Number(sendoutVariance.fee || 0)
-            - Number(sendoutNetPartner.commission || 0)
-            - Number(payoutNetPartner.principal || 0)
-            - Number(sendoutCancelled.principal || 0);
-        return { count, amount, variance: -amount };
-    }
-
-    function sendoutRow(row, payoutRowForDate) {
+    function sendoutRow(row) {
         const partner = amountGroup(row, 'partner');
         const refund = amountGroup(row, 'partner_cancelled');
         const netPartner = row && row.net_partner ? row.net_partner : partner;
         const web = kpxWebAmounts(row);
         const cancelled = amountGroup(row, 'cancelled');
         const variance = amountGroup(row, 'variance');
-        const settlement = sendoutSettlement(row, payoutRowForDate || {});
         const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
         const varianceFee = Number(partner.fee || 0);
         return '<tr>'
             + td(fmtDate(row.date))
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
+            + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fee)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
+            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
-            + td(fmtCount(settlement.count)) + td(fmtMoney(settlement.amount)) + td(fmtMoney(settlement.variance))
             + '</tr>';
     }
 
-    function sendoutTotalRow(totals, payoutTotals) {
+    function sendoutTotalRow(totals) {
         const partner = totals.partner || {};
         const refund = totals.partner_cancelled || {};
         const netPartner = totals.net_partner || partner;
         const web = totals.web || {};
         const cancelled = totals.cancelled || {};
         const variance = totals.variance || {};
-        const settlement = sendoutSettlement(
-            { partner, partner_cancelled: refund, net_partner: netPartner, variance },
-            payoutTotals || {}
-        );
         const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
         const varianceFee = Number(partner.fee || 0);
         return '<tr class="mg-cover__total">'
             + td('Grand total')
-            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
-            + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
-            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
+            + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
+            + td(fmtCount(refund.volume)) + td(fmtMoney(refund.principal)) + td(fmtMoney(refund.fee)) + td(fmtMoney(refund.fx)) + td(fmtMoney(refund.commission))
+            + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
-            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.fx)) + td(fmtMoney(cancelled.commission))
+            + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.commission))
             + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
-            + td(fmtCount(settlement.count)) + td(fmtMoney(settlement.amount)) + td(fmtMoney(settlement.variance))
             + '</tr>';
+    }
+
+    function settlementReportRow(row) {
+        const payout = amountGroup(row, 'payout');
+        const sendout = amountGroup(row, 'sendout');
+        return '<tr>'
+            + td(fmtDate(row && row.date))
+            + td(fmtCount(payout.volume)) + td(fmtMoney(payout.principal)) + td(fmtMoney(payout.fee)) + td(fmtMoney(payout.fx)) + td(fmtMoney(payout.commission))
+            + td(fmtCount(sendout.volume)) + td(fmtMoney(sendout.principal)) + td(fmtMoney(sendout.fee)) + td(fmtMoney(sendout.fx)) + td(fmtMoney(sendout.commission))
+            + td(fmtCount(row && row.settlement_volume))
+            + td(fmtMoney(row && row.settlement_amount))
+            + '</tr>';
+    }
+
+    function renderSettlementCover(data, currency) {
+        const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
+        const settlementReport = data && data.settlement_reports && data.settlement_reports[selectedCurrency]
+            ? data.settlement_reports[selectedCurrency]
+            : {};
+        const rows = Array.isArray(settlementReport.rows) ? settlementReport.rows : [];
+        const totals = settlementReport.totals || {};
+        const payoutTotal = totals.payout || {};
+        const sendoutTotal = totals.sendout || {};
+        const totalSettlementVolume = Number(totals.settlement_volume || 0);
+        const totalSettlementAmount = Number(totals.settlement_amount || 0);
+
+        moneygramCoverBody.innerHTML = [
+            groupHeaders([
+                { label: 'DATE', span: 1, rowspan: 2 },
+                { label: 'PAYOUT', span: 5 },
+                { label: 'SENDOUT', span: 5 },
+                { label: 'SETTLEMENT', span: 2 }
+            ]),
+            columnHeaders(['VOLUME', 'PRINCIPAL', 'FEE', 'FX REV SHARE', 'COMM', 'VOLUME', 'PRINCIPAL', 'FEE', 'FX REV SHARE', 'COMM', 'VOLUME', 'AMOUNT']),
+            rows.map(settlementReportRow).join(''),
+            '<tr class="mg-cover__total">'
+                + td('GRAND TOTAL:')
+                + td(fmtCount(payoutTotal.volume)) + td(fmtMoney(payoutTotal.principal)) + td(fmtMoney(payoutTotal.fee)) + td(fmtMoney(payoutTotal.fx)) + td(fmtMoney(payoutTotal.commission))
+                + td(fmtCount(sendoutTotal.volume)) + td(fmtMoney(sendoutTotal.principal)) + td(fmtMoney(sendoutTotal.fee)) + td(fmtMoney(sendoutTotal.fx)) + td(fmtMoney(sendoutTotal.commission))
+                + td(fmtCount(totalSettlementVolume))
+                + td(fmtMoney(totalSettlementAmount))
+                + '</tr>',
+            '<tr class="mg-cover__amount-due">' + tdSpan('AMOUNT DUE:', 12) + td(fmtMoney(totalSettlementAmount)) + '</tr>'
+        ].join('');
+
+        moneygramCover.classList.add('is-visible', 'is-moneygram-settlement');
+        setCoverHeading('Moneygram Settlement', '');
+        if (settlementCurrencyOptions) settlementCurrencyOptions.classList.add('is-visible');
+        settlementCurrencyRadios.forEach(radio => { radio.checked = radio.value === selectedCurrency; });
+        showMoneygramTabs(true);
+        placeExportButton(moneygramCoverTabs);
+        setExportReady(true);
+        setActiveMoneygramTab('settlement', selectedCurrency);
+        currentReportTitle = `MoneyGram Settlement ${selectedCurrency.toUpperCase()}`;
+        moneygramCoverMessage.classList.remove('is-visible');
+        moneygramCoverMessage.textContent = '';
     }
 
     function showMoneygramTabs(show) {
@@ -836,11 +947,11 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function setActiveMoneygramTab(cover, currency) {
-        currentMoneygramCover = cover === 'sendout' ? 'sendout' : 'payout';
+        currentMoneygramCover = cover === 'settlement' ? 'settlement' : (cover === 'sendout' ? 'sendout' : 'payout');
         currentMoneygramCurrency = currency === 'usd' ? 'usd' : 'php';
         moneygramCoverTabButtons.forEach(button => {
             const isActive = button.dataset.moneygramCover === currentMoneygramCover
-                && (button.dataset.moneygramCurrency || 'php') === currentMoneygramCurrency;
+                && (currentMoneygramCover === 'settlement' || (button.dataset.moneygramCurrency || 'php') === currentMoneygramCurrency);
             button.classList.toggle('is-active', isActive);
             button.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
@@ -849,8 +960,13 @@ $partnerInputChars = min($partnerInputChars, 90);
     function renderMoneygramCover(data, cover, currency) {
         moneygramCover.classList.add('is-moneygram');
         const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
-        const selectedCover = cover === 'sendout' ? 'sendout' : 'payout';
+        const selectedCover = cover === 'settlement' ? 'settlement' : (cover === 'sendout' ? 'sendout' : 'payout');
         moneygramCover.classList.toggle('is-moneygram-sendout', selectedCover === 'sendout');
+        moneygramCover.classList.toggle('is-moneygram-settlement', selectedCover === 'settlement');
+        if (selectedCover === 'settlement') {
+            renderSettlementCover(data, selectedCurrency);
+            return;
+        }
         const reportsKey = selectedCover === 'sendout' ? 'sendout_reports' : 'currency_reports';
         const selectedReport = data && data[reportsKey] && data[reportsKey][selectedCurrency]
             ? data[reportsKey][selectedCurrency]
@@ -863,65 +979,56 @@ $partnerInputChars = min($partnerInputChars, 90);
         showWicTabs(false);
         const payoutSections = [
             { label: 'Date', span: 1, rowspan: 3 },
-            { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 7 },
+            { label: 'Partner Data', span: 15 },
+            { label: 'KPX Web Data', span: 6 },
             { label: 'VARIANCE', span: 3 }
         ];
         const payoutGroups = [
-            { label: partnerLabel, span: 4 },
-            { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 4 },
+            { label: partnerLabel, span: 5 },
+            { label: 'CANCELLED', span: 5 },
+            { label: 'NET', span: 5 },
             { label: 'KPX', span: 3 },
-            { label: 'CANCELLED', span: 4 },
+            { label: 'CANCELLED', span: 3 },
             { label: `${partnerLabel} vs KPX WEB`, span: 3 }
         ];
         const payoutLabels = [
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
+            'Volume', 'Principal', 'CHARGE',
             'Volume', 'Principal', 'Comm'
         ];
         const sendoutSections = [
             { label: 'Date', span: 1, rowspan: 3 },
-            { label: 'Partner Data', span: 12 },
-            { label: 'KPX Web Data', span: 7 },
-            { label: 'VARIANCE', span: 4 },
-            { label: `${partnerLabel} SETTLEMENT`, span: 3, rowspan: 2 }
+            { label: 'Partner Data', span: 15 },
+            { label: 'KPX Web Data', span: 6 },
+            { label: 'VARIANCE', span: 4 }
         ];
         const sendoutGroups = [
-            { label: selectedCurrency === 'usd' ? 'GROSS' : partnerLabel, span: 4 },
-            { label: 'CANCELLED', span: 4 },
-            { label: 'NET', span: 4 },
+            { label: selectedCurrency === 'usd' ? 'GROSS' : partnerLabel, span: 5 },
+            { label: 'CANCELLED', span: 5 },
+            { label: 'NET', span: 5 },
             { label: 'KPX', span: 3 },
-            { label: 'CANCELLED', span: 4 },
+            { label: 'CANCELLED', span: 3 },
             { label: `${partnerLabel} vs KPX WEB`, span: 4 }
         ];
         const sendoutLabels = [
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
+            'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Rev Share', 'Comm',
-            'Volume', 'Principal', 'Comm', 'fee',
-            'Volume', 'Amount', 'Variance'
+            'Volume', 'Principal', 'CHARGE',
+            'Volume', 'Principal', 'Comm', 'Fee'
         ];
 
         if (selectedCover === 'sendout') {
-            const payoutReport = data && data.currency_reports && data.currency_reports[selectedCurrency]
-                ? data.currency_reports[selectedCurrency]
-                : {};
-            const payoutRowsByDate = {};
-            (Array.isArray(payoutReport.rows) ? payoutReport.rows : []).forEach(payoutRowForDate => {
-                if (payoutRowForDate && payoutRowForDate.date) payoutRowsByDate[payoutRowForDate.date] = payoutRowForDate;
-            });
             moneygramCoverBody.innerHTML = [
                 groupHeaders(sendoutSections),
                 groupHeaders(sendoutGroups),
                 columnHeaders(sendoutLabels),
-                rows.map(row => sendoutRow(row, payoutRowsByDate[row.date])).join(''),
-                sendoutTotalRow(totals, payoutReport.totals || {})
+                rows.map(sendoutRow).join(''),
+                sendoutTotalRow(totals)
             ].join('');
             setCoverHeading('Moneygram Sendout', currencyLabel);
         } else {
@@ -1349,10 +1456,19 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     moneygramCoverTabButtons.forEach(button => {
         button.addEventListener('click', function(){
-            const cover = button.dataset.moneygramCover === 'sendout' ? 'sendout' : 'payout';
+            const cover = button.dataset.moneygramCover === 'settlement'
+                ? 'settlement'
+                : (button.dataset.moneygramCover === 'sendout' ? 'sendout' : 'payout');
             const currency = button.dataset.moneygramCurrency === 'usd' ? 'usd' : 'php';
             if (!currentMoneygramData) return;
             renderMoneygramCover(currentMoneygramData, cover, currency);
+        });
+    });
+
+    settlementCurrencyRadios.forEach(radio => {
+        radio.addEventListener('change', function(){
+            if (!radio.checked || !currentMoneygramData) return;
+            renderMoneygramCover(currentMoneygramData, 'settlement', radio.value);
         });
     });
 

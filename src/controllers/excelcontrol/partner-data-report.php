@@ -316,6 +316,12 @@ try {
         $params[] = $currencyFilter;
     }
 
+    $referenceIdFilter = trim((string)($_GET['reference_id'] ?? ''));
+    if ($referenceIdFilter !== '' && isset($existing['reference_id'])) {
+        $whereParts[] = 'TRIM(' . quote_identifier('reference_id') . ') = ?';
+        $params[] = $referenceIdFilter;
+    }
+
     $whereSql = '';
     if (!empty($whereParts)) {
         $whereSql = ' WHERE ' . implode(' AND ', $whereParts);

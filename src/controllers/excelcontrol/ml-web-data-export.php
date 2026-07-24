@@ -24,6 +24,7 @@ try {
     $area = isset($_GET['area']) ? trim((string)$_GET['area']) : '';
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
+    $reference_id = isset($_GET['reference_id']) ? trim((string)$_GET['reference_id']) : '';
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
     $normalizedType = strtolower($type);
     $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
@@ -36,13 +37,8 @@ try {
     if (strcasecmp($branch_name, 'ALL') === 0) $branch_name = '';
     if (strcasecmp($branch_id, 'ALL') === 0) $branch_id = '';
 
-    if ($partner === '') {
-        echo json_encode(['success' => false, 'error' => 'Corporate partner is required']);
-        exit;
-    }
-
-    if ($start_date === '' || $end_date === '') {
-        echo json_encode(['success' => false, 'error' => 'Start date and End date are required']);
+    if ($reference_id === '' && ($partner === '' || $start_date === '' || $end_date === '')) {
+        echo json_encode(['success' => false, 'error' => 'Corporate Partner, Start date, and End date are required.']);
         exit;
     }
 
@@ -62,8 +58,12 @@ try {
     $branchNameColumn = isset($availableColumns['branch_name']) ? 'branch_name' : (isset($availableColumns['branch']) ? 'branch' : null);
 
     // Build WHERE clause (same logic)
-    $whereSql = ' FROM ml_web_data WHERE partnerName = ?';
-    $params = [$partner];
+    $whereSql = ' FROM ml_web_data WHERE 1 = 1';
+    $params = [];
+    if ($partner !== '') {
+        $whereSql .= ' AND partnerName = ?';
+        $params[] = $partner;
+    }
 
     $dateColumn = 'date_claimed';
     if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['date_send'])) {
@@ -95,6 +95,7 @@ try {
     if ($area !== '' && isset($availableColumns['area'])) { $whereSql .= ' AND TRIM(COALESCE(area, "")) = TRIM(?)'; $params[] = $area; }
     if ($branch_name !== '' && $branchNameColumn !== null) { $whereSql .= ' AND LOWER(COALESCE(`' . $branchNameColumn . '`, "")) LIKE ?'; $params[] = '%' . strtolower($branch_name) . '%'; }
     if ($branch_id !== '' && isset($availableColumns['branch_id'])) { $whereSql .= ' AND LOWER(COALESCE(branch_id, "")) LIKE ?'; $params[] = '%' . strtolower($branch_id) . '%'; }
+    if ($reference_id !== '' && isset($availableColumns['ccref_no'])) { $whereSql .= ' AND TRIM(COALESCE(ccref_no, "")) = ?'; $params[] = $reference_id; }
     if (in_array($currency, ['PHP', 'USD'], true) && isset($availableColumns['currency'])) { $whereSql .= ' AND UPPER(TRIM(currency)) = ?'; $params[] = $currency; }
 
     // Query: select all filtered rows, ordered by currency (PHP first, USD second), then date desc
@@ -147,7 +148,7 @@ try {
         return $s;
     }
 
-    $filePartner = preg_replace('/\s+/', '_', strtoupper($partner));
+    $filePartner = $partner !== '' ? preg_replace('/\s+/', '_', strtoupper($partner)) : 'ALL_PARTNERS';
     $fileStart = $start_date;
     $fileEnd = $end_date;
     $fileType = $type === '' ? 'ALL' : strtoupper($type);
@@ -170,14 +171,16 @@ try {
     $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
     $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
 
-    $sheet->setCellValue('A2', 'Corporate Partner: ' . $partner);
+    $sheet->setCellValue('A2', 'Corporate Partner: ' . ($partner !== '' ? $partner : 'ALL'));
     $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
 
     $transactionTypeDisplay = $type === '' ? 'ALL' : strtoupper($type);
     $sheet->setCellValue('A3', 'Transaction Type: ' . $transactionTypeDisplay);
     $sheet->getStyle('A3')->getFont()->setBold(true)->setSize(11);
 
-    $sheet->setCellValue('A4', 'Report Date: ' . date('F d, Y', strtotime($end_date)));
+    $sheet->setCellValue('A4', $end_date !== ''
+        ? 'Report Date: ' . date('F d, Y', strtotime($end_date))
+        : 'CCREF NO: ' . $reference_id);
     $sheet->getStyle('A4')->getFont()->setSize(10);
 
     $sheet->setCellValue('A5', 'Volume: ' . number_format(count($rows)) . ' transactions');
