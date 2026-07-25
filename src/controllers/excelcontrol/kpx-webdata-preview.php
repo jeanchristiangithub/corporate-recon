@@ -359,7 +359,7 @@ function kpxProfileValue(array $profile, string $key): string
     return trim((string)($profile[$key] ?? ''));
 }
 
-function kpxReadMappedRows(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $sourceMap, array $numericHeaders): array
+function kpxReadMappedRows(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $sourceMap, array $numericHeaders, int $startRow = 5): array
 {
     if (empty($sourceMap)) return [];
 
@@ -368,7 +368,7 @@ function kpxReadMappedRows(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
     $numericLookup = array_fill_keys($numericHeaders, true);
     $dateTimeLookup = array_fill_keys(['DATE CANCELLED', 'DATE CLAIMED', 'DATE SEND'], true);
 
-    for ($rowIndex = 5; $rowIndex <= $highestRow; $rowIndex++) {
+    for ($rowIndex = $startRow; $rowIndex <= $highestRow; $rowIndex++) {
         $record = [];
         $hasValue = false;
 
@@ -515,32 +515,48 @@ function kpxReadCsvHeaderCells(string $path): array
     $sheet = $spreadsheet->getActiveSheet();
     $cells = kpxReadHeaderCellsFromSheet($sheet);
     $detected = kpxMoneygramHeadersForCombination($cells['C'], $cells['D']);
-    $cells['rows'] = kpxReadMappedRows($sheet, $detected['sourceMap'], $detected['numericHeaders']);
+    $cells['rows'] = !empty($cells['validHeaders'])
+        ? kpxReadMappedRows($sheet, $detected['sourceMap'], $detected['numericHeaders'], ((int)$cells['headerRow']) + 1)
+        : [];
     $spreadsheet->disconnectWorksheets();
     return $cells;
 }
 
+function kpxHasExpectedHeaderRow(
+    \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+    array $detected,
+    int $row
+): bool {
+    if (empty($detected['sourceMap'])) return false;
+    foreach ($detected['sourceMap'] as $expectedHeader => $columnLetter) {
+        $actualHeader = kpxNormalizeHeaderCell($sheet->getCell($columnLetter . $row)->getFormattedValue());
+        if ($actualHeader !== kpxNormalizeHeaderCell($expectedHeader)) return false;
+    }
+    return true;
+}
+
 function kpxReadHeaderCellsFromSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet): array
 {
-    $fixedCells = [
-        'C' => kpxNormalizeHeaderCell($sheet->getCell('C4')->getFormattedValue()),
-        'D' => kpxNormalizeHeaderCell($sheet->getCell('D4')->getFormattedValue()),
-    ];
-    if (kpxMoneygramHeadersForCombination($fixedCells['C'], $fixedCells['D'])['key'] !== '') {
-        return $fixedCells;
-    }
-
-    for ($row = 1; $row <= 12; $row++) {
+    $candidateRows = array_values(array_unique(array_merge([4], range(1, 12))));
+    foreach ($candidateRows as $row) {
         $cells = [
             'C' => kpxNormalizeHeaderCell($sheet->getCell('C' . $row)->getFormattedValue()),
             'D' => kpxNormalizeHeaderCell($sheet->getCell('D' . $row)->getFormattedValue()),
         ];
-        if (kpxMoneygramHeadersForCombination($cells['C'], $cells['D'])['key'] !== '') {
+        $detected = kpxMoneygramHeadersForCombination($cells['C'], $cells['D']);
+        if ($detected['key'] !== '' && kpxHasExpectedHeaderRow($sheet, $detected, $row)) {
+            $cells['headerRow'] = $row;
+            $cells['validHeaders'] = true;
             return $cells;
         }
     }
 
-    return $fixedCells;
+    return [
+        'C' => kpxNormalizeHeaderCell($sheet->getCell('C4')->getFormattedValue()),
+        'D' => kpxNormalizeHeaderCell($sheet->getCell('D4')->getFormattedValue()),
+        'headerRow' => 4,
+        'validHeaders' => false,
+    ];
 }
 
 function kpxReadSpreadsheetHeaderCells(string $path, string $extension): array
@@ -552,7 +568,9 @@ function kpxReadSpreadsheetHeaderCells(string $path, string $extension): array
     $sheet = $spreadsheet->getActiveSheet();
     $cells = kpxReadHeaderCellsFromSheet($sheet);
     $detected = kpxMoneygramHeadersForCombination($cells['C'], $cells['D']);
-    $cells['rows'] = kpxReadMappedRows($sheet, $detected['sourceMap'], $detected['numericHeaders']);
+    $cells['rows'] = !empty($cells['validHeaders'])
+        ? kpxReadMappedRows($sheet, $detected['sourceMap'], $detected['numericHeaders'], ((int)$cells['headerRow']) + 1)
+        : [];
     $spreadsheet->disconnectWorksheets();
     return $cells;
 }
@@ -567,7 +585,9 @@ try {
 
     $columnC = $row4['C'];
     $columnD = $row4['D'];
-    $detected = kpxMoneygramHeadersForCombination($columnC, $columnD);
+    $detected = !empty($row4['validHeaders'])
+        ? kpxMoneygramHeadersForCombination($columnC, $columnD)
+        : kpxMoneygramHeadersForCombination('', '');
     $rows = $row4['rows'] ?? [];
     $developerRows = kpxBuildDeveloperRows($rows, (string)$detected['key'], $partnerName, $partnerId);
     $developerHeaders = !empty($developerRows) ? array_keys($developerRows[0]) : [

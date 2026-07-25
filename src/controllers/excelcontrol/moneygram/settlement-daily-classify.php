@@ -43,14 +43,14 @@ function settlementDailyAmount(mixed $value): ?float
     return $negative ? -abs($number) : $number;
 }
 
-function settlementDailyMatchKey(string $referenceId, mixed $value, bool $isDate): string
+function settlementDailyMatchKey(string $referenceId, string $tranType, mixed $value, bool $isDate): string
 {
     // MoneyGram settlement files can present a database-negative amount as a
     // positive value (and accounting-formatted negatives as `(123.45)`). The
     // Existed Data comparison is therefore based on monetary magnitude after
     // settlementDailyAmount() has normalized the Excel value.
     $normalized = $isDate ? (string)$value : number_format(abs((float)$value), 6, '.', '');
-    return $referenceId . "\0" . $normalized;
+    return $referenceId . "\0" . strtolower(trim($tranType)) . "\0" . $normalized;
 }
 
 /** @return array<int,array{exists:bool,database:?array,matched_by:string}> */
@@ -61,8 +61,9 @@ function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column,
 
     $unique = [];
     foreach ($candidates as $index => $candidate) {
-        $key = settlementDailyMatchKey($candidate['reference_id'], $candidate['value'], $isDate);
+        $key = settlementDailyMatchKey($candidate['reference_id'], $candidate['tran_type'], $candidate['value'], $isDate);
         $unique[$key]['reference_id'] = $candidate['reference_id'];
+        $unique[$key]['tran_type'] = strtolower(trim($candidate['tran_type']));
         $unique[$key]['value'] = $candidate['value'];
         $unique[$key]['indexes'][] = (int)$index;
     }
@@ -71,14 +72,15 @@ function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column,
     $parameters = [];
     $matchExpression = $isDate ? '`' . $column . '`' : 'ABS(`' . $column . '`)';
     foreach ($unique as $candidate) {
-        $clauses[] = '(reference_id = ? AND ' . $matchExpression . ' = ?)';
+        $clauses[] = '(reference_id = ? AND LOWER(TRIM(COALESCE(tran_type, \'\'))) = ? AND ' . $matchExpression . ' = ?)';
         $parameters[] = $candidate['reference_id'];
+        $parameters[] = $candidate['tran_type'];
         $parameters[] = $isDate ? $candidate['value'] : abs((float)$candidate['value']);
     }
     $summaryStatement = $pdo->prepare(
-        'SELECT reference_id, ' . $matchExpression . ' AS match_value, COUNT(*) AS match_count, MAX(id) AS selected_id
+        'SELECT reference_id, LOWER(TRIM(COALESCE(tran_type, \'\'))) AS normalized_tran_type, ' . $matchExpression . ' AS match_value, COUNT(*) AS match_count, MAX(id) AS selected_id
          FROM moneygram_partner_data WHERE ' . implode(' OR ', $clauses) . '
-         GROUP BY reference_id, ' . $matchExpression
+         GROUP BY reference_id, LOWER(TRIM(COALESCE(tran_type, \'\'))), ' . $matchExpression
     );
     $summaryStatement->execute($parameters);
     $summaries = $summaryStatement->fetchAll(PDO::FETCH_ASSOC);
@@ -100,7 +102,7 @@ function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column,
 
     $results = [];
     foreach ($summaries as $summary) {
-        $key = settlementDailyMatchKey((string)$summary['reference_id'], $summary['match_value'], $isDate);
+        $key = settlementDailyMatchKey((string)$summary['reference_id'], (string)$summary['normalized_tran_type'], $summary['match_value'], $isDate);
         if (!isset($unique[$key])) continue;
         $database = $dataById[(int)$summary['selected_id']] ?? null;
         if (is_array($database)) unset($database['id']);
@@ -126,6 +128,7 @@ try {
         $inputRows[$index] = [
             'reference_id' => $referenceId,
             'tran_date' => trim((string)($pair['tran_date'] ?? '')),
+            'tran_type' => trim((string)($pair['tran_type'] ?? '')),
             'base_tran_amt' => settlementDailyAmount($pair['base_tran_amt'] ?? null),
             'fx_rev_share_tran_amt' => settlementDailyAmount($pair['fx_rev_share_tran_amt'] ?? null),
             'comm_tran_amt' => settlementDailyAmount($pair['comm_tran_amt'] ?? null),
@@ -149,7 +152,7 @@ try {
             } elseif ($value === null || abs((float)$value) < 0.0000001) {
                 continue;
             }
-            $candidates[$index] = ['reference_id' => $row['reference_id'], 'value' => $value];
+            $candidates[$index] = ['reference_id' => $row['reference_id'], 'tran_type' => $row['tran_type'], 'value' => $value];
         }
         foreach (settlementDailyBatchLookup($pdo, $candidates, $stage['column'], $stage['date']) as $index => $match) {
             $results[$index] = $match;

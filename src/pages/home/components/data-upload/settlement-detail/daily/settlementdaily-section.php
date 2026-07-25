@@ -93,6 +93,7 @@ try {
         const allowedExtensions = ['xls', 'xlsx', 'csv'];
         const batchHeaders = ['Tran FX Rate', 'FX Date', 'Base Amt', 'Fee Amt', 'Fx Rev Share Amt', 'Comm Amt'];
         const uploaderMode = <?= json_encode($settlementUploaderMode, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+        const currentEndMonthExample = <?= json_encode(date('m/t/Y'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const partners = <?= json_encode($settlementDailyPartners, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const partnerIds = <?= json_encode($settlementDailyPartnerIds, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         let files = [];
@@ -180,11 +181,26 @@ try {
             if (checked.getFullYear() !== parts[0] || checked.getMonth() !== parts[1] - 1 || checked.getDate() !== parts[2]) return '';
             return String(parts[0]).padStart(4, '0') + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2]).padStart(2, '0');
         }
+        function settlementDateFromFilename(filename) {
+            const months = {
+                january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+                july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
+            };
+            const match = String(filename || '').match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),\s*(\d{4})\b/i);
+            if (!match) return '';
+            const month = months[match[1].toLowerCase()];
+            const day = Number(match[2]);
+            const year = Number(match[3]);
+            const checked = new Date(year, month - 1, day);
+            if (checked.getFullYear() !== year || checked.getMonth() !== month - 1 || checked.getDate() !== day) return '';
+            return String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        }
         async function classifyDeveloperRows(rows, XLSX) {
             if (!isMoneyGramPartner() || rows.length < 2) return {};
             const headers = rows[0].map(value => normalize(value));
             const referenceIndex = headers.findIndex(header => ['reference id', 'reference_id', 'reference no', 'reference'].includes(header));
             const dateIndex = headers.findIndex(header => ['tran date', 'tran_date', 'transaction date', 'date'].includes(header));
+            const tranTypeIndex = headers.findIndex(header => ['tran type', 'tran_type'].includes(header));
             const baseAmountIndex = headers.findIndex(header => ['base tran amt', 'base_tran_amt', 'base amt', 'base_amt'].includes(header));
             const fxShareAmountIndex = headers.findIndex(header => ['fx rev share tran amt', 'fx_rev_share_tran_amt', 'fx rev share amt', 'fx_rev_share_amt'].includes(header));
             const commissionAmountIndex = headers.findIndex(header => ['comm tran amt', 'comm_tran_amt', 'comm amt', 'comm_amt'].includes(header));
@@ -193,6 +209,7 @@ try {
                 index: index,
                 reference_id: String(row[referenceIndex] ?? '').trim(),
                 tran_date: normalizeLookupDate(row[dateIndex], XLSX),
+                tran_type: tranTypeIndex >= 0 ? String(row[tranTypeIndex] ?? '').trim() : '',
                 base_tran_amt: baseAmountIndex >= 0 ? row[baseAmountIndex] ?? '' : '',
                 fx_rev_share_tran_amt: fxShareAmountIndex >= 0 ? row[fxShareAmountIndex] ?? '' : '',
                 comm_tran_amt: commissionAmountIndex >= 0 ? row[commissionAmountIndex] ?? '' : ''
@@ -280,7 +297,7 @@ try {
                 const content = document.createElement('div');
                 const modes = document.createElement('div');
                 modes.className = 'settlement-daily-preview-modes';
-                modes.innerHTML = '<label><input type="radio" name="settlementDailyPreviewMode" value="normal" checked><span>Normal Mode</span></label><label><input type="radio" name="settlementDailyPreviewMode" value="developer"><span>Developer Mode</span></label>';
+                // modes.innerHTML = '<label><input type="radio" name="settlementDailyPreviewMode" value="normal" checked><span>Normal Mode</span></label><label><input type="radio" name="settlementDailyPreviewMode" value="developer"><span>Developer Mode</span></label>';
                 const payoutTabs = document.createElement('div');
                 payoutTabs.className = 'settlement-daily-payout-tabs';
                 payoutTabs.hidden = true;
@@ -445,36 +462,65 @@ try {
             const XLSX = await ensureSheetJs();
             const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            if (!firstSheet) return { isBatchPartnerDaily: false, hasEndMonthTranDate: false, dataRowCount: 0 };
+            if (!firstSheet) return { isBatchPartnerDaily: false, hasRequiredHeaders: false, hasEndMonthTranDate: false, dataRowCount: 0 };
             const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, range: 0, blankrows: false, defval: '', raw: true });
             const firstRow = (rows[0] || []).map(value => String(value || '').trim().toLowerCase());
+            const requiredHeaders = [
+                ['account number', 'account_number'],
+                ['agent name', 'agent_name'],
+                ['legacy id', 'legacy_id'],
+                ['tran date', 'tran_date'],
+                ['transaction id', 'transaction_id'],
+                ['reference id', 'reference_id'],
+                ['product'],
+                ['tran type', 'tran_type'],
+                ['orig cntry', 'orig_cntry'],
+                ['rcv cntry', 'rcv_cntry'],
+                ['fx rate trn', 'fx_rate_trn'],
+                ['fx date trn', 'fx_date_trn'],
+                ['margin'],
+                ['base tran amt', 'base_tran_amt'],
+                ['fee tran amt', 'fee_tran_amt'],
+                ['fx rev share tran amt', 'fx_rev_share_tran_amt'],
+                ['comm tran amt', 'comm_tran_amt'],
+                ['total tran amt', 'total_tran_amt'],
+                ['settlement currency', 'settlement_currency'],
+                ['transaction currency', 'transaction_currency']
+            ];
             const tranDateIndex = firstRow.indexOf('tran date');
             return {
                 isBatchPartnerDaily: batchHeaders.every(header => firstRow.includes(header.toLowerCase())),
+                hasRequiredHeaders: requiredHeaders.every(aliases => aliases.some(header => firstRow.includes(header))),
                 hasEndMonthTranDate: tranDateIndex >= 0 && rows.slice(1).some(row => isLastDayOfMonth(row[tranDateIndex], XLSX)),
                 dataRowCount: rows.slice(1).filter(row => row.some(value => String(value ?? '').trim() !== '')).length
             };
         }
-        function showBatchFileAlert() {
-            const message = 'Not allowed to batch Excel file partner daily, only upload is settlement detail per daily Excel file.';
+        function showInvalidFileAlert() {
             if (window.Swal && typeof window.Swal.fire === 'function') {
-                return window.Swal.fire({ icon: 'warning', title: 'Invalid Excel File', text: message, confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
+                return window.Swal.fire({ icon: 'error', title: 'Invalid File Format', confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
             }
-            window.alert(message);
+            window.alert('Invalid File Format');
+            return Promise.resolve();
+        }
+        function showBatchFileAlert() {
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                return window.Swal.fire({ icon: 'warning', title: 'Invalid File Format', confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
+            }
+            window.alert('Invalid File Format');
             return Promise.resolve();
         }
         function showEndMonthFileAlert() {
             const message = 'Not allowed to batch Excel file with last day of the month. Please upload it using the Settlement Detail - End Month Uploader.';
             if (window.Swal && typeof window.Swal.fire === 'function') {
-                return window.Swal.fire({ icon: 'warning', title: 'End Month File Detected', text: message, confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
+                return window.Swal.fire({ icon: 'warning', title: 'File Detected', text: message, confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
             }
             window.alert(message);
             return Promise.resolve();
         }
         function showMissingEndMonthFileAlert() {
-            const message = 'This is not an end-month settlement file. At least one value under the Tran Date column must be the last calendar day of its month (for example, 03/31/2026).';
+            const message = 'This is not an end-month settlement file. At least one value under the Tran Date column must be the last calendar day of its month (for example, ' + currentEndMonthExample + ').';
             if (window.Swal && typeof window.Swal.fire === 'function') {
-                return window.Swal.fire({ icon: 'warning', title: 'End Month Date Required', text: message, confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
+                return window.Swal.fire({ icon: 'warning', title: 'Date Required Detected', text: message, confirmButtonText: 'OK', confirmButtonColor: '#dc3545' });
             }
             window.alert(message);
             return Promise.resolve();
@@ -497,6 +543,7 @@ try {
             if (!incoming.length) { input.value = ''; return; }
 
             const rejectedBatchFiles = [];
+            const rejectedInvalidFiles = [];
             const rejectedEndMonthFiles = [];
             const rejectedMissingEndMonthFiles = [];
             const acceptedFiles = [];
@@ -511,6 +558,11 @@ try {
                         if (inspection.isBatchPartnerDaily) {
                             fileRowCounts.delete(file);
                             rejectedBatchFiles.push(file.name);
+                            continue;
+                        }
+                        if (!inspection.hasRequiredHeaders) {
+                            fileRowCounts.delete(file);
+                            rejectedInvalidFiles.push(file.name);
                             continue;
                         }
                         if (uploaderMode === 'endMonth') {
@@ -545,6 +597,7 @@ try {
                 await showMissingEndMonthFileAlert();
             }
             if (rejectedBatchFiles.length) await showBatchFileAlert();
+            if (rejectedInvalidFiles.length) await showInvalidFileAlert();
         }
 
         async function prepareRowsForUpload(file, XLSX) {
@@ -567,13 +620,17 @@ try {
             const indexes = {};
             Object.keys(aliases).forEach(key => { indexes[key] = headers.findIndex(header => aliases[key].includes(header)); });
             const classifications = await classifyDeveloperRows(rows, XLSX);
+            const filenameSettlementDate = uploaderMode === 'daily' ? settlementDateFromFilename(file.name) : '';
             return rows.slice(1).map((row, index) => {
                 if (!row.some(value => String(value ?? '').trim() !== '')) return null;
                 const value = key => indexes[key] >= 0 ? row[indexes[key]] ?? '' : '';
                 const result = classifications[String(index)] || { exists: false, database: null, matched_by: null };
+                const normalizedTranDate = normalizeLookupDate(value('tran_date'), XLSX);
                 return {
                     account_number: value('account_number'), agent_name: value('agent_name'), legacy_id: value('legacy_id'),
-                    tran_date: normalizeLookupDate(value('tran_date'), XLSX), transaction_id: value('transaction_id'), reference_id: value('reference_id'),
+                    tran_date: normalizedTranDate,
+                    settled_date: filenameSettlementDate && normalizedTranDate !== filenameSettlementDate ? filenameSettlementDate : '',
+                    transaction_id: value('transaction_id'), reference_id: value('reference_id'),
                     product: value('product'), tran_type: value('tran_type'), orig_cntry: value('orig_cntry'), rcv_cntry: value('rcv_cntry'),
                     fx_rate_trn: value('fx_rate_trn'), fx_date_trn: normalizeLookupDate(value('fx_date_trn'), XLSX) || value('fx_date_trn'), margin: value('margin'),
                     base_tran_amt: value('base_tran_amt'), fee_tran_amt: value('fee_tran_amt'), fx_rev_share_tran_amt: value('fx_rev_share_tran_amt'),

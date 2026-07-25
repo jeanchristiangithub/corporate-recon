@@ -389,8 +389,11 @@ function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, 
         'fx' => 'fx_rev_share_tran_amt',
         'commission' => 'comm_tran_amt',
     ];
+    $reportDateExpression = 'DATE(CASE'
+        . ' WHEN psd.settled_date BETWEEN ? AND ? THEN psd.settled_date'
+        . ' ELSE psd.tran_date END)';
     $selects = [
-        'DATE(psd.tran_date) AS report_date',
+        $reportDateExpression . ' AS report_date',
         "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'REC' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) = 'RRC' THEN -1 ELSE 0 END) AS payout_volume",
         "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'SEN' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) IN ('RSN', 'REF') THEN -1 ELSE 0 END) AS sendout_volume",
     ];
@@ -403,16 +406,27 @@ function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, 
 
     $sql = 'SELECT ' . implode(', ', $selects)
         . ' FROM partner_settlement_data psd'
-        . ' INNER JOIN moneygram_partner_data mpd'
+        . ' LEFT JOIN moneygram_partner_data mpd'
         . ' ON psd.tran_date = mpd.tran_date'
         . ' AND psd.reference_id = mpd.reference_id'
         . ' AND psd.tran_type = mpd.tran_type'
-        . ' WHERE psd.tran_date BETWEEN ? AND ?'
+        . ' WHERE (psd.tran_date BETWEEN ? AND ? OR psd.settled_date BETWEEN ? AND ?)'
+        . ' AND (mpd.reference_id IS NOT NULL OR psd.settled_date BETWEEN ? AND ?)'
         . ' AND UPPER(TRIM(psd.transaction_currency)) = ?'
         . " AND UPPER(TRIM(psd.tran_type)) IN ('REC', 'RRC', 'SEN', 'RSN', 'REF')"
-        . ' GROUP BY DATE(psd.tran_date) ORDER BY DATE(psd.tran_date)';
+        . ' GROUP BY report_date ORDER BY report_date';
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$startDate, $endDate, strtoupper(trim($currency))]);
+    $stmt->execute([
+        $startDate,
+        $endDate,
+        $startDate,
+        $endDate,
+        $startDate,
+        $endDate,
+        $startDate,
+        $endDate,
+        strtoupper(trim($currency)),
+    ]);
 
     $rows = [];
     $totals = [

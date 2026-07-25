@@ -113,6 +113,7 @@ try {
                 </button>
             </div>
             <div class="kpx-wd-viewer-body">
+                <?php /*
                 <div class="kpx-wd-viewer-modes" role="radiogroup" aria-label="Viewer mode">
                     <label class="kpx-wd-viewer-mode">
                         <input type="radio" name="kpxWdViewerMode" value="normal" checked>
@@ -123,6 +124,7 @@ try {
                         <span>Developer Mode</span>
                     </label>
                 </div>
+                */ ?>
                 <div id="kpxWdSystemTableWrap" class="kpx-wd-system-table-wrap"></div>
             </div>
         </div>
@@ -325,7 +327,9 @@ try {
             });
             const payload = await response.json().catch(() => null);
             if(!response.ok || !payload || !payload.success){
-                throw new Error((payload && payload.error) || 'Unable to read this file.');
+                const error = new Error((payload && payload.error) || 'Unable to read this file.');
+                error.invalidExcelFile = response.status === 400 || response.status === 422;
+                throw error;
             }
 
             return payload;
@@ -338,6 +342,11 @@ try {
 
         async function detectFileRowCount(file){
             const payload = await readWorkbookHeaderCells(file);
+            if(!payload.detectedKey || !Array.isArray(payload.headers) || payload.headers.length === 0){
+                const error = new Error('The required KPX Web Data header row was not found.');
+                error.invalidExcelFile = true;
+                throw error;
+            }
             return Array.isArray(payload.rows) ? payload.rows.length : 0;
         }
 
@@ -432,6 +441,19 @@ try {
             if(uploadModalOk) uploadModalOk.onclick = hideUploadModal;
         }
 
+        function showInvalidExcelFileAlert(){
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                return window.Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid File Format',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+            showFailureModal('Invalid File Format', '');
+            return Promise.resolve();
+        }
+
         function askOverwrite(message){
             return new Promise(resolve => {
                 showUploadModal('Confirm', message || 'Data already exists. Do you want to overwrite the existing data?', true);
@@ -440,10 +462,14 @@ try {
             });
         }
 
-        async function saveDeveloperRows(rows, overwrite){
+        async function saveDeveloperRows(rows, overwrite, file){
             const formData = new FormData();
             if(csrfToken) formData.append('csrf_token', csrfToken.value || '');
-            formData.append('payload', JSON.stringify({ rows: rows, overwrite: !!overwrite }));
+            formData.append('payload', JSON.stringify({
+                rows: rows,
+                overwrite: !!overwrite,
+                filename: file && file.name ? file.name : ''
+            }));
             const controller = new AbortController();
             const timeout = window.setTimeout(() => controller.abort(), 180000);
             let response;
@@ -501,7 +527,7 @@ try {
                 let writtenFiles = 0;
                 for(const payload of filePayloads){
                     showUploadModal('Processing files...', 'Writing data to database (' + writtenFiles + ' of ' + filePayloads.length + ' files).', false, (writtenFiles / filePayloads.length) * 100);
-                    const result = await saveDeveloperRows(payload.rows, false);
+                    const result = await saveDeveloperRows(payload.rows, false, payload.file);
                     if(result.duplicate){
                         duplicatePayloads.push(payload);
                     } else {
@@ -522,7 +548,7 @@ try {
                     let updatedFiles = 0;
                     for(const payload of duplicatePayloads){
                         showUploadModal('Processing files...', 'Updating existing database records (' + updatedFiles + ' of ' + duplicatePayloads.length + ' files).', false, (updatedFiles / duplicatePayloads.length) * 100);
-                        const result = await saveDeveloperRows(payload.rows, true);
+                        const result = await saveDeveloperRows(payload.rows, true, payload.file);
                         inserted += Number(result.inserted || 0);
                         updated += Number(result.updated || 0);
                         updatedFiles++;
@@ -641,7 +667,9 @@ try {
                 renderFiles();
             });
             count.appendChild(countText);
-            count.appendChild(removeAll);
+            if(files.length >= 2){
+                count.appendChild(removeAll);
+            }
 
             const list = document.createElement('ul');
             list.className = 'kpx-wd-files-ul';
@@ -713,6 +741,7 @@ try {
             showUploadModal('Checking data rows...', 'Checking 0 of ' + newFiles.length + ' files.', false, 0);
             const queue = newFiles.slice();
             const workerCount = Math.min(4, Math.max(1, queue.length));
+            const invalidFiles = [];
             let checked = 0;
 
             async function countWorker(){
@@ -723,8 +752,12 @@ try {
                         const count = await detectFileRowCount(file);
                         if(files.includes(file)) fileRowCounts.set(file, count);
                     }catch(error){
-                        console.warn('[kpx-webdata] failed to count rows', error);
-                        if(files.includes(file)) fileRowCounts.set(file, 0);
+                        if(error && error.invalidExcelFile){
+                            invalidFiles.push(file);
+                        }else{
+                            console.warn('[kpx-webdata] failed to count rows', error);
+                            if(files.includes(file)) fileRowCounts.set(file, 0);
+                        }
                     }
                     checked++;
                     renderFiles();
@@ -733,8 +766,17 @@ try {
             }
 
             await Promise.all(Array.from({ length: workerCount }, countWorker));
+            if(invalidFiles.length > 0){
+                const invalidSet = new Set(invalidFiles);
+                files = files.filter(file => !invalidSet.has(file));
+                invalidFiles.forEach(file => fileRowCounts.delete(file));
+                if(fileInput) fileInput.value = '';
+            }
             renderFiles();
             hideUploadModal();
+            if(invalidFiles.length > 0){
+                await showInvalidExcelFileAlert();
+            }
         }
 
         partnerId.addEventListener('input', syncCompanyFromPartnerId);

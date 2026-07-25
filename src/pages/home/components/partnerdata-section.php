@@ -66,6 +66,11 @@ try {
                 <input id="pdFiles" type="file" multiple accept=".xls,.xlsx,.xlsm,.xlsb,.ods,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled,application/vnd.ms-excel.sheet.binary.macroEnabled,application/vnd.oasis.opendocument.spreadsheet" style="display:none" />
             </div>
 
+            <div id="pdRemoveAllWrap" style="display:none;align-items:center;justify-content:space-between;margin-top:0.65rem">
+                <span id="pdReadyCount" style="font-weight:600;color:#4b5563"></span>
+                <button id="pdRemoveAll" type="button" class="material-btn" style="background:#dc2626;color:#fff;border-color:#dc2626">Remove All</button>
+            </div>
+
             <div class="pd-filelist" id="pdFileList" aria-live="polite" style="display:none">
                 <div class="pd-empty">No files selected</div>
             </div>
@@ -377,6 +382,9 @@ try {
         const fileListEl = document.getElementById('pdFileList');
         const uploadBtn = document.getElementById('pdUpload');
         const cardsEl = document.getElementById('pdCards');
+        const removeAllWrap = document.getElementById('pdRemoveAllWrap');
+        const removeAllBtn = document.getElementById('pdRemoveAll');
+        const readyCount = document.getElementById('pdReadyCount');
         const overlayEl = document.getElementById('pdOverlay');
         const progressBar = document.getElementById('pdProgressBar');
         const progressText = document.getElementById('pdProgressText');
@@ -575,6 +583,28 @@ try {
             else { dropzone.classList.add('pd-dropzone--disabled'); }
             uploadBtn.disabled = partnerUploadRunning || isUploading || !(ready && (files.length>0 || currentProcessed.length>0));
             renderFileList();
+            updateRemoveAllButton();
+        }
+
+        function updateRemoveAllButton(){
+            if(!removeAllWrap || !removeAllBtn || !readyCount) return;
+            const cardCount = getProcessedList().length;
+            removeAllWrap.style.display = cardCount > 0 ? 'flex' : 'none';
+            readyCount.textContent = cardCount + ' file' + (cardCount === 1 ? '' : 's') + ' ready';
+            removeAllBtn.style.display = cardCount >= 2 ? '' : 'none';
+            removeAllBtn.disabled = partnerUploadRunning || isUploading;
+        }
+
+        if(removeAllBtn){
+            removeAllBtn.addEventListener('click', function(){
+                if(partnerUploadRunning || isUploading) return;
+                files = [];
+                if(fileInput) fileInput.value = '';
+                const key = getCompanyKey();
+                if(key) processedByCompany[key] = [];
+                refreshState();
+                updateCards();
+            });
         }
 
         function renderFileList(){
@@ -1557,7 +1587,7 @@ try {
             const processed = getProcessedList();
             processed.sort((a,b)=>{ return getPayloadTimestamp(a) - getPayloadTimestamp(b); });
             cardsEl.innerHTML = '';
-            if(processed.length===0) return;
+            if(processed.length===0){ updateRemoveAllButton(); return; }
             const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='0.5rem';
             processed.forEach((p,idx)=>{
                 const cardWrap = document.createElement('div');
@@ -1619,6 +1649,7 @@ try {
                 list.appendChild(cardWrap);
             });
             cardsEl.appendChild(list);
+            updateRemoveAllButton();
         }
 
         function buildViewerPayload(payload){
@@ -1655,7 +1686,7 @@ try {
 
         // modal helpers
         let modalEl = null;
-        function showModal(html){ if(!modalEl){ modalEl = document.createElement('div'); modalEl.className='pd-modal'; modalEl.style.position='fixed'; modalEl.style.left=0; modalEl.style.top=0; modalEl.style.right=0; modalEl.style.bottom=0; modalEl.style.background='rgba(0,0,0,0.6)'; modalEl.style.display='flex'; modalEl.style.alignItems='center'; modalEl.style.justifyContent='center'; modalEl.style.zIndex=11000; modalEl.innerHTML = '<div class="pd-modal-inner"> <button class="pd-close" aria-label="Close"><span class="material-icons">close</span></button><div class="pd-modal-body"></div></div>'; document.body.appendChild(modalEl); modalEl.querySelector('.pd-close').addEventListener('click', ()=>{ modalEl.style.display='none'; }); modalEl.addEventListener('click', function(e){ if(e.target === modalEl) modalEl.style.display='none'; }); } const body = modalEl.querySelector('.pd-modal-body'); body.innerHTML = html; const inner = modalEl.querySelector('.pd-modal-inner'); if(inner){ inner.style.width='98%'; inner.style.height='96%'; inner.style.maxWidth='none'; inner.style.maxHeight='none'; inner.style.background='#fff'; inner.style.padding='0.5rem'; inner.style.borderRadius='6px'; inner.style.boxShadow='0 10px 40px rgba(0,0,0,0.4)'; inner.style.overflow='hidden'; inner.style.position='relative';
+        function showModal(html){ if(!modalEl){ modalEl = document.createElement('div'); modalEl.className='pd-modal'; modalEl.style.position='fixed'; modalEl.style.left=0; modalEl.style.top=0; modalEl.style.right=0; modalEl.style.bottom=0; modalEl.style.background='rgba(0,0,0,0.6)'; modalEl.style.display='flex'; modalEl.style.alignItems='center'; modalEl.style.justifyContent='center'; modalEl.style.zIndex=11000; modalEl.innerHTML = '<div class="pd-modal-inner"> <button type="button" class="pd-close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button><div class="pd-modal-body"></div></div>'; document.body.appendChild(modalEl); modalEl.querySelector('.pd-close').addEventListener('click', (event)=>{ event.preventDefault(); event.stopPropagation(); modalEl.style.display='none'; }); modalEl.addEventListener('click', function(e){ if(e.target === modalEl) modalEl.style.display='none'; }); } const body = modalEl.querySelector('.pd-modal-body'); body.innerHTML = html; const inner = modalEl.querySelector('.pd-modal-inner'); if(inner){ inner.style.width='98%'; inner.style.height='96%'; inner.style.maxWidth='none'; inner.style.maxHeight='none'; inner.style.background='#fff'; inner.style.padding='0.5rem'; inner.style.borderRadius='6px'; inner.style.boxShadow='0 10px 40px rgba(0,0,0,0.4)'; inner.style.overflow='hidden'; inner.style.position='relative';
                 // style close button to match web viewer modal
                 const closeBtn = modalEl.querySelector('.pd-close');
                 if(closeBtn){
@@ -1667,6 +1698,8 @@ try {
                     closeBtn.style.cursor = 'pointer';
                     closeBtn.style.padding = '6px';
                     closeBtn.style.borderRadius = '6px';
+                    closeBtn.style.zIndex = '20';
+                    closeBtn.style.pointerEvents = 'auto';
                     closeBtn.onmouseover = ()=>{ closeBtn.style.background = '#f5f5f5'; };
                     closeBtn.onmouseout = ()=>{ closeBtn.style.background = 'transparent'; };
                 }

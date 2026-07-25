@@ -74,9 +74,10 @@ function moneygram_format_money_display($value){
 ob_start();
 ?>
 <style>
-/* Excel-like viewer styles: allow both horizontal and vertical scrolling, sticky header and first column */
+/* Excel-like viewer styles: allow both horizontal and vertical scrolling; only the header row stays sticky */
 .moneygram-viewer{padding:14px 10px;color:#1f2937}
 .moneygram-viewer h3{display:block;margin:0 0 6px 0;color:#1f2937}
+.moneygram-viewer .moneygram-recon-modal__head h3::before{content:none;display:none}
 .moneygram-view-meta{display:flex;gap:12px;align-items:center;margin-bottom:10px}
 .moneygram-viewer #moneygramViewerContainer{overflow:auto;max-height:78vh}
 .moneygram-view-table{border-collapse:collapse;width:auto;min-width:1400px;table-layout:fixed;font-size:13px;border-spacing:0}
@@ -98,13 +99,6 @@ ob_start();
     background:#f9fafb;
     font-weight:700;
 }
-.moneygram-view-table th:first-child,
-.moneygram-view-table td:first-child{
-    position:sticky;
-    left:0;
-    z-index:7;
-    background:#fff;
-}
 .moneygram-view-table tbody tr:nth-child(even) td{background:rgba(240,244,247,0.6)}
 .moneygram-view-table tbody tr.search-match td{ background: #fff7ed; }
 .moneygram-viewer input#moneygramViewerSearch{padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb}
@@ -120,14 +114,13 @@ ob_start();
     <div class="moneygram-recon-modal__head" style="border-bottom:0;margin-bottom:8px;padding-bottom:6px;display:flex;align-items:center;justify-content:space-between">
         <div>
             <h3 style="margin:0;font-size:1.05rem;color:#1f2937;font-weight:700;">
-                <?php echo (($partnerName && $partnerName !== '') ? $partnerName : 'MONEYGRAM') . ' - ' . $dateStr; ?>
+                <?php echo $filename !== '' ? $filename : (($partnerName && $partnerName !== '') ? $partnerName : 'MONEYGRAM'); ?>
             </h3>
-            <div style="font-size:0.92rem;color:#6b7280;margin-top:6px;"><?php echo ($viewType === 'partner' ? 'Partner Data' : ($viewType === 'web' ? 'Web Data' : 'Data')); ?></div>
         </div>
             <div style="display:flex;align-items:center;gap:12px;min-width:0">
             <div style="font-size:0.95rem;color:#666;flex:0 0 auto">Rows: <strong id="moneygramViewerCount"><?php echo number_format(count($rows)); ?></strong></div>
             <input id="moneygramViewerSearch" placeholder="Search" style="flex:1;min-width:0;max-width:360px;padding:8px 10px;border:1px solid #ddd;border-radius:8px" />
-            <button id="moneygramViewerSearchBtn" class="material-btn" style="white-space:nowrap">Search</button>
+            <button id="moneygramViewerSearchBtn" class="material-btn" style="white-space:nowrap;background:#dc2626;color:#fff;border-color:#dc2626">Search</button>
         </div>
     </div>
     <div style="overflow:auto; max-height:78vh;" id="moneygramViewerContainer">

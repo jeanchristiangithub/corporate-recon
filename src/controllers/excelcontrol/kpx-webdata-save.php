@@ -33,6 +33,7 @@ if (!is_array($payload)) {
 
 $rows = $payload['rows'] ?? [];
 $overwrite = !empty($payload['overwrite']);
+$originalFilename = trim(basename((string)($payload['filename'] ?? '')));
 if (!is_array($rows) || count($rows) === 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'No rows to upload.']);
@@ -76,6 +77,7 @@ $insertColumns = [
     'receiver_name',
     'data_status',
     'other_details',
+    'ufl_file_log_id',
     'is_data_locked',
 ];
 
@@ -147,6 +149,63 @@ function kpxLoadDuplicateIds(PDO $pdo, array $rows): array
     return $ids;
 }
 
+function kpxFileLogMetadata(array $rows, string $originalFilename): array
+{
+    $firstRow = [];
+    $statuses = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        if (empty($firstRow)) $firstRow = $row;
+        $status = strtoupper(trim((string)($row['data_status'] ?? '')));
+        if ($status !== '') $statuses[$status] = true;
+    }
+
+    $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
+    $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
+    return [
+        'filename' => trim($filename),
+        'filename_ext' => trim($extension),
+        'partner_id' => trim((string)($firstRow['partner_id'] ?? '')),
+        'partner_name' => trim((string)($firstRow['partnerName'] ?? '')),
+        'kpxweb_data_status' => implode(',', array_keys($statuses)),
+    ];
+}
+
+function kpxResolveFileLogId(PDO $pdo, array $log): int
+{
+    $findStmt = $pdo->prepare(
+        'SELECT id FROM uploaded_file_logs '
+        . 'WHERE filename = ? AND partner_id = ? '
+        . 'ORDER BY id DESC LIMIT 1 FOR UPDATE'
+    );
+    $findStmt->execute([$log['filename'], $log['partner_id']]);
+    $existingId = $findStmt->fetchColumn();
+
+    if ($existingId !== false) {
+        $fileLogId = (int)$existingId;
+        $updateStmt = $pdo->prepare(
+            "UPDATE uploaded_file_logs SET has_overwrite = '1' WHERE id = ?"
+        );
+        $updateStmt->execute([$fileLogId]);
+        return $fileLogId;
+    }
+
+    $insertStmt = $pdo->prepare(
+        'INSERT INTO uploaded_file_logs '
+        . '(uploaded_date, filename, filename_ext, partner_id, partner_name, uploaded_by, has_overwrite, kpxweb_data_status) '
+        . "VALUES (NOW(), ?, ?, ?, ?, ?, '0', ?)"
+    );
+    $insertStmt->execute([
+        $log['filename'],
+        $log['filename_ext'],
+        $log['partner_id'] !== '' ? $log['partner_id'] : null,
+        $log['partner_name'] !== '' ? $log['partner_name'] : null,
+        trim((string)($_SESSION['user']['id_number'] ?? '')) ?: null,
+        $log['kpxweb_data_status'] !== '' ? $log['kpxweb_data_status'] : null,
+    ]);
+    return (int)$pdo->lastInsertId();
+}
+
 try {
     $pdo = fileRecDbConnection();
     $columnRows = $pdo->query('SHOW COLUMNS FROM ml_web_data')->fetchAll(PDO::FETCH_ASSOC);
@@ -182,8 +241,18 @@ try {
     $inserted = 0;
     $updated = 0;
     $pdo->beginTransaction();
+    $log = kpxFileLogMetadata($rows, $originalFilename);
+    if ($log['filename'] === '' || $log['filename_ext'] === '') {
+        throw new RuntimeException('The uploaded filename or extension is missing.');
+    }
+    $fileLogId = kpxResolveFileLogId($pdo, $log);
+    if ($fileLogId <= 0) {
+        throw new RuntimeException('Unable to create or update the uploaded file log.');
+    }
+
     foreach ($rows as $rowIndex => $row) {
         if (!is_array($row)) continue;
+        $row['ufl_file_log_id'] = $fileLogId;
         $id = (int)($duplicateIdByRow[$rowIndex] ?? 0);
         if ($id > 0 && $overwrite) {
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $updateColumns);
@@ -198,7 +267,12 @@ try {
     }
     $pdo->commit();
 
-    echo json_encode(['success' => true, 'inserted' => $inserted, 'updated' => $updated]);
+    echo json_encode([
+        'success' => true,
+        'inserted' => $inserted,
+        'updated' => $updated,
+        'fileLogId' => $fileLogId,
+    ]);
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();

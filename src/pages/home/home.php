@@ -465,7 +465,7 @@ if ($currentUserId !== '') {
 
     // list of nav ids that are under maintenance
     const underMaintenanceNavIds = [
-        'navUploadedFileLogs',
+        // 'navUploadedFileLogs',
         'navWebDataCancellation',
     ];
 
