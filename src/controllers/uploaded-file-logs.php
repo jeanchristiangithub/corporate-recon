@@ -25,6 +25,7 @@ $statusByState = [
     'payout_cancel' => 'POC',
     'sendout_cancel' => 'SOC',
 ];
+$partnerStates = ['all', 'transactional', 'settlement'];
 
 if (!in_array($source, ['kpx_web_data', 'partner_data'], true)) {
     http_response_code(422);
@@ -32,7 +33,11 @@ if (!in_array($source, ['kpx_web_data', 'partner_data'], true)) {
     exit;
 }
 
-if (!array_key_exists($state, $statusByState)) {
+if ($source === 'kpx_web_data' && !array_key_exists($state, $statusByState)) {
+    $state = 'all';
+}
+
+if ($source === 'partner_data' && !in_array($state, $partnerStates, true)) {
     $state = 'all';
 }
 
@@ -48,11 +53,23 @@ try {
     $params = [];
 
     if ($source === 'kpx_web_data') {
-        $where[] = "TRIM(COALESCE(l.kpxweb_data_status, '')) <> ''";
+        $where[] = "(
+            FIND_IN_SET('PO', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
+            OR FIND_IN_SET('SO', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
+            OR FIND_IN_SET('POC', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
+            OR FIND_IN_SET('SOC', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
+        )";
         if ($statusByState[$state] !== null) {
             $where[] = "FIND_IN_SET(:status, REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0";
             $params[':status'] = $statusByState[$state];
         }
+    } elseif ($state === 'settlement') {
+        $where[] = "FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0";
+    } elseif ($state === 'all') {
+        $where[] = "(
+            TRIM(COALESCE(l.kpxweb_data_status, '')) = ''
+            OR FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
+        )";
     } else {
         $where[] = "TRIM(COALESCE(l.kpxweb_data_status, '')) = ''";
     }
@@ -88,6 +105,33 @@ try {
         $params[':search_uploader_name'] = $searchValue;
     }
 
+    if ($source === 'partner_data' && $state === 'settlement') {
+        $linkedDataExists = "EXISTS(
+            SELECT 1
+            FROM partner_settlement_data linked_data
+            WHERE linked_data.ufl_file_log_id = l.id
+        )";
+    } elseif ($source === 'partner_data' && $state === 'all') {
+        $linkedDataExists = "CASE
+            WHEN FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0 THEN EXISTS(
+                SELECT 1
+                FROM partner_settlement_data linked_data
+                WHERE linked_data.ufl_file_log_id = l.id
+            )
+            ELSE EXISTS(
+                SELECT 1
+                FROM ml_web_data linked_data
+                WHERE linked_data.ufl_file_log_id = l.id
+            )
+        END";
+    } else {
+        $linkedDataExists = "EXISTS(
+            SELECT 1
+            FROM ml_web_data linked_data
+            WHERE linked_data.ufl_file_log_id = l.id
+        )";
+    }
+
     $sql = "
         SELECT
             l.id,
@@ -97,11 +141,7 @@ try {
             l.partner_name,
             l.uploaded_by,
             l.has_overwrite,
-            EXISTS(
-                SELECT 1
-                FROM ml_web_data linked_data
-                WHERE linked_data.ufl_file_log_id = l.id
-            ) AS has_linked_data,
+            {$linkedDataExists} AS has_linked_data,
             COALESCE(
                 NULLIF(CONCAT_WS(' ',
                     NULLIF(TRIM(u.firstname), ''),

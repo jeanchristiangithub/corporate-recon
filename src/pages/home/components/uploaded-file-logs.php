@@ -91,6 +91,22 @@
             <div class="uploaded-file-logs-state-card" data-log-source-card="partner_data" hidden>
                 <fieldset class="uploaded-file-logs-group uploaded-file-logs-group--state">
                     <div class="uploaded-file-logs-state-toolbar">
+                        <div class="uploaded-file-logs-options uploaded-file-logs-options--state uploaded-file-logs-tabs"
+                             role="tablist"
+                             aria-label="Partner Data type">
+                            <label class="uploaded-file-logs-radio uploaded-file-logs-tab" role="tab" aria-selected="true">
+                                <input type="radio" name="partner_uploaded_file_log_state" value="all" checked>
+                                <span>ALL</span>
+                            </label>
+                            <label class="uploaded-file-logs-radio uploaded-file-logs-tab" role="tab" aria-selected="false">
+                                <input type="radio" name="partner_uploaded_file_log_state" value="transactional">
+                                <span>TRANSACTIONAL</span>
+                            </label>
+                            <label class="uploaded-file-logs-radio uploaded-file-logs-tab" role="tab" aria-selected="false">
+                                <input type="radio" name="partner_uploaded_file_log_state" value="settlement">
+                                <span>SETTLEMENT</span>
+                            </label>
+                        </div>
                         <div class="uploaded-file-logs-filter-tools">
                             <label class="uploaded-file-logs-field">
                                 <span>Date:</span>
@@ -208,6 +224,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const sourceRadios = document.querySelectorAll('input[name="uploaded_file_log_source"]');
     const stateRadios = document.querySelectorAll('input[name="uploaded_file_log_state"]');
+    const partnerStateRadios = document.querySelectorAll('input[name="partner_uploaded_file_log_state"]');
     const sourceCards = document.querySelectorAll('[data-log-source-card]');
     const tableTitle = document.getElementById('uploadedFileLogsTableTitle');
     const tableBody = document.getElementById('uploadedFileLogsTableBody');
@@ -241,7 +258,9 @@ document.addEventListener('DOMContentLoaded', function () {
         payout: 'PAYOUT',
         sendout: 'SENDOUT',
         payout_cancel: 'PAYOUT CANCELLATION',
-        sendout_cancel: 'SENDOUT CANCELLATION'
+        sendout_cancel: 'SENDOUT CANCELLATION',
+        transactional: 'TRANSACTIONAL',
+        settlement: 'SETTLEMENT'
     };
 
     if (!sourceRadios.length || !sourceCards.length) {
@@ -558,7 +577,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const isPartner = source === 'partner_data';
         const targetBody = isPartner ? partnerTableBody : tableBody;
         const selectedState = document.querySelector('input[name="uploaded_file_log_state"]:checked');
-        const state = selectedState ? selectedState.value : 'all';
+        const selectedPartnerState = document.querySelector('input[name="partner_uploaded_file_log_state"]:checked');
+        const state = isPartner
+            ? (selectedPartnerState ? selectedPartnerState.value : 'all')
+            : (selectedState ? selectedState.value : 'all');
         const month = isPartner ? partnerMonthField : monthField;
         const search = isPartner ? partnerSearchField : searchField;
 
@@ -594,7 +616,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(result.message || 'Unable to load uploaded file logs.');
             }
 
-            const emptyLabel = isPartner ? 'Partner Data' : getSelectedStateLabel('uploaded_file_log_state');
+            const emptyLabel = isPartner
+                ? getSelectedStateLabel('partner_uploaded_file_log_state')
+                : getSelectedStateLabel('uploaded_file_log_state');
             renderRows(targetBody, Array.isArray(result.rows) ? result.rows : [], emptyLabel);
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -621,6 +645,13 @@ document.addEventListener('DOMContentLoaded', function () {
     stateRadios.forEach(function (radio) {
         radio.addEventListener('change', function () {
             updateTableState('uploaded_file_log_state', tableTitle);
+            loadUploadedFileLogs();
+        });
+    });
+
+    partnerStateRadios.forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            updateTableState('partner_uploaded_file_log_state', null);
             loadUploadedFileLogs();
         });
     });

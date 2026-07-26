@@ -29,6 +29,7 @@ $rows = is_array($payload) && isset($payload['rows']) && is_array($payload['rows
 $partnerId = trim((string)($payload['partner_id'] ?? ''));
 $partnerName = trim((string)($payload['partner_name'] ?? ''));
 $uploadMode = (string)($payload['upload_mode'] ?? 'daily');
+$fileLogId = filter_var($payload['file_log_id'] ?? null, FILTER_VALIDATE_INT);
 if ($partnerId !== '1' || stripos($partnerName, 'moneygram') === false) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'This upload workflow is available only for MoneyGram partner ID 1.']);
@@ -37,6 +38,11 @@ if ($partnerId !== '1' || stripos($partnerName, 'moneygram') === false) {
 if ($rows === [] || count($rows) > 750) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Each upload batch must contain between 1 and 750 rows.']);
+    exit;
+}
+if ($fileLogId === false || $fileLogId <= 0) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'A valid uploaded file log ID is required.']);
     exit;
 }
 
@@ -178,6 +184,16 @@ try {
     $pdo->beginTransaction();
     $userId = trim((string)($_SESSION['user']['id_number'] ?? ''));
 
+    $fileLogStatement = $pdo->prepare(
+        "SELECT id FROM uploaded_file_logs
+         WHERE id = ? AND partner_id = ? AND FIND_IN_SET('SD', REPLACE(COALESCE(kpxweb_data_status, ''), ' ', '')) > 0
+         LIMIT 1"
+    );
+    $fileLogStatement->execute([$fileLogId, $partnerId]);
+    if ($fileLogStatement->fetchColumn() === false) {
+        throw new RuntimeException('The settlement uploaded file log is invalid.');
+    }
+
     $findSettlement = $pdo->prepare(
         'SELECT id FROM partner_settlement_data
          WHERE partner_id = ? AND reference_id = ? AND tran_date = ?
@@ -186,11 +202,14 @@ try {
     );
     $insertSettlement = $pdo->prepare(
         'INSERT INTO partner_settlement_data
-        (partner_id, partner_name, account_number, agent_name, legacy_id, tran_date, settled_date, transaction_id, reference_id, product, tran_type, orig_cntry, rcv_cntry, fx_rate_trn, fx_date_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt, total_tran_amt, settlement_currency, transaction_currency, created_at, created_by)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),?)'
+        (partner_id, partner_name, account_number, agent_name, legacy_id, tran_date, settled_date, transaction_id, reference_id, product, tran_type, orig_cntry, rcv_cntry, fx_rate_trn, fx_date_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt, total_tran_amt, settlement_currency, transaction_currency, ufl_file_log_id, created_at, created_by)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),?)'
     );
     $updateSettlement = $pdo->prepare(
-        'UPDATE partner_settlement_data SET partner_name=?, account_number=?, agent_name=?, legacy_id=?, settled_date=?, transaction_id=?, product=?, tran_type=?, orig_cntry=?, rcv_cntry=?, fx_rate_trn=?, fx_date_trn=?, margin=?, base_tran_amt=?, fee_tran_amt=?, fx_rev_share_tran_amt=?, comm_tran_amt=?, total_tran_amt=?, settlement_currency=?, transaction_currency=?, updated_at=NOW(), updated_by=? WHERE id=?'
+        'UPDATE partner_settlement_data SET partner_name=?, account_number=?, agent_name=?, legacy_id=?, settled_date=?, transaction_id=?, product=?, tran_type=?, orig_cntry=?, rcv_cntry=?, fx_rate_trn=?, fx_date_trn=?, margin=?, base_tran_amt=?, fee_tran_amt=?, fx_rev_share_tran_amt=?, comm_tran_amt=?, total_tran_amt=?, settlement_currency=?, transaction_currency=?, ufl_file_log_id=?, updated_at=NOW(), updated_by=? WHERE id=?'
+    );
+    $linkSettlement = $pdo->prepare(
+        'UPDATE partner_settlement_data SET ufl_file_log_id = ?, updated_at = NOW(), updated_by = ? WHERE id = ?'
     );
 
     $prepared = [];
@@ -252,6 +271,7 @@ try {
             }
 
             if (is_array($settlementRow)) {
+                $linkSettlement->execute([$fileLogId, $userId, (int)$settlementRow['id']]);
                 $settlementPatch = [];
                 foreach ($subsetFields as $field) {
                     if (!settlementSubsetHasValue($field, $settlementRow[$field] ?? null) && settlementSubsetHasValue($field, $merged[$field] ?? null)) {
@@ -268,21 +288,29 @@ try {
                     static fn(mixed $value): float => $value === null ? 0.0 : (float)$value,
                     $finalSettlementAmounts
                 ));
-                $settlementAmended += settlementPatchMissingFields($pdo, 'partner_settlement_data', (int)$settlementRow['id'], $settlementRow, $settlementPatch, $userId);
+                $rowWasAmended = settlementPatchMissingFields(
+                    $pdo,
+                    'partner_settlement_data',
+                    (int)$settlementRow['id'],
+                    $settlementRow,
+                    $settlementPatch,
+                    $userId
+                ) > 0;
                 $currentTotal = $settlementRow['total_tran_amt'] ?? null;
                 if ($currentTotal === null || abs((float)$currentTotal - (float)$settlementPatch['total_tran_amt']) >= 0.005) {
                     $totalStatement = $pdo->prepare('UPDATE partner_settlement_data SET total_tran_amt = ?, updated_at = NOW(), updated_by = ? WHERE id = ?');
                     $totalStatement->execute([$settlementPatch['total_tran_amt'], $userId, (int)$settlementRow['id']]);
-                    $settlementAmended += $totalStatement->rowCount();
+                    if ($totalStatement->rowCount() > 0) $rowWasAmended = true;
                 }
+                if ($rowWasAmended) $settlementAmended++;
             } else {
                 $merged['total_tran_amt'] = (float)($merged['base_tran_amt'] ?? 0)
                     + (float)($merged['fee_tran_amt'] ?? 0)
                     + (float)($merged['fx_rev_share_tran_amt'] ?? 0)
                     + (float)($merged['comm_tran_amt'] ?? 0);
-                $insertSettlement->execute([$partnerId, $partnerName, $merged['account_number'], $merged['agent_name'], $merged['legacy_id'], $merged['tran_date'], null, $merged['transaction_id'], $merged['reference_id'], $merged['product'], $merged['tran_type'], $merged['orig_cntry'], $merged['rcv_cntry'], $merged['fx_rate_trn'], $merged['fx_date_trn'], $merged['margin'], $merged['base_tran_amt'], $merged['fee_tran_amt'], $merged['fx_rev_share_tran_amt'], $merged['comm_tran_amt'], $merged['total_tran_amt'], $merged['settlement_currency'], $merged['transaction_currency'], $userId]);
+                $insertSettlement->execute([$partnerId, $partnerName, $merged['account_number'], $merged['agent_name'], $merged['legacy_id'], $merged['tran_date'], null, $merged['transaction_id'], $merged['reference_id'], $merged['product'], $merged['tran_type'], $merged['orig_cntry'], $merged['rcv_cntry'], $merged['fx_rate_trn'], $merged['fx_date_trn'], $merged['margin'], $merged['base_tran_amt'], $merged['fee_tran_amt'], $merged['fx_rev_share_tran_amt'], $merged['comm_tran_amt'], $merged['total_tran_amt'], $merged['settlement_currency'], $merged['transaction_currency'], $fileLogId, $userId]);
                 $settlementInserted++;
-                $settlementCandidates[$merged['reference_id']][] = array_merge($merged, ['id' => (int)$pdo->lastInsertId(), 'partner_id' => $partnerId]);
+                $settlementCandidates[$merged['reference_id']][] = array_merge($merged, ['id' => (int)$pdo->lastInsertId(), 'partner_id' => $partnerId, 'ufl_file_log_id' => $fileLogId]);
             }
 
         }
@@ -303,10 +331,10 @@ try {
         $findSettlement->execute([$partnerId, $item['reference_id'], $item['tran_date'], strtolower(trim((string)($item['tran_type'] ?? '')))]);
         $settlementId = $findSettlement->fetchColumn();
         if ($settlementId !== false) {
-            $updateSettlement->execute([$partnerName, $item['account_number'], $item['agent_name'], $item['legacy_id'], $item['settled_date'], $item['transaction_id'], $item['product'], $item['tran_type'], $item['orig_cntry'], $item['rcv_cntry'], $item['fx_rate_trn'], $item['fx_date_trn'], $item['margin'], $item['base_tran_amt'], $item['fee_tran_amt'], $item['fx_rev_share_tran_amt'], $item['comm_tran_amt'], $item['total_tran_amt'], $item['settlement_currency'], $item['transaction_currency'], $userId, $settlementId]);
+            $updateSettlement->execute([$partnerName, $item['account_number'], $item['agent_name'], $item['legacy_id'], $item['settled_date'], $item['transaction_id'], $item['product'], $item['tran_type'], $item['orig_cntry'], $item['rcv_cntry'], $item['fx_rate_trn'], $item['fx_date_trn'], $item['margin'], $item['base_tran_amt'], $item['fee_tran_amt'], $item['fx_rev_share_tran_amt'], $item['comm_tran_amt'], $item['total_tran_amt'], $item['settlement_currency'], $item['transaction_currency'], $fileLogId, $userId, $settlementId]);
             $settlementUpdated++;
         } else {
-            $insertSettlement->execute([$partnerId, $partnerName, $item['account_number'], $item['agent_name'], $item['legacy_id'], $item['tran_date'], $item['settled_date'], $item['transaction_id'], $item['reference_id'], $item['product'], $item['tran_type'], $item['orig_cntry'], $item['rcv_cntry'], $item['fx_rate_trn'], $item['fx_date_trn'], $item['margin'], $item['base_tran_amt'], $item['fee_tran_amt'], $item['fx_rev_share_tran_amt'], $item['comm_tran_amt'], $item['total_tran_amt'], $item['settlement_currency'], $item['transaction_currency'], $userId]);
+            $insertSettlement->execute([$partnerId, $partnerName, $item['account_number'], $item['agent_name'], $item['legacy_id'], $item['tran_date'], $item['settled_date'], $item['transaction_id'], $item['reference_id'], $item['product'], $item['tran_type'], $item['orig_cntry'], $item['rcv_cntry'], $item['fx_rate_trn'], $item['fx_date_trn'], $item['margin'], $item['base_tran_amt'], $item['fee_tran_amt'], $item['fx_rev_share_tran_amt'], $item['comm_tran_amt'], $item['total_tran_amt'], $item['settlement_currency'], $item['transaction_currency'], $fileLogId, $userId]);
             $settlementInserted++;
         }
     }

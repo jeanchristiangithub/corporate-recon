@@ -641,10 +641,32 @@ try {
             }).filter(row => row !== null);
         }
 
-        async function saveUploadRows(rows) {
+        async function createOrUpdateFileLog(file) {
             const formData = new FormData();
             formData.append('csrf_token', csrfToken ? csrfToken.value : '');
-            formData.append('payload', JSON.stringify({ partner_id: partnerId.value, partner_name: selectedPartner(), upload_mode: uploaderMode, rows: rows }));
+            formData.append('payload', JSON.stringify({
+                filename: file.name,
+                partner_id: partnerId.value,
+                partner_name: selectedPartner()
+            }));
+            const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/settlement-file-log.php', { method: 'POST', body: formData });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || !payload || !payload.success || Number(payload.file_log_id) <= 0) {
+                throw new Error((payload && payload.error) || 'Unable to create the uploaded file log.');
+            }
+            return Number(payload.file_log_id);
+        }
+
+        async function saveUploadRows(rows, fileLogId) {
+            const formData = new FormData();
+            formData.append('csrf_token', csrfToken ? csrfToken.value : '');
+            formData.append('payload', JSON.stringify({
+                partner_id: partnerId.value,
+                partner_name: selectedPartner(),
+                upload_mode: uploaderMode,
+                file_log_id: fileLogId,
+                rows: rows
+            }));
             const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/settlement-daily-save.php', { method: 'POST', body: formData });
             const payload = await response.json().catch(() => null);
             if (!response.ok || !payload || !payload.success) throw new Error((payload && payload.error) || 'Unable to save settlement data.');
@@ -665,11 +687,13 @@ try {
                 if (window.Swal) window.Swal.fire({ title: 'Uploading settlement data...', text: 'Preparing Excel records.', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => window.Swal.showLoading() });
                 const XLSX = await ensureSheetJs();
                 for (const file of files) {
+                    if (window.Swal) { window.Swal.update({ text: 'Recording upload log for ' + file.name + '.' }); window.Swal.showLoading(); }
+                    const fileLogId = await createOrUpdateFileLog(file);
                     const preparedRows = await prepareRowsForUpload(file, XLSX);
                     for (let offset = 0; offset < preparedRows.length; offset += 750) {
                         const chunk = preparedRows.slice(offset, offset + 750);
                         if (window.Swal) { window.Swal.update({ text: 'Writing ' + processedRows.toLocaleString() + ' of ' + totalRows.toLocaleString() + ' rows.' }); window.Swal.showLoading(); }
-                        const result = await saveUploadRows(chunk);
+                        const result = await saveUploadRows(chunk, fileLogId);
                         Object.keys(totals).forEach(key => { totals[key] += Number(result[key] || 0); });
                         processedRows += chunk.length;
                     }
