@@ -96,6 +96,28 @@ $columnsByStatus = [
         ['label' => 'REMOTE BRANCH', 'field' => 'remote_branch'],
         ['label' => 'OTHER DETAILS', 'field' => 'other_details'],
     ],
+    'TD' => [
+        ['label' => 'TRAN DATE', 'field' => 'tran_date'],
+        ['label' => 'ACCOUNT NUMBER', 'field' => 'account_number'],
+        ['label' => 'AGENT NAME', 'field' => 'agent_name'],
+        ['label' => 'LEGACY ID', 'field' => 'legacy_id'],
+        ['label' => 'TRANSACTION ID', 'field' => 'transaction_id'],
+        ['label' => 'REFERENCE ID', 'field' => 'reference_id'],
+        ['label' => 'PRODUCT', 'field' => 'product'],
+        ['label' => 'TRAN TYPE', 'field' => 'tran_type'],
+        ['label' => 'ORIG CNTRY', 'field' => 'orig_cntry'],
+        ['label' => 'RCV CNTRY', 'field' => 'rcv_cntry'],
+        ['label' => 'FX RATE TRN', 'field' => 'fx_rate_trn'],
+        ['label' => 'FX DATE TRN', 'field' => 'fx_date_trn'],
+        ['label' => 'MARGIN', 'field' => 'margin'],
+        ['label' => 'BASE TRAN AMT', 'field' => 'base_tran_amt'],
+        ['label' => 'FEE TRAN AMT', 'field' => 'fee_tran_amt'],
+        ['label' => 'FX REV SHARE TRAN AMT', 'field' => 'fx_rev_share_tran_amt'],
+        ['label' => 'COMM TRAN AMT', 'field' => 'comm_tran_amt'],
+        ['label' => 'TOTAL TRAN AMT', 'field' => 'total_tran_amt'],
+        ['label' => 'SETTLEMENT CURRENCY', 'field' => 'settlement_currency'],
+        ['label' => 'TRANSACTION CURRENCY', 'field' => 'transaction_currency'],
+    ],
     'SD' => [
         ['label' => 'TRAN DATE', 'field' => 'tran_date'],
         ['label' => 'SETTLED DATE', 'field' => 'settled_date'],
@@ -153,7 +175,11 @@ try {
         static fn(string $field): string => '`' . $field . '`',
         $fields
     ));
-    $recordTable = $status === 'SD' ? 'partner_settlement_data' : 'ml_web_data';
+    $recordTable = match ($status) {
+        'TD' => 'moneygram_partner_data',
+        'SD' => 'partner_settlement_data',
+        default => 'ml_web_data',
+    };
 
     $recordStmt = $pdo->prepare(
         "SELECT {$selectFields}

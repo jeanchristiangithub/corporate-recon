@@ -63,15 +63,15 @@ try {
             $where[] = "FIND_IN_SET(:status, REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0";
             $params[':status'] = $statusByState[$state];
         }
+    } elseif ($state === 'transactional') {
+        $where[] = "FIND_IN_SET('TD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0";
     } elseif ($state === 'settlement') {
         $where[] = "FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0";
     } elseif ($state === 'all') {
         $where[] = "(
-            TRIM(COALESCE(l.kpxweb_data_status, '')) = ''
+            FIND_IN_SET('TD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
             OR FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0
         )";
-    } else {
-        $where[] = "TRIM(COALESCE(l.kpxweb_data_status, '')) = ''";
     }
 
     if ($month !== '') {
@@ -105,7 +105,13 @@ try {
         $params[':search_uploader_name'] = $searchValue;
     }
 
-    if ($source === 'partner_data' && $state === 'settlement') {
+    if ($source === 'partner_data' && $state === 'transactional') {
+        $linkedDataExists = "EXISTS(
+            SELECT 1
+            FROM moneygram_partner_data linked_data
+            WHERE linked_data.ufl_file_log_id = l.id
+        )";
+    } elseif ($source === 'partner_data' && $state === 'settlement') {
         $linkedDataExists = "EXISTS(
             SELECT 1
             FROM partner_settlement_data linked_data
@@ -118,11 +124,12 @@ try {
                 FROM partner_settlement_data linked_data
                 WHERE linked_data.ufl_file_log_id = l.id
             )
-            ELSE EXISTS(
+            WHEN FIND_IN_SET('TD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0 THEN EXISTS(
                 SELECT 1
-                FROM ml_web_data linked_data
+                FROM moneygram_partner_data linked_data
                 WHERE linked_data.ufl_file_log_id = l.id
             )
+            ELSE 0
         END";
     } else {
         $linkedDataExists = "EXISTS(

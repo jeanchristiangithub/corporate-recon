@@ -292,9 +292,10 @@ try{
 
     if($action === 'insert_partner'){
         $company = isset($data['company']) ? $data['company'] : 'MONEYGRAM';
+        $partnerId = isset($data['partner_id']) ? trim((string)$data['partner_id']) : '';
         $payloads = isset($data['payloads']) && is_array($data['payloads']) ? $data['payloads'] : [];
         $ins = new MoneygramInsert();
-        $res = $ins->insertPartnerData($company, $payloads);
+        $res = $ins->insertPartnerData($company, $payloads, $partnerId);
         echo json_encode($res); exit;
     }
 

@@ -381,9 +381,21 @@ class MoneygramInsert {
         return ['success'=>true,'inserted'=>$inserted];
     }
 
-    public function insertPartnerData(string $company, array $payloads): array{
+    public function insertPartnerData(string $company, array $payloads, string $partnerId = ''): array{
         $pdo = $this->pdo;
         $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
+        $partnerId = trim($partnerId);
+        if($partnerId === ''){
+            throw new RuntimeException('MoneyGram Partner ID is required.');
+        }
+        $partnerStmt = masterDataConnection()->prepare(
+            'SELECT partner_name FROM corpo_partner_masterfile WHERE partner_id = ? LIMIT 1'
+        );
+        $partnerStmt->execute([$partnerId]);
+        $verifiedPartnerName = trim((string)($partnerStmt->fetchColumn() ?: ''));
+        if(strtoupper($verifiedPartnerName) !== 'MONEYGRAM' || strtoupper(trim($company)) !== 'MONEYGRAM'){
+            throw new RuntimeException('The selected Partner ID does not belong to MoneyGram.');
+        }
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
         $errorDetails = [];
@@ -486,7 +498,7 @@ class MoneygramInsert {
         };
 
         $rowIndex = 0;
-        foreach($payloads as $pl){
+        foreach($payloads as $payloadIndex => $pl){
             $rows = isset($pl['rows']) && is_array($pl['rows']) ? $pl['rows'] : [];
             foreach($rows as $r){
                 $rowIndex++;
@@ -523,6 +535,7 @@ class MoneygramInsert {
                     'base_amt' => $pickValue($r, ['base_amt','base amt','base_tran_amt','base tran amt','base amount']),
                     'comm_amt' => $pickValue($r, ['comm_amt','comm amt','comm_tran_amt','comm tran amt','commission amount','commission'])
                 ];
+                $mapped['_payload_index'] = $payloadIndex;
 
                 $rowErrors = [];
 
@@ -602,6 +615,7 @@ class MoneygramInsert {
         if(isset($availableColumns['created_at'])) $insertColumns[] = $availableColumns['created_at'];
         if(isset($availableColumns['updated_at'])) $insertColumns[] = $availableColumns['updated_at'];
         if(isset($availableColumns['uploaded_by'])) $insertColumns[] = $availableColumns['uploaded_by'];
+        if(isset($availableColumns['ufl_file_log_id'])) $insertColumns[] = $availableColumns['ufl_file_log_id'];
 
         if(empty($insertColumns)){
             return ['success'=>false,'error'=>'No compatible columns found in moneygram_partner_data','inserted'=>0];
@@ -614,6 +628,50 @@ class MoneygramInsert {
 
         $pdo->beginTransaction();
         try{
+            $fileLogIds = [];
+            $logStmt = $pdo->prepare(
+                'INSERT INTO uploaded_file_logs '
+                . '(uploaded_date, filename, filename_ext, partner_id, partner_name, uploaded_by, has_overwrite, kpxweb_data_status) '
+                . 'VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $findLogStmt = $pdo->prepare(
+                'SELECT id FROM uploaded_file_logs '
+                . 'WHERE filename = ? AND partner_id = ? '
+                . 'ORDER BY id DESC LIMIT 1 FOR UPDATE'
+            );
+            $markOverwriteStmt = $pdo->prepare(
+                "UPDATE uploaded_file_logs SET has_overwrite = '1' WHERE id = ?"
+            );
+            foreach($payloads as $payloadIndex => $payload){
+                $originalFilename = trim(basename((string)($payload['filename'] ?? '')));
+                $filename = trim((string)pathinfo($originalFilename, PATHINFO_FILENAME));
+                $filenameExt = strtolower(trim((string)pathinfo($originalFilename, PATHINFO_EXTENSION)));
+                if($filename === '' || $filenameExt === ''){
+                    throw new RuntimeException('The MoneyGram uploaded filename or extension is missing.');
+                }
+
+                $findLogStmt->execute([$filename, $partnerId]);
+                $existingFileLogId = $findLogStmt->fetchColumn();
+                if($existingFileLogId !== false){
+                    $fileLogIds[$payloadIndex] = (int)$existingFileLogId;
+                    $markOverwriteStmt->execute([$fileLogIds[$payloadIndex]]);
+                } else {
+                    $logStmt->execute([
+                        $filename,
+                        $filenameExt,
+                        $partnerId,
+                        trim($company),
+                        $uploadedBy,
+                        '0',
+                        'TD',
+                    ]);
+                    $fileLogIds[$payloadIndex] = (int)$pdo->lastInsertId();
+                }
+                if($fileLogIds[$payloadIndex] <= 0){
+                    throw new RuntimeException('Unable to create the MoneyGram uploaded file log.');
+                }
+            }
+
             foreach($rowsToInsert as $mapped){
                 $values = [];
                 foreach($insertColumns as $col){
@@ -626,6 +684,8 @@ class MoneygramInsert {
                         $values[] = $now;
                     } elseif($colLower === 'uploaded_by'){
                         $values[] = $uploadedBy;
+                    } elseif($colLower === 'ufl_file_log_id'){
+                        $values[] = $fileLogIds[$mapped['_payload_index']] ?? null;
                     } else {
                         $values[] = null;
                     }
@@ -636,7 +696,13 @@ class MoneygramInsert {
             }
 
             $pdo->commit();
-            return ['success'=>true,'inserted'=>$inserted,'error_count'=>0,'error_details'=>[]];
+            return [
+                'success'=>true,
+                'inserted'=>$inserted,
+                'file_log_ids'=>array_values($fileLogIds),
+                'error_count'=>0,
+                'error_details'=>[]
+            ];
         } catch(Throwable $e){
             if($pdo->inTransaction()) $pdo->rollBack();
             return [

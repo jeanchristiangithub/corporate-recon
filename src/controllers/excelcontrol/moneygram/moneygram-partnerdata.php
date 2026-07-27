@@ -354,6 +354,7 @@ try{
     $payload = [
         'filename' => $fname,
         'dateStr' => $foundDateStr,
+        'data_status' => 'TD',
         'rows' => $rows,
     ];
 

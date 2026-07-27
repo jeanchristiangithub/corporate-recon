@@ -1352,7 +1352,12 @@ try {
                     progressText.textContent = 'Inserting files: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
 
                     throwIfUploadCancelled();
-                    const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: payloads }) });
+                    const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+                        action: 'insert_partner',
+                        company: company.value,
+                        partner_id: partnerIdInput ? partnerIdInput.value : '',
+                        payloads: payloads
+                    }) });
                     const insTxt = await insResRaw.text();
                     throwIfUploadCancelled();
                     let ins;
