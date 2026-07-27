@@ -22,20 +22,63 @@ if(strcasecmp($role, 'Admin') !== 0){
     exit;
 }
 
+$payload = json_decode((string)file_get_contents('php://input'), true);
+if(!is_array($payload)){
+    $payload = [];
+}
+
+$normalizeDate = static function($value): string {
+    $value = trim((string)$value);
+    if($value === ''){
+        return '';
+    }
+
+    $dt = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    if(!$dt || $dt->format('Y-m-d') !== $value){
+        return '';
+    }
+
+    return $value;
+};
+
+$startDate = $normalizeDate($payload['start_date'] ?? '');
+$endDate = $normalizeDate($payload['end_date'] ?? '');
+
+if($startDate === '' || $endDate === ''){
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Duration date is required.']);
+    exit;
+}
+
+if($startDate > $endDate){
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Start Date cannot be greater than End Date.']);
+    exit;
+}
+
 try{
     $filePdo = fileRecDbConnection();
     $masterPdo = masterDataConnection();
 
-    // Fetch distinct branch_id -> legacy_id pairs (ignore blank legacy_id)
+    // Fetch distinct branch_id -> legacy_id pairs for the selected transaction date range.
     // Use an aggregate (MAX) on legacy_id so the query is compatible with
     // sql_mode=ONLY_FULL_GROUP_BY and returns a deterministic value per branch.
-    $sql = "SELECT branch_id, MAX(legacy_id) AS legacy_id FROM moneygram_partner_data WHERE legacy_id IS NOT NULL AND TRIM(legacy_id) <> '' GROUP BY branch_id";
+    $sql = "SELECT branch_id, MAX(legacy_id) AS legacy_id
+            FROM moneygram_partner_data
+            WHERE legacy_id IS NOT NULL
+              AND TRIM(legacy_id) <> ''
+              AND tran_date IS NOT NULL
+              AND DATE(tran_date) BETWEEN :start_date AND :end_date
+            GROUP BY branch_id";
     $stmt = $filePdo->prepare($sql);
-    $stmt->execute();
+    $stmt->execute([
+        ':start_date' => $startDate,
+        ':end_date' => $endDate,
+    ]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if(empty($rows)){
-        echo json_encode(['success' => true, 'rows_processed' => 0, 'rows_updated' => 0]);
+        echo json_encode(['success' => true, 'rows_processed' => 0, 'rows_updated' => 0, 'start_date' => $startDate, 'end_date' => $endDate]);
         exit;
     }
 
@@ -66,7 +109,7 @@ try{
 
     $masterPdo->commit();
 
-    echo json_encode(['success' => true, 'rows_processed' => count($rows), 'rows_updated' => $rowsUpdated]);
+    echo json_encode(['success' => true, 'rows_processed' => count($rows), 'rows_updated' => $rowsUpdated, 'start_date' => $startDate, 'end_date' => $endDate]);
     exit;
 }catch(Throwable $e){
     try{ if(isset($masterPdo) && $masterPdo->inTransaction()) $masterPdo->rollBack(); }catch(Throwable $_){}

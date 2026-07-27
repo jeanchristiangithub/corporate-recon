@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/env.php';
 
+function configureManilaTimezone(PDO $pdo): void
+{
+    date_default_timezone_set('Asia/Manila');
+    $pdo->exec("SET time_zone = '+08:00'");
+}
+
 function userDbConnection(): PDO
 {
     static $pdo = null;
@@ -36,6 +42,7 @@ function userDbConnection(): PDO
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
+            configureManilaTimezone($pdo);
 
             return $pdo;
         } catch (PDOException $e) {
@@ -73,6 +80,7 @@ function masterDataConnection(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+    configureManilaTimezone($pdo);
 
     return $pdo;
 }
@@ -101,6 +109,7 @@ function fileRecDbConnection(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+    configureManilaTimezone($pdo);
 
     return $pdo;
 }

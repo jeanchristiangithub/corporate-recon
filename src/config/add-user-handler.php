@@ -14,12 +14,12 @@ requireAuth();
 $role = $_SESSION['user']['role'] ?? '';
 if (strcasecmp((string) $role, 'Admin') !== 0) {
     $_SESSION['user_create_error'] = 'Only Admin users can add accounts.';
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
@@ -34,20 +34,20 @@ $defaultPassword = 'Mlinc1234';
 
 if ($idNumber === '' || $username === '') {
     $_SESSION['user_create_error'] = 'Please fill required fields.';
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
 $uc = new UserController();
 if ($uc->userExistsByUsername($username)) {
     $_SESSION['user_create_error'] = 'This account ' . $username . ' already exists.';
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
 if ($uc->userExistsByIdNumber($idNumber)) {
     $_SESSION['user_create_error'] = 'User with that ID already exists.';
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
@@ -63,10 +63,10 @@ $ok = $uc->createUser([
 
 if (! $ok) {
     $_SESSION['user_create_error'] = 'Failed to create user.';
-    header('Location: ../pages/home/home.php');
+    header('Location: ../pages/home/home.php?section=users');
     exit;
 }
 
 $_SESSION['user_create_success'] = 'User created successfully.';
-header('Location: ../pages/home/home.php');
+header('Location: ../pages/home/home.php?section=users');
 exit;

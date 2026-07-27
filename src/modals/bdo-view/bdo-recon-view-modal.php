@@ -3,7 +3,7 @@
 // Displays per-day partner vs web rows (reference, principal, commission, date).
 // Mirrors mbtc-recon-view-modal.php — adapted for BDO (BDO UNIBANK).
 ?>
-<link rel="stylesheet" href="/autorecon/src/modals/bdo-view/bdo-recon-view-modal.css">
+<link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/bdo-view/bdo-recon-view-modal.css">
 
 <div class="bdo-recon-modal" id="bdoReconViewModal" style="display:none;" role="dialog" aria-modal="true" aria-label="BDO UNIBANK Recon Details">
     <div class="bdo-recon-modal__panel">

@@ -3,18 +3,27 @@
 require_once __DIR__ . '/../../../config/db.php';
 
 $partners = [];
+$partnerIds = [];
 try {
     $pdo = masterDataConnection();
-    $stmt = $pdo->query("SELECT DISTINCT partner_name FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
-    $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $stmt = $pdo->query("SELECT partner_name, partner_id FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (is_array($rows) && count($rows) > 0) {
-        $partners = $rows;
+        foreach ($rows as $row) {
+            $name = trim((string)($row['partner_name'] ?? ''));
+            if ($name === '') continue;
+            if (!in_array($name, $partners, true)) $partners[] = $name;
+            if (!array_key_exists($name, $partnerIds)) {
+                $partnerIds[$name] = (string)($row['partner_id'] ?? '');
+            }
+        }
     }
 } catch (Throwable $e) {
     $partners = [];
+    $partnerIds = [];
 }
 ?>
-<section id="webdataSection" class="webdata-section" aria-label="KPX Web Data Uploader">
+<section id="webdataSection" class="webdata-section" aria-label="KPX Web Data Uploader" style="display:none; padding:1rem">
     <div class="webdata-inner">
         <h2 class="webdata-title">KPX Web Data Uploader</h2>
 
@@ -34,6 +43,9 @@ try {
                             <?php endif; ?>
                         </datalist>
                     </div>
+                </label>
+                <label class="wd-filter"><span>Partner ID</span>
+                    <input id="wdPartnerId" type="text" maxlength="4" placeholder="ID" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;min-width:6ch;width:6ch;box-sizing:border-box;background:#fff;color:#111;text-align:center;">
                 </label>
                 <!-- Month and Year removed: date will be taken from Excel file -->
             </div>
@@ -72,7 +84,9 @@ try {
     <script>
     (function(){
         const company = document.getElementById('wdCompany');
+        const partnerIdInput = document.getElementById('wdPartnerId');
         const partners = <?= json_encode($partners, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
+        const partnerIds = <?= json_encode($partnerIds, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
         const MBTC_PARTNER_NAME = 'METROBANK HEAD OFFICE';
         const WIC_PARTNER_NAME = 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
         const RCBC_PARTNER_NAME = 'RCBC';
@@ -96,7 +110,46 @@ try {
         const EEC_PARTNER_NAME = 'EEC/GOLDSTARINC';
         const MONEYGRAM_PARTNER_NAME = 'MONEYGRAM';
 
-        
+        function updatePartnerIdField(){
+            if(!partnerIdInput) return;
+            const selected = String(company && company.value ? company.value : '').trim();
+            let id = '';
+            if(selected){
+                const exactName = (partners || []).find(name => String(name || '').trim().toLowerCase() === selected.toLowerCase());
+                if(exactName && Object.prototype.hasOwnProperty.call(partnerIds, exactName)){
+                    id = partnerIds[exactName] || '';
+                }
+            }
+            partnerIdInput.value = id;
+        }
+
+        function findPartnerNameById(id){
+            const normalizedId = String(id || '').trim();
+            if(!normalizedId) return '';
+            return (partners || []).find(name => {
+                const partnerName = String(name || '').trim();
+                const partnerId = Object.prototype.hasOwnProperty.call(partnerIds, partnerName) ? String(partnerIds[partnerName] || '').trim() : '';
+                return partnerId !== '' && partnerId === normalizedId;
+            }) || '';
+        }
+
+        function updateCompanyFromPartnerId(){
+            if(!partnerIdInput || !company) return;
+            const normalizedId = String(partnerIdInput.value || '').trim();
+            if(normalizedId === ''){
+                if(String(company.value || '') === '') return;
+                company.value = '';
+                company.dispatchEvent(new Event('input', { bubbles: true }));
+                company.dispatchEvent(new Event('change', { bubbles: true }));
+                return;
+            }
+            const partnerName = findPartnerNameById(normalizedId);
+            if(!partnerName) return;
+            if(String(company.value || '').trim() === partnerName) return;
+            company.value = partnerName;
+            company.dispatchEvent(new Event('input', { bubbles: true }));
+            company.dispatchEvent(new Event('change', { bubbles: true }));
+        }
 
         function attachPartnerAutocomplete(input, suggestions){
             const container = input ? input.closest('.autocomplete-field') : null;
@@ -137,8 +190,8 @@ try {
 
             function selectSuggestion(value){
                 input.value = value;
-                closeSuggestions();
                 input.dispatchEvent(new Event('input', { bubbles: true }));
+                closeSuggestions();
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
@@ -310,7 +363,7 @@ try {
 
         const UPLOADER_TEMPLATE_SIGNATURES = {
             moneygram: {
-                partnerFilenameTokens: ['SETTLEMENTDETAIL', 'SETTLEMENT DETAIL', 'SETTLEMENT DETAILS'],
+                partnerFilenameTokens: ['SETTLEMENTDETAIL', 'SETTLEMENT DETAIL', 'SETTLEMENT DETAILS', 'DAILYACTIVITY', 'DAILY ACTIVITY'],
                 webFilenameTokens: ['SENDOUT', 'SEND OUT', 'TRANSACTION-REPORT-ALL', 'PAYOUT', 'PAY OUT', 'CLAIMED'],
                 partnerHeaders: ['ACCOUNT NUMBER','AGENT NAME','LEGACY ID','TRAN DATE','TRANSACTION ID','REFERENCE ID','PRODUCT','TRAN TYPE','ORIG CNTRY','RCV CNTRY'],
                 webHeaders: ['NO','CONTROL SERIES NO','DATE CLAIMED','DATE SEND','KPTN','CCREF NO','CURRENCY','AMOUNT']
@@ -376,6 +429,8 @@ try {
                 .join(' ')
                 .toUpperCase();
             const hasSendoutWord = filename.includes('SENDOUT') || filename.includes('SEND OUT') || reportTitle.includes('SENDOUT') || reportTitle.includes('SEND OUT');
+            const hasPayoutWord = filename.includes('PAYOUT') || filename.includes('PAY OUT') || reportTitle.includes('PAYOUT') || reportTitle.includes('PAY OUT');
+            if(hasPayoutWord && !hasSendoutWord) return false;
             if(hasSendoutWord) return true;
 
             const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -433,7 +488,79 @@ try {
         const cancelBtn = document.getElementById('mbtcCancelBtn');
         
         let files = [];
+        let isUploading = false;
+        let uploadCancelled = false;
+        let uploadController = null;
+        let progressTimer = null;
+        let uploadSessionId = 0;
+        const nativeFetch = window.fetch.bind(window);
         const processedByCompany = Object.create(null); // company -> [{id, filename, dateStr, rows}]
+
+        function isUploadAbortError(err){
+            return !!(err && (err.name === 'AbortError' || err.code === 20));
+        }
+
+        function createUploadAbortError(){
+            try{ return new DOMException('Upload cancelled', 'AbortError'); }
+            catch(e){ const err = new Error('Upload cancelled'); err.name = 'AbortError'; return err; }
+        }
+
+        function throwIfUploadCancelled(){
+            if(uploadCancelled || (uploadController && uploadController.signal.aborted)) throw createUploadAbortError();
+        }
+
+        function startUploadRequest(){
+            if(uploadController){
+                try{ uploadController.abort(); }catch(e){}
+            }
+            uploadController = new AbortController();
+            isUploading = true;
+            uploadCancelled = false;
+            uploadSessionId += 1;
+            return uploadSessionId;
+        }
+
+        function stopProgressTimer(){
+            if(progressTimer){
+                clearInterval(progressTimer);
+                progressTimer = null;
+            }
+        }
+
+        function resetProcessingProgress(){
+            if(progressBar) progressBar.style.width = '0%';
+            if(progressText) progressText.textContent = 'Analyzing 0 of 0 files';
+        }
+
+        function finishUploadRequest(sessionId){
+            if(sessionId && sessionId !== uploadSessionId) return;
+            uploadController = null;
+            isUploading = false;
+            uploadCancelled = false;
+            stopProgressTimer();
+        }
+
+        function cancelUploadRequest(){
+            uploadCancelled = true;
+            isUploading = false;
+            if(uploadController){
+                try{ uploadController.abort(); }catch(e){}
+            }
+            uploadController = null;
+            _processing = false;
+            clearPendingWebUploads();
+            stopProgressTimer();
+            hideProcessingOverlay();
+            resetProcessingProgress();
+            refreshState();
+        }
+
+        async function fetch(input, init){
+            throwIfUploadCancelled();
+            const options = Object.assign({}, init || {});
+            if(uploadController && !options.signal) options.signal = uploadController.signal;
+            return await nativeFetch(input, options);
+        }
 
         function getCompanyKey(){
             return ((company && company.value) ? company.value : '').trim().toUpperCase();
@@ -465,12 +592,49 @@ try {
             });
         }
 
+        function countPendingWebUploads(){
+            if(isUploading || _processing) return Math.max(1, files.length);
+            let pending = files.length;
+            Object.keys(processedByCompany).forEach(function(key){
+                pending += (processedByCompany[key] || []).filter(function(item){
+                    return item && !item._uploaded;
+                }).length;
+            });
+            return pending;
+        }
+
+        function getPendingProcessedList(){
+            return getProcessedList().filter(function(item){
+                return item && !item._uploaded;
+            });
+        }
+
+        function clearPendingWebUploads(){
+            files = [];
+            if(fileInput) fileInput.value = '';
+            Object.keys(processedByCompany).forEach(function(key){
+                processedByCompany[key] = (processedByCompany[key] || []).filter(function(item){
+                    return item && item._uploaded;
+                });
+            });
+            refreshState();
+            updateCards();
+        }
+
+        window.AutoReconUploadPending = window.AutoReconUploadPending || {};
+        window.AutoReconUploadPending.web = {
+            label: 'KPX Web Data Uploader',
+            count: countPendingWebUploads,
+            clear: clearPendingWebUploads
+        };
+
         // inject small stylesheet for icon buttons, card hover and modal styles
         (function(){
             const css = `
             .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;background:transparent;border:1px solid transparent;cursor:pointer;padding:0;margin:0}
             .icon-btn .material-icons{font-size:18px;line-height:18px;color:#333}
             .icon-btn:hover{background:#f5f5f5;border-color:#e6e6e6;transform:translateY(-1px);transition:all .12s ease}
+            .icon-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;pointer-events:none}
             .icon-btn.view:hover{background:#e8f5e9;border-color:#cdeacb}
             .icon-btn.delete:hover{background:#fff0f0;border-color:#f6c7c7}
             .upload-status{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1;border:1px solid #d9dfe8;color:#4b5563;background:#f8fafc}
@@ -478,24 +642,20 @@ try {
             .upload-status.is-uploaded{color:#166534;background:#ecfdf5;border-color:#bbf7d0}
             .mbtc-card{transition:all .12s ease;border-radius:8px}
             .mbtc-card:hover{background:#f0f7ff;transform:translateY(-3px);box-shadow:0 6px 18px rgba(33,150,243,0.06)}
-            /* delete confirm modal */
-            #mbtcDeleteConfirmModal{display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;z-index:10002}
-            #mbtcDeleteConfirmModal .inner{background:#fff;padding:1rem 1.25rem;border-radius:8px;max-width:420px;width:90%;box-shadow:0 6px 30px rgba(0,0,0,0.4)}
-            #mbtcDeleteConfirmModal .actions{display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.75rem}
             `;
             try{ const s=document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s); }catch(e){}
         })();
 
         function refreshState(){
             const ready = !!company.value;
-            const currentProcessed = getProcessedList();
+            const currentProcessed = getPendingProcessedList();
             if(ready){
                 dropzone.classList.remove('wd-dropzone--disabled');
             } else {
                 dropzone.classList.add('wd-dropzone--disabled');
             }
-            // enable Upload when company selected AND either staged files exist OR processed payloads exist
-            uploadBtn.disabled = !(ready && (files.length>0 || currentProcessed.length>0));
+            // enable Upload when company selected AND either staged files exist OR pending processed payloads exist
+            uploadBtn.disabled = isUploading || _processing || !(ready && (files.length>0 || currentProcessed.length>0));
             renderFileList();
         }
 
@@ -637,7 +797,7 @@ try {
             const dates = collectPayloadDatesForLockCheck(payloads);
             if(!partnerName || !dates.length) return { blocked: false };
 
-            const endpoint = location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_dates.php';
+            const endpoint = window.autoreconBaseUrl + '/src/controllers/recon/check_locked_reconciliation_dates.php';
             const resRaw = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -663,9 +823,12 @@ try {
 
         // upload click - MBTC insert flow
         uploadBtn.addEventListener('click', async function(){
-            const currentProcessed = getProcessedList();
+            const currentProcessed = getPendingProcessedList();
             console.log('[mbtc] Upload button clicked', { company: company.value, stagedFiles: files.length, processed: currentProcessed.length });
             if(uploadBtn.disabled) return;
+            const activeUploadSession = startUploadRequest();
+            refreshState();
+            try{
             if(resolveWebCompanyKey(company.value)){
                 // If files were already processed (extracted) use `processed` payloads for insertion
                 let payloads = [];
@@ -680,6 +843,7 @@ try {
                     progressText.textContent = 'Checking files for existing data...';
                     let idx = 0;
                     for(const f of excelFiles){
+                        throwIfUploadCancelled();
                         idx++;
                         progressText.textContent = 'Extracting file ' + idx + ' of ' + excelFiles.length + '...';
                         updateProcessing(idx-1, excelFiles.length);
@@ -690,13 +854,14 @@ try {
                                 continue;
                             }
                             const res = await uploadToMbtc(f);
+                            throwIfUploadCancelled();
                             if(res && res.success){
                                 const classification = classifyForWebUploader(res.payload, f.name);
                                 if(!classification.accepted){ await showAlert(classification.message || 'Invalid File Format', 'Notice'); continue; }
                                 payloads.push(res.payload);
                             }
                             else { console.warn('Extraction failed for', f.name, res); }
-                        }catch(err){ console.error('Extract error', err); }
+                        }catch(err){ if(isUploadAbortError(err)) throw err; console.error('Extract error', err); }
                     }
                     updateProcessing(excelFiles.length, excelFiles.length);
                 } else {
@@ -710,7 +875,9 @@ try {
                 }
 
                 try {
+                    throwIfUploadCancelled();
                     const lockCheck = await enforceLockedReconciliationDateCheck(company.value, payloads);
+                    throwIfUploadCancelled();
                     if(lockCheck && lockCheck.error){
                         await showAlert(lockCheck.error, 'Notice');
                         hideProcessingOverlay();
@@ -722,6 +889,7 @@ try {
                         return;
                     }
                 } catch (e) {
+                    if(isUploadAbortError(e)) throw e;
                     await showAlert('Failed to validate locked reconciliation dates.', 'Notice');
                     hideProcessingOverlay();
                     return;
@@ -741,16 +909,17 @@ try {
                 });
                 const pairs = Array.from(pairMap.values());
 
-                // perform duplicate check per file so progress is file-based (0/N files)
+                // perform duplicate check per file so progress is file-based
                 const totalFiles = payloads.length || 0;
                 progressBar.style.width = '0%';
-                progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                 try{
                     // Use unified ml-web-data endpoint for all partners
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/ml-web-data-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/ml-web-data-insert.php';
                     const allDuplicates = [];
                     const sendoutDuplicates = [];
                     for(let i=0;i<totalFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         const sendoutPayload = isSendoutPayload(pl);
                         if(sendoutPayload){
@@ -765,23 +934,24 @@ try {
                             if(filePairs.length === 0){
                                 const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                                 progressBar.style.width = pct + '%';
-                                progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                                progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                                 continue;
                             }
 
                             try{
                                 const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_sendout', pairs: filePairs }) });
                                 const chkTxt = await chkResRaw.text();
+                                throwIfUploadCancelled();
                                 let chk;
                                 try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Sendout duplicate check returned non-JSON', chkTxt); }
                                 if(chkResRaw.ok && chk && Array.isArray(chk.duplicates) && chk.duplicates.length>0){
                                     sendoutDuplicates.push(...chk.duplicates);
                                 }
-                            }catch(e){ console.error('Sendout duplicate check failed', e); }
+                            }catch(e){ if(isUploadAbortError(e)) throw e; console.error('Sendout duplicate check failed', e); }
 
                             const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                            progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                             continue;
                         }
                         // build pairs for this file only
@@ -796,11 +966,12 @@ try {
                             // advance file progress even when file has no pairs
                             const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                            progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                             continue;
                         }
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check', pairs: filePairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         if(!chkResRaw.ok || !(chk && chk.success)){
@@ -811,13 +982,14 @@ try {
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                         const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                         progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                        progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
 
                     // if SENDOUT duplicates found, ask user once and delete if confirmed
                     if(typeof sendoutDuplicates !== 'undefined' && sendoutDuplicates.length>0){
                         const msgSendout = 'Data with the same CCREF NO and DATE SEND already exists.\nDo you want to overwrite the existing data?';
                         const okSendout = await showConfirm(msgSendout);
+                        throwIfUploadCancelled();
                         if(!okSendout){ hideProcessingOverlay(); return; }
                         const delCountSendout = sendoutDuplicates.length;
                         progressBar.style.width = '55%';
@@ -825,19 +997,21 @@ try {
                         try{
                             const delResRawSendout = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_sendout', pairs: sendoutDuplicates.map(d=>({ partnerName: d.partnerName || company.value, ccref_no: d.ccref_no, date_send: d.date_send })) }) });
                             const delTxtSendout = await delResRawSendout.text();
+                            throwIfUploadCancelled();
                             let delSendout;
                             try{ delSendout = JSON.parse(delTxtSendout); }catch(e){ console.error('Sendout delete returned non-JSON', delTxtSendout); await showAlert('Delete failed: '+delTxtSendout); hideProcessingOverlay(); return; }
                             if(!delResRawSendout.ok || !(delSendout && delSendout.success)){ await showAlert('Delete failed: ' + (delSendout && delSendout.error ? delSendout.error : 'unknown')); hideProcessingOverlay(); return; }
                             progressBar.style.width = '70%';
                             const deletedCount = (delSendout && delSendout.deleted) ? delSendout.deleted : delCountSendout;
                             progressText.textContent = 'Deleting existing records: ' + deletedCount + ' of ' + delCountSendout;
-                        }catch(e){ console.error('Sendout delete failed', e); await showAlert('Delete failed: ' + (e && e.message)); hideProcessingOverlay(); return; }
+                        }catch(e){ if(isUploadAbortError(e)) throw e; console.error('Sendout delete failed', e); await showAlert('Delete failed: ' + (e && e.message)); hideProcessingOverlay(); return; }
                     }
 
                     // if duplicates found in ml_web_data, ask user once and delete if confirmed
                     if(allDuplicates.length>0){
                         const msg = 'Data with the same CCREF NO and DATE CLAIMED already exists.\nDo you want to overwrite the existing data?';
                         const ok = await showConfirm(msg);
+                        throwIfUploadCancelled();
                         if(!ok){ hideProcessingOverlay(); return; }
                         // perform delete (send all duplicate pairs)
                         const delCount = allDuplicates.length;
@@ -852,8 +1026,9 @@ try {
                         partnerName: d.partnerName || company.value,
   ccref_no: d.ccref_no,
   date_claimed: d.date_claimed
-})) }) });
+                        })) }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         if(!delResRaw.ok || !(del && del.success)){
@@ -873,11 +1048,13 @@ try {
                     let totalInsertedRegular = 0;
                     let totalInsertedSendout = 0;
                     for(let i=0;i<totalInsertFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                        progressText.textContent = 'Inserting files: ' + (totalInsertFiles > 0 ? i + 1 : 0) + ' of ' + totalInsertFiles;
                         const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_web', company: company.value, payloads: [pl] }) });
                         const insTxt = await insResRaw.text();
+                        throwIfUploadCancelled();
                         let ins;
                         try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
                         if(!insResRaw.ok || !(ins && ins.success)){
@@ -899,13 +1076,14 @@ try {
                     updateCards();
                     if(excelFiles.length>0){ files = files.filter(ff=>!excelFiles.includes(ff)); fileInput.value = ''; }
                     refreshState();
+                    throwIfUploadCancelled();
                     // notify user and refresh on confirmation
                     try{
                         await showAlert('Successfully uploaded.', 'Success');
                     }catch(e){}
                     // keep user on the current section after upload
 
-                }catch(e){ console.error(e); await showAlert('Upload failed: '+ (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Upload failed: '+ (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
@@ -914,6 +1092,15 @@ try {
             files = [];
             fileInput.value = '';
             refreshState();
+            } catch(e) {
+                if(!isUploadAbortError(e)){
+                    console.error(e);
+                    await showAlert('Upload failed: ' + (e && e.message ? e.message : 'Unknown error'));
+                }
+            } finally {
+                finishUploadRequest(activeUploadSession);
+                refreshState();
+            }
         });
 
         function isExcelFile(f){
@@ -960,7 +1147,7 @@ try {
             // use absolute path from site root to avoid 404 when page is in subfolder
             const endpointDir = resolveWebCompanyKey(company.value);
             if(!endpointDir) return { success:false, error:'Unsupported company selected' };
-            const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-webdata.php';
+            const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-webdata.php';
             const fd = new FormData();
             fd.append('file', file);
             fd.append('filename', file.name);
@@ -985,58 +1172,84 @@ try {
         async function processMbtcFiles(excelFiles){
             if(_processing) return;
             _processing = true;
+            const activeUploadSession = startUploadRequest();
+            refreshState();
             const targetCompanyKey = getCompanyKey();
             showProcessingOverlay(excelFiles.length);
             let done = 0;
-            for(const f of excelFiles.slice()){
-                try{
-                    const precheck = classifyForWebUploader(null, f.name);
-                    if(!precheck.accepted){
-                        try{ await showAlert(precheck.message || 'Invalid File Format', 'Notice'); }catch(e){}
-                        done++;
-                        updateProcessing(done, excelFiles.length);
-                        continue;
-                    }
-                    const res = await uploadToMbtc(f);
-                    if(res && res.success){
-                        const pl = res.payload;
-                        const classification = classifyForWebUploader(pl, f.name);
-                        if(!classification.accepted){
-                            try{ await showAlert(classification.message || 'Invalid File Format', 'Notice'); }catch(e){}
+            try{
+                for(const f of excelFiles.slice()){
+                    throwIfUploadCancelled();
+                    try{
+                        const precheck = classifyForWebUploader(null, f.name);
+                        if(!precheck.accepted){
+                            try{ await showAlert(precheck.message || 'Invalid File Format', 'Notice'); }catch(e){}
+                            throwIfUploadCancelled();
+                            done++;
+                            updateProcessing(done, excelFiles.length);
+                            continue;
+                        }
+                        const res = await uploadToMbtc(f);
+                        throwIfUploadCancelled();
+                        if(res && res.success){
+                            const pl = res.payload;
+                            const classification = classifyForWebUploader(pl, f.name);
+                            if(!classification.accepted){
+                                try{ await showAlert(classification.message || 'Invalid File Format', 'Notice'); }catch(e){}
+                                throwIfUploadCancelled();
+                            } else {
+                                const list = getProcessedList(targetCompanyKey);
+                                const exists = list.find(x=> (x.filename===pl.filename && x.dateStr===pl.dateStr));
+                                if(!exists){
+                                    if(typeof pl._uploaded === 'undefined') pl._uploaded = false;
+                                    list.push(pl);
+                                    updateCards();
+                                } else if(exists._uploaded){
+                                    // File was already successfully uploaded — allow re-uploading it as a new entry
+                                    pl._uploaded = false;
+                                    list.push(pl);
+                                    updateCards();
+                                }
+                            }
+                        } else if(res && res.locked){
+                            try{ await showAlert(res.message || res.error || 'Upload blocked.', 'Notice'); }catch(e){}
+                            throwIfUploadCancelled();
+                            hideProcessingOverlay();
+                            return;
                         } else {
-                            const list = getProcessedList(targetCompanyKey);
-                            const exists = list.find(x=> (x.filename===pl.filename && x.dateStr===pl.dateStr));
-                            if(!exists){
-                                if(typeof pl._uploaded === 'undefined') pl._uploaded = false;
-                                list.push(pl);
-                                updateCards();
+                            console.error('Processing failed', res);
+                            if(res && res.error){
+                                try{ await showAlert(res.error, 'Notice'); }catch(e){}
+                                throwIfUploadCancelled();
                             }
                         }
-                    } else if(res && res.locked){
-                        try{ await showAlert(res.message || res.error || 'Upload blocked.', 'Notice'); }catch(e){}
-                        hideProcessingOverlay();
-                        return;
-                    } else {
-                        console.error('Processing failed', res);
-                        if(res && res.error){
-                            try{ await showAlert(res.error, 'Notice'); }catch(e){}
-                        }
+                    }catch(err){
+                        if(isUploadAbortError(err)) throw err;
+                        console.error(err);
                     }
-                }catch(err){ console.error(err); }
-                done++;
-                updateProcessing(done, excelFiles.length);
+
+                    done++;
+                    updateProcessing(done, excelFiles.length);
+                }
+                hideProcessingOverlay();
+                // clear processed files from staging
+                files = files.filter(ff=>!excelFiles.includes(ff));
+                fileInput.value = '';
+                refreshState();
+                // clear server-side recent payloads to avoid duplicate restored cards in recon section
+                try{
+                    await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/clear-recent.php', { method: 'POST' });
+                    const recon = document.getElementById('reconCards'); if(recon) recon.innerHTML = '';
+                }catch(e){ if(!isUploadAbortError(e)) console.warn('Failed to clear server recent payloads', e); }
+            }catch(err){
+                if(!isUploadAbortError(err)) console.error(err);
+                hideProcessingOverlay();
+                refreshState();
+            } finally {
+                _processing = false;
+                finishUploadRequest(activeUploadSession);
+                refreshState();
             }
-            hideProcessingOverlay();
-            // clear processed files from staging
-            files = files.filter(ff=>!excelFiles.includes(ff));
-            fileInput.value = '';
-            refreshState();
-            _processing = false;
-            // clear server-side recent payloads to avoid duplicate restored cards in recon section
-            try{
-                await fetch(location.origin + '/autorecon/src/controllers/excelcontrol/clear-recent.php', { method: 'POST' });
-                const recon = document.getElementById('reconCards'); if(recon) recon.innerHTML = '';
-            }catch(e){ console.warn('Failed to clear server recent payloads', e); }
         }
 
         function updateCards(){
@@ -1058,7 +1271,7 @@ try {
                 cardWrap.style.alignItems = 'center';
                 cardWrap.style.justifyContent = 'space-between';
                 cardWrap.style.background = '#f5f5f5';
-                cardWrap.style.padding = '0.5rem 0.75rem';
+                cardWrap.style.padding = '0.2rem 0.6rem';
                 cardWrap.style.borderRadius = '8px';
                 cardWrap.style.border = '1px solid #eee';
 
@@ -1068,13 +1281,11 @@ try {
                 left.style.gap = '2px';
                 const title = document.createElement('div');
                 title.style.fontWeight = '600';
-                // show date and row count (remove company name)
-                title.textContent = '[' + (p.dateStr||'') + '] ' + (p.rows ? (formatNumber(p.rows.length) + ' rows') : '');
+                title.textContent = (p.filename || '');
                 const meta = document.createElement('div');
-                meta.style.fontSize = '0.9rem';
+                meta.style.fontSize = '0.85rem';
                 meta.style.color = '#666';
-                // filename only; rows count shown next to date in the title
-                meta.textContent = (p.filename || '');
+                meta.textContent = p.rows ? (formatNumber(p.rows.length) + ' rows') : '';
                 left.appendChild(title);
                 left.appendChild(meta);
 
@@ -1104,7 +1315,17 @@ try {
                 delBtn.title = 'Delete';
                 delBtn.setAttribute('aria-label','Delete');
                 delBtn.innerHTML = '<span class="material-icons" aria-hidden="true">delete</span>';
-                delBtn.onclick = ()=> showDeleteConfirm(idx, p.filename || 'this file');
+                if(p._uploaded){
+                    delBtn.disabled = true;
+                    delBtn.title = 'Uploaded files cannot be deleted';
+                    delBtn.setAttribute('aria-label','Delete disabled for uploaded file');
+                } else {
+                    delBtn.onclick = ()=>{
+                        processed.splice(idx, 1);
+                        updateCards();
+                        renderFileList();
+                    };
+                }
 
                 if(status) right.appendChild(status);
                 right.appendChild(viewBtn);
@@ -1122,7 +1343,7 @@ try {
             try{
                 const endpointDir = resolveWebCompanyKey(company.value);
                 if(!endpointDir){ await showAlert('Unsupported company selected.'); return; }
-                const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-viewer.php';
+                const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + endpointDir + '/' + endpointDir + '-viewer.php';
                 const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({data: payload})});
                 const html = await res.text();
                 showModal(html);
@@ -1215,26 +1436,6 @@ try {
             confirmCancel.onclick = ()=>{ confirmModal.style.display = 'none'; };
         }
 
-        // delete confirmation modal logic
-        let _deleteIndex = -1;
-        const deleteModal = document.getElementById('mbtcDeleteConfirmModal');
-        const deleteConfirmText = document.getElementById('mbtcDeleteConfirmText');
-        const deleteCancelBtn = document.getElementById('mbtcDeleteCancel');
-        const deleteConfirmBtn = document.getElementById('mbtcDeleteConfirm');
-
-        function showDeleteConfirm(index, name){
-            _deleteIndex = index;
-            if(deleteConfirmText) deleteConfirmText.textContent = 'Are you sure you want to delete "' + (name||'this file') + '"?';
-            if(deleteModal) deleteModal.style.display = 'flex';
-        }
-        function hideDeleteConfirm(){ _deleteIndex = -1; if(deleteModal) deleteModal.style.display = 'none'; }
-        if(deleteCancelBtn) deleteCancelBtn.onclick = hideDeleteConfirm;
-        if(deleteConfirmBtn) deleteConfirmBtn.onclick = function(){
-            const processed = getProcessedList();
-            if(_deleteIndex>=0 && _deleteIndex < processed.length){ processed.splice(_deleteIndex,1); }
-            hideDeleteConfirm(); updateCards(); renderFileList();
-        };
-
         // show select-company-first modal
         const selectCompanyModal = document.getElementById('mbtcSelectCompanyModal');
         const selectCompanyClose = document.getElementById('mbtcSelectCompanyClose');
@@ -1247,14 +1448,32 @@ try {
         // processing overlay functions
         // Generic modal helpers (replace alert/confirm)
         const dialogEl = document.getElementById('mbtcDialog');
+        function formatLockedDateUploadMessage(message){
+            const text = String(message || '');
+            if(!/Upload blocked/i.test(text) || !/Reconciled dates are locked/i.test(text)) return text;
+            const dates = Array.from(new Set((text.match(/\d{4}-\d{2}-\d{2}/g) || [])));
+            if(dates.length === 0) return text;
+            const formattedDates = dates.map(date => {
+                const parts = date.split('-').map(Number);
+                const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                return d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+            }).join('\n');
+            return 'Transaction already locked:\n' + formattedDates;
+        }
         function _closeDialog(){ if(dialogEl) dialogEl.style.display='none'; }
         function showAlert(message, title){
             return new Promise((resolve)=>{
+                const displayMessage = formatLockedDateUploadMessage(message);
+                const displayTitle = title || 'Notice';
                 if(!dialogEl){ console.warn('Dialog not available:', message); return resolve(); }
-                dialogEl.querySelector('.mbtcDialogTitle').textContent = title || 'Notice';
-                dialogEl.querySelector('.mbtcDialogMessage').textContent = message;
+                dialogEl.querySelector('.mbtcDialogTitle').textContent = displayTitle;
+                const msgEl = dialogEl.querySelector('.mbtcDialogMessage');
+                msgEl.textContent = displayMessage;
+                msgEl.style.whiteSpace = 'pre-line';
                 const ok = dialogEl.querySelector('.mbtcDialogOk');
                 const cancel = dialogEl.querySelector('.mbtcDialogCancel');
+                if(ok) ok.textContent = 'OK';
+                if(cancel) cancel.textContent = 'Cancel';
                 cancel.style.display = 'none';
                 ok.style.display = '';
                 dialogEl.style.display = 'flex';
@@ -1268,6 +1487,8 @@ try {
                 dialogEl.querySelector('.mbtcDialogMessage').textContent = message;
                 const ok = dialogEl.querySelector('.mbtcDialogOk');
                 const cancel = dialogEl.querySelector('.mbtcDialogCancel');
+                if(ok) ok.textContent = 'Yes';
+                if(cancel) cancel.textContent = 'No';
                 cancel.style.display = '';
                 ok.style.display = '';
                 dialogEl.style.display = 'flex';
@@ -1277,21 +1498,33 @@ try {
         }
         function showProcessingOverlay(total){
             if(!overlayEl) return;
+            const safeTotal = Math.max(0, Number(total || 0));
             progressBar.style.width = '0%';
-            progressText.textContent = 'Extracted 0 of ' + total + ' files';
+            progressText.textContent = 'Analyzing ' + (safeTotal > 0 ? 1 : 0) + ' of ' + safeTotal + ' files';
             overlayEl.style.display = 'flex';
-            // cancel button hides overlay but does not stop processing
-            cancelBtn.onclick = ()=>{ overlayEl.style.display='none'; };
+            cancelBtn.onclick = ()=>{ cancelUploadRequest(); };
         }
         function updateProcessing(done,total){
             if(!overlayEl) return;
-            const pct = Math.round((done/total)*100);
+            const safeTotal = Math.max(0, Number(total || 0));
+            const rawDone = Math.max(0, Number(done || 0));
+            const displayDone = safeTotal > 0 ? Math.min(Math.max(1, rawDone), safeTotal) : 0;
+            const pct = Math.round((rawDone/Math.max(1, safeTotal))*100);
             progressBar.style.width = pct + '%';
-            progressText.textContent = 'Extracted ' + done + ' of ' + total + ' files';
+            progressText.textContent = 'Analyzing ' + displayDone + ' of ' + safeTotal + ' files';
         }
         function hideProcessingOverlay(){ if(overlayEl) overlayEl.style.display='none'; }
 
+        if(company){
+            company.addEventListener('input', updatePartnerIdField);
+            company.addEventListener('change', updatePartnerIdField);
+        }
+        if(partnerIdInput){
+            partnerIdInput.addEventListener('input', updateCompanyFromPartnerId);
+            partnerIdInput.addEventListener('change', updateCompanyFromPartnerId);
+        }
         attachPartnerAutocomplete(company, partners);
+        updatePartnerIdField();
         // initialize
         refreshState();
         updateCards();

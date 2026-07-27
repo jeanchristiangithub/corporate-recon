@@ -34,7 +34,7 @@
     </form>
   </div>
 </div>
-  <link rel="stylesheet" href="/autorecon/src/modals/fetch-test/partnerfetch.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars((string)($appBaseUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>/src/modals/fetch-test/partnerfetch.css">
   <script>
   (function(){
     const form = document.getElementById('partnerFetchForm');
@@ -64,7 +64,7 @@
       const token = form.querySelector('input[name="csrf_token"]').value;
       if (token) fd.append('csrf_token', token);
       try {
-        const res = await fetch('../../controllers/excelcontrol/test-controller.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const res = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/test-controller.php', { method: 'POST', body: fd, credentials: 'same-origin' });
         const payload = await res.json();
       status.textContent = res.ok ? 'Done' : 'Error';
       // show counts and table

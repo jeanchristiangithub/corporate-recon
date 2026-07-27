@@ -3,7 +3,7 @@
 // Shared dialog modal used for alerts/confirms. Expects $modalPrefix set.
 if(!isset($modalPrefix)) $modalPrefix = '';
 $prefix = $modalPrefix;
-$cssPath = '/autorecon/src/modals/data-modals/check-insert-modal.css';
+$cssPath = ($appBaseUrl ?? '') . '/src/modals/data-modals/check-insert-modal.css';
 ?>
 <link rel="stylesheet" href="<?= $cssPath ?>">
 

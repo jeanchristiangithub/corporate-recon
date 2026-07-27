@@ -1,5 +1,19 @@
 <?php
 // Reports UI: Web data transactions (filtered by corporate partner)
+// Loads partner list from master file (UI-only)
+require_once __DIR__ . '/../../../config/db.php';
+
+$partners = [];
+try {
+	$pdo = masterDataConnection();
+	$stmt = $pdo->query("SELECT DISTINCT partner_name FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
+	$rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+	if (is_array($rows) && count($rows) > 0) {
+		$partners = $rows;
+	}
+} catch (Throwable $e) {
+	$partners = [];
+}
 ?>
 <div class="reports-webdata-content">
 	<style>
@@ -63,6 +77,132 @@
 			gap: 0.5rem;
 			align-items: center;
 		}
+
+		.reports-webdata-content .txn-view-btn {
+			border: 1px solid #dc3545;
+			background: #fff;
+			color: #dc3545;
+			border-radius: 999px;
+			padding: 2px 10px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			line-height: 1.35;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		.reports-webdata-content .txn-view-btn:hover {
+			background: #dc3545;
+			color: #fff;
+		}
+
+		.txn-detail-modal {
+			position: fixed;
+			inset: 0;
+			z-index: 12000;
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.txn-detail-modal__overlay {
+			position: absolute;
+			inset: 0;
+			background: rgba(15, 23, 42, 0.48);
+		}
+
+		.txn-detail-modal__dialog {
+			position: relative;
+			width: min(1120px, 96vw);
+			max-height: 88vh;
+			display: flex;
+			flex-direction: column;
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+			overflow: hidden;
+		}
+
+		.txn-detail-modal__head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 16px 20px;
+			background: #df3044;
+			border-bottom: 1px solid #c92539;
+		}
+
+		.txn-detail-modal__head h4 {
+			margin: 0;
+			color: #fff;
+			font-size: 1.15rem;
+			font-weight: 700;
+		}
+
+		.txn-detail-modal__body {
+			padding: 16px 18px;
+			overflow: auto;
+		}
+
+		.txn-detail-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+		.txn-detail-section { min-width:0; }
+		.txn-detail-section__title { margin:0 0 10px; padding-bottom:8px; border-bottom:1px solid #d8dee7; color:#252a34; font-size:1rem; font-weight:700; }
+		.txn-detail-section__title .material-icons { color:#df3044; margin-right:6px; font-size:18px; vertical-align:middle; }
+		.txn-detail-list { margin:0; }
+		.txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); gap:10px; padding:2px 0; font-size:.9rem; line-height:1.35; }
+		.txn-detail-row dt { margin:0; color:#252a34; font-weight:700; }
+		.txn-detail-row dd { margin:0; color:#656b73; overflow-wrap:anywhere; }
+		.txn-detail-notes { margin-top:1.35em; }
+		.txn-detail-notes label { display:block; margin-bottom:6px; color:#252a34; font-size:.9rem; font-weight:700; }
+		.txn-detail-notes textarea { display:block; width:100%; height:76px; padding:9px 10px; border:1px solid #d8dee7; border-radius:5px; box-sizing:border-box; resize:none; overflow-x:hidden; overflow-y:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#f8fafc; color:#656b73; font:inherit; line-height:1.4; }
+		.txn-detail-status { display:inline-block; padding:2px 8px; border-radius:5px; background:#f6b900; color:#1f2937; font-size:.75rem; font-weight:800; }
+		.txn-detail-amounts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:24px; padding-top:16px; border-top:1px solid #edf0f4; text-align:center; }
+		.txn-detail-amount__label { display:block; color:#252a34; font-size:.9rem; font-weight:700; }
+		.txn-detail-amount__value { display:block; margin-top:4px; color:#df3044; font-size:1.45rem; font-weight:800; overflow-wrap:anywhere; }
+		/* Keep this modal independent from the Partner Data modal's shared class names. */
+		#rwdTxnDetailModal .txn-detail-modal__dialog { width:min(1120px,96vw); }
+		#rwdTxnDetailModal .txn-detail-list { display:block; margin:0; }
+		#rwdTxnDetailModal .txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); width:100%; }
+		#rwdTxnDetailModal .txn-detail-row dt,
+		#rwdTxnDetailModal .txn-detail-row dd { min-width:0; }
+
+		.txn-detail-close {
+			border: 0;
+			background: transparent;
+			color: #fff;
+			padding: 0 4px;
+			font-size: 1.8rem;
+			font-weight: 300;
+			cursor: pointer;
+			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+		}
+
+		.txn-detail-close:hover,
+		.txn-detail-close:focus-visible {
+			background: transparent;
+			color: #ffe1e5;
+			box-shadow: none;
+			outline: none;
+		}
+		@media (max-width: 760px) {
+			.txn-detail-columns { grid-template-columns:1fr; }
+			.txn-detail-amounts { grid-template-columns:1fr; }
+			#rwdTxnDetailModal .txn-detail-row { grid-template-columns:minmax(130px,42%) minmax(0,1fr); }
+		}
+
+		.reports-webdata-content .rwd-results-layout { display:grid; grid-template-columns:minmax(230px, 280px) minmax(0, 1fr); gap:12px; align-items:start; }
+		.reports-webdata-content .rwd-filter-card { border:1px solid #e6eef6; border-radius:8px; background:#fff; padding:18px 16px; color:#001234; }
+		.reports-webdata-content .rwd-filter-card__title { margin:0 0 18px; text-align:center; color:#e52f3f; font-size:0.78rem; font-weight:800; text-transform:uppercase; }
+		.reports-webdata-content .rwd-filter-card__item { margin:0 0 18px; }
+		.reports-webdata-content .rwd-filter-card__item:last-child { margin-bottom:0; }
+		.reports-webdata-content .rwd-filter-card__label { display:block; margin-bottom:8px; color:#ef3340; font-size:0.78rem; font-weight:800; text-transform:uppercase; }
+		.reports-webdata-content .rwd-filter-card__value { display:block; color:#001234; font-size:0.95rem; font-weight:800; overflow-wrap:anywhere; }
+		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px; font-size:0.9rem; font-weight:800; }
+		.reports-webdata-content .rwd-filter-card__money--php { color:#00704a; }
+		.reports-webdata-content .rwd-filter-card__money--usd { color:#0b4aa2; }
+		@media (max-width: 900px) {
+			.reports-webdata-content .rwd-results-layout { grid-template-columns:1fr; }
+		}
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
 	<style>
@@ -71,6 +211,12 @@
 			overflow-x: auto;
 			/* vertical scrolling area will be set dynamically by JS */
 		}
+		.reports-webdata-content .rwd-results-table {
+			min-width: max-content;
+		}
+		.reports-webdata-content .rwd-results-table td {
+			white-space: nowrap;
+		}
 		.reports-webdata-content .rwd-results-table-wrap table thead th {
 			position: sticky;
 			top: 0;
@@ -78,8 +224,8 @@
 			background: #f9fafb;
 		}
 	</style>
-		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">KPX Web data transactions</h3>
-		<p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the ML Web Data Uploader, filtered by corporate partner.</p>
+		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">KPX Web Data Transactions</h3>
+		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the ML Web Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="reportsWebdataForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
 			<label for="rwdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
@@ -101,23 +247,36 @@
 				</div>
 			</div>
 
-			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto;flex-wrap:nowrap">
+				<label for="rwdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:8ch">
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
+					<select id="rwdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;min-width:8ch;font-size:.9rem;outline:none">
+						<option value="">ALL</option>
+						<option value="PHP">PHP</option>
+						<option value="USD">USD</option>
+					</select>
+				</label>
 				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
 					<select id="rwdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="">ALL</option>
 						<option value="payout">PAYOUT</option>
+						<option value="payout_cancelled">PAYOUT CANCELLED</option>
 						<option value="sendout">SENDOUT</option>
+						<option value="sendout_cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
+				<label for="rwdReferenceId" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
+					<span style="font-size:0.75rem;color:#6b7280">CCREF NO</span>
+					<input id="rwdReferenceId" name="reference_id" type="text" placeholder="Enter CCREF NO" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
+				</label>
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="display:none;padding:0.55rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff;white-space:nowrap">Export Excel</button>
 				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
 			</div>
-		</form>
 
-		<!-- Additional multi-column filters: MAINZONE, ZONE, REGION, AREA, BRANCH NAME, BRANCH ID -->
-		<div class="rwd-multi-filters" style="margin-top:0.75rem;">
-			<form id="rwdExtraFilters" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+			<!-- Additional multi-column filters: MAINZONE, ZONE, REGION, AREA, BRANCH NAME, BRANCH ID -->
+			<div class="rwd-multi-filters" id="rwdExtraFilters" style="flex:0 0 100%;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
 				<label style="flex:1;min-width:12ch;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280">
 					<span style="font-size:0.75rem;color:#6b7280">MAINZONE</span>
 					<div class="autocomplete-field">
@@ -160,37 +319,65 @@
 						<ul class="autocomplete-list" id="rwdBranchIdSuggestions" role="listbox" hidden></ul>
 					</div>
 				</label>
-			</form>
-		</div>
+			</div>
+		</form>
 
 		<!-- Results container -->
 		<div id="rwdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #e6eef6">
-				<div>
-					<h4 id="rwdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
-					<p id="rwdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
+			<h4 id="rwdResultsTitle" style="display:none;margin:0"></h4>
+			<p id="rwdResultsSummary" style="display:none;margin:0"></p>
+			<div class="rwd-results-layout">
+				<aside class="rwd-filter-card" aria-label="Filter results">
+					<h5 class="rwd-filter-card__title">Filter Results</h5>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Corporate Partner:</span>
+						<span class="rwd-filter-card__value" id="rwdCardPartner">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Transaction Date:</span>
+						<span class="rwd-filter-card__value" id="rwdCardDateRange">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Transaction Type:</span>
+						<span class="rwd-filter-card__value" id="rwdCardType">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Currency:</span>
+						<span class="rwd-filter-card__value" id="rwdCardCurrency">ALL</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Volume:</span>
+						<span class="rwd-filter-card__value" id="rwdCardVolume">0</span>
+					</div>
+					<div class="rwd-filter-card__item">
+						<span class="rwd-filter-card__label">Principal:</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--php" id="rwdCardPrincipalPhp">PHP: 0.00</span>
+						<span class="rwd-filter-card__money rwd-filter-card__money--usd" id="rwdCardPrincipalUsd">USD: 0.00</span>
+					</div>
+				</aside>
+				<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
+					<table id="rwdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
+						<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
+							<tr>
+								<th id="rwdDateHeader" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch ID</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">KPTN</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
+								<th style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
+								<th id="rwdThCharge" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Charge</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
+								<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
+								<th id="rwdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
+								<th style="padding:0.5rem;text-align:center;color:#6b7280;font-weight:600;white-space:nowrap">Details</th>
+							</tr>
+						</thead>
+						<tbody id="rwdResultsBody">
+						</tbody>
+					</table>
 				</div>
-				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
-			</div>
-			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
-				<table id="rwdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
-					<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
-						<tr>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
-							<th id="rwdDateHeader" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
-							<th style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
-							<th id="rwdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
-							<th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
-						</tr>
-					</thead>
-					<tbody id="rwdResultsBody">
-					</tbody>
-				</table>
 			</div>
 			<div id="rwdPagination" class="rwd-pagination" style="display:none">
 				<div id="rwdPaginationInfo" class="rwd-pagination-info"></div>
@@ -199,6 +386,17 @@
 					<button type="button" id="rwdNextBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Next</button>
 				</div>
 			</div>
+		</div>
+	</div>
+
+	<div id="rwdTxnDetailModal" class="txn-detail-modal" aria-hidden="true">
+		<div class="txn-detail-modal__overlay" data-action="close-rwd-detail"></div>
+		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="KPX Web Transaction Details">
+			<div class="txn-detail-modal__head">
+				<h4> KPX Web Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rwd-detail" aria-label="Close">&times;</button>
+			</div>
+			<div class="txn-detail-modal__body" data-role="rwdTxnDetailBody">Loading...</div>
 		</div>
 	</div>
 
@@ -211,16 +409,137 @@
 		const resultsTitle = document.getElementById('rwdResultsTitle');
 		const resultsSummary = document.getElementById('rwdResultsSummary');
 		const resultsBody = document.getElementById('rwdResultsBody');
+		const resultsWrap = document.querySelector('#rwdResults .rwd-results-table-wrap');
 		const dateHeader = document.getElementById('rwdDateHeader');
 		const operatorHeader = document.getElementById('rwdThOperator');
+		const chargeHeader = document.getElementById('rwdThCharge');
 		const exportBtn = document.getElementById('rwdExportBtn');
+		const currencyFilter = document.getElementById('rwdCurrencyFilter');
 		const pagination = document.getElementById('rwdPagination');
 		const paginationInfo = document.getElementById('rwdPaginationInfo');
 		const prevBtn = document.getElementById('rwdPrevBtn');
 		const nextBtn = document.getElementById('rwdNextBtn');
+		const filterCard = {
+			partner: document.getElementById('rwdCardPartner'),
+			dateRange: document.getElementById('rwdCardDateRange'),
+			type: document.getElementById('rwdCardType'),
+			currency: document.getElementById('rwdCardCurrency'),
+			volume: document.getElementById('rwdCardVolume'),
+			principalPhp: document.getElementById('rwdCardPrincipalPhp'),
+			principalUsd: document.getElementById('rwdCardPrincipalUsd')
+		};
 		const PAGE_SIZE = 10000;
+		const VIRTUAL_ROW_HEIGHT = 48;
+		const VIRTUAL_BUFFER_ROWS = 12;
 		let currentFilters = null;
 		let lastReportData = null;
+		let virtualWebRows = [];
+		let virtualWebIsSendout = false;
+		let autoFilterTimer = null;
+		let isClearingFilters = false;
+		const autoFilterIds = ['rwdType','rwdReferenceId','rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
+		const partners = <?= json_encode($partners) ?>;
+
+		// Local partner autocomplete mirrors Partner Data Reports.
+		function attachPartnerAutocomplete(inputEl, suggestions){
+			const container = inputEl ? inputEl.closest('.autocomplete-field') : null;
+			const list = container ? container.querySelector('.autocomplete-list') : null;
+			if(!inputEl || !container || !list) return;
+
+			let activeIndex = -1;
+
+			function normalize(value){
+				return String(value || '').trim().toLowerCase();
+			}
+
+			function getMatches(value){
+				const query = normalize(value);
+				const options = Array.from(new Set((suggestions || []).map(item => String(item || '').trim()).filter(Boolean)));
+				if(!query) return options.slice(0, 8);
+
+				const startsWith = [];
+				const contains = [];
+				options.forEach(option => {
+					const normalizedOption = normalize(option);
+					if(normalizedOption.startsWith(query)) startsWith.push(option);
+					else if(normalizedOption.includes(query)) contains.push(option);
+				});
+
+				return startsWith.concat(contains).slice(0, 8);
+			}
+
+			function closeSuggestions(){
+				list.hidden = true;
+				list.innerHTML = '';
+				activeIndex = -1;
+			}
+
+			function applyActiveItem(items){
+				items.forEach((item, index) => item.classList.toggle('is-active', index === activeIndex));
+			}
+
+			function selectSuggestion(value){
+				inputEl.value = value;
+				inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+				closeSuggestions();
+				inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+
+			function renderSuggestions(){
+				const matches = getMatches(inputEl.value);
+				if(matches.length === 0){
+					closeSuggestions();
+					return;
+				}
+
+				list.innerHTML = '';
+				matches.forEach((match, index) => {
+					const item = document.createElement('li');
+					item.className = 'autocomplete-item';
+					item.setAttribute('role', 'option');
+					item.textContent = match;
+					item.addEventListener('mousedown', function(event){
+						event.preventDefault();
+						selectSuggestion(match);
+					});
+					item.addEventListener('mouseenter', function(){
+						activeIndex = index;
+						applyActiveItem(Array.from(list.children));
+					});
+					list.appendChild(item);
+				});
+				activeIndex = -1;
+				list.hidden = false;
+			}
+
+			inputEl.addEventListener('input', renderSuggestions);
+			inputEl.addEventListener('focus', renderSuggestions);
+			inputEl.addEventListener('keydown', function(event){
+				const items = Array.from(list.querySelectorAll('.autocomplete-item'));
+				if(list.hidden || items.length === 0) return;
+
+				if(event.key === 'ArrowDown'){
+					event.preventDefault();
+					activeIndex = (activeIndex + 1) % items.length;
+					applyActiveItem(items);
+				} else if(event.key === 'ArrowUp'){
+					event.preventDefault();
+					activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+					applyActiveItem(items);
+				} else if(event.key === 'Enter'){
+					if(activeIndex >= 0 && activeIndex < items.length){
+						event.preventDefault();
+						selectSuggestion(items[activeIndex].textContent || '');
+					}
+				} else if(event.key === 'Escape'){
+					closeSuggestions();
+				}
+			});
+
+			document.addEventListener('click', function(event){
+				if(!container.contains(event.target)) closeSuggestions();
+			});
+		}
 
 		// Reusable live autocomplete for all fields
 		function attachRemoteAutocomplete(inputEl, fetchSuggestions, opts){
@@ -258,8 +577,8 @@
 			function applyActive(items){ items.forEach((it,i)=> it.classList.toggle('is-active', i===activeIndex)); }
 			function selectValue(v){
 				inputEl.value = (v === null || typeof v === 'undefined') ? '' : String(v);
-				closeSuggestions();
 				inputEl.dispatchEvent(new Event('input',{bubbles:true}));
+				closeSuggestions();
 				inputEl.dispatchEvent(new Event('change',{bubbles:true}));
 			}
 
@@ -344,15 +663,6 @@
 			return values;
 		}
 
-		async function fetchPartnerSuggestions(q){
-			const params = new URLSearchParams({ q: String(q || '') });
-			const res = await fetch(`${getAppBasePath()}/src/controllers/masterdata/corpo-partner-values.php?${params.toString()}`);
-			if(!res.ok) return [];
-			const obj = await res.json();
-			if(obj && obj.success && Array.isArray(obj.values)) return obj.values;
-			return [];
-		}
-
 		async function fetchBranchProfileSuggestions(column, q){
 			const params = new URLSearchParams({ column, q: String(q || '') });
 			const deps = getActiveDependencyFilters();
@@ -367,7 +677,7 @@
 			return [];
 		}
 
-		attachRemoteAutocomplete(input, fetchPartnerSuggestions);
+		attachPartnerAutocomplete(input, partners);
 		attachRemoteAutocomplete(document.getElementById('rwdMainzone'), q => fetchBranchProfileSuggestions('mainzone', q), { prependAllOption: true });
 		attachRemoteAutocomplete(document.getElementById('rwdZone'), q => fetchBranchProfileSuggestions('zone', q), { prependAllOption: true });
 		attachRemoteAutocomplete(document.getElementById('rwdRegion'), q => fetchBranchProfileSuggestions('region', q), { prependAllOption: true });
@@ -488,7 +798,7 @@
 					const li = document.createElement('li');
 					li.className = 'autocomplete-item';
 					li.textContent = it;
-					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
+					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); list.hidden = true; list.innerHTML = ''; inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
 					list.appendChild(li);
 				});
 				list.hidden = true;
@@ -735,7 +1045,7 @@
 					const li = document.createElement('li');
 					li.className = 'autocomplete-item';
 					li.textContent = it;
-					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
+					li.addEventListener('mousedown', function(e){ e.preventDefault(); inputEl.value = it; inputEl.dispatchEvent(new Event('input',{bubbles:true})); list.hidden = true; list.innerHTML = ''; inputEl.dispatchEvent(new Event('change',{bubbles:true})); });
 					list.appendChild(li);
 				});
 				// populate but keep hidden — do not auto-open
@@ -778,6 +1088,11 @@
 
 		function clearAllFilters(){
 			try{
+				isClearingFilters = true;
+				if (autoFilterTimer) {
+					clearTimeout(autoFilterTimer);
+					autoFilterTimer = null;
+				}
 				// Only clear branch/location-related filters. Keep partner and date range intact.
 				const mainEl = document.getElementById('rwdMainzone');
 				const zoneEl = document.getElementById('rwdZone');
@@ -785,6 +1100,7 @@
 				const areaEl = document.getElementById('rwdArea');
 				const branchNameEl = document.getElementById('rwdBranchName');
 				const branchIdEl = document.getElementById('rwdBranchId');
+				const referenceIdEl = document.getElementById('rwdReferenceId');
 
 				if(mainEl){ mainEl.value = ''; mainEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(zoneEl){ zoneEl.value = ''; zoneEl.dispatchEvent(new Event('change',{bubbles:true})); }
@@ -792,6 +1108,7 @@
 				if(areaEl){ areaEl.value = ''; areaEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(branchNameEl){ branchNameEl.value = ''; branchNameEl.dispatchEvent(new Event('change',{bubbles:true})); }
 				if(branchIdEl){ branchIdEl.value = ''; branchIdEl.dispatchEvent(new Event('change',{bubbles:true})); }
+				if(referenceIdEl){ referenceIdEl.value = ''; referenceIdEl.dispatchEvent(new Event('change',{bubbles:true})); }
 
 				// Hide the results table for the selected partner and clear stored report data.
 				// Partner input and Start/End dates are intentionally retained.
@@ -799,10 +1116,13 @@
 					resultsBody.innerHTML = '';
 					if(resultsDiv){ resultsDiv.style.display = 'none'; if(resultsDiv.dataset) resultsDiv.dataset.reportData = ''; }
 					if(pagination) pagination.style.display = 'none';
+					if(exportBtn) exportBtn.style.display = 'none';
+					virtualWebRows = [];
 					lastReportData = null;
 					currentFilters = null;
 				} catch(e) { console.warn('Error hiding results after clearing filters', e); }
 			} catch (e) { console.warn('Error clearing filters', e); }
+			finally { isClearingFilters = false; }
 		}
 
 		if(clearBtn){
@@ -826,15 +1146,220 @@
 			return num.toLocaleString('en-US');
 		}
 
+		function formatFilterCardDate(value) {
+			const raw = String(value || '').trim();
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+			if (!match) return raw;
+			const monthIndex = Number(match[2]) - 1;
+			const day = Number(match[3]);
+			const year = Number(match[1]);
+			const date = new Date(year, monthIndex, day);
+			if (isNaN(date.getTime())) return raw;
+			return date.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+		}
+
+		function updateFilterResultsCard(data) {
+			if (!data) return;
+			const typeValue = String(data.type || '').trim();
+			const currencyValue = String(data.currency_filter || '').trim();
+			const startDate = String(data.start_date || '').trim();
+			const endDate = String(data.end_date || '').trim();
+			let dateRange = 'ALL';
+			if (startDate && endDate) {
+				dateRange = startDate === endDate
+					? formatFilterCardDate(startDate)
+					: `${formatFilterCardDate(startDate)} to ${formatFilterCardDate(endDate)}`;
+			} else if (startDate) {
+				dateRange = `from ${formatFilterCardDate(startDate)}`;
+			} else if (endDate) {
+				dateRange = `until ${formatFilterCardDate(endDate)}`;
+			}
+
+			if (filterCard.partner) filterCard.partner.textContent = data.partner || 'ALL';
+			if (filterCard.dateRange) filterCard.dateRange.textContent = dateRange;
+			if (filterCard.type) filterCard.type.textContent = typeValue ? typeValue.replace(/_/g, ' ').toUpperCase() : 'ALL';
+			if (filterCard.currency) filterCard.currency.textContent = currencyValue || 'ALL';
+			if (filterCard.volume) filterCard.volume.textContent = formatNumber(data.count || 0);
+			if (filterCard.principalPhp) {
+				filterCard.principalPhp.textContent = `PHP: ${formatCurrency(Math.abs(Number(data.php_total || 0)), 'PHP')}`;
+				filterCard.principalPhp.style.display = currencyValue === 'USD' ? 'none' : '';
+			}
+			if (filterCard.principalUsd) {
+				filterCard.principalUsd.textContent = `USD: ${formatCurrency(Math.abs(Number(data.usd_total || 0)), 'USD')}`;
+				filterCard.principalUsd.style.display = currencyValue === 'PHP' ? 'none' : '';
+			}
+		}
+
 		function getAppBasePath() {
 			const parts = window.location.pathname.split('/').filter(Boolean);
 			return parts.length > 0 ? `/${parts[0]}` : '';
 		}
 
+		function escapeHtml(value) {
+			return String(value === null || value === undefined ? '' : value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function formatDetailDateValue(value) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+			if (!match) return raw;
+			const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			const month = monthNames[Number(match[2]) - 1];
+			if (!month) return raw;
+			const hour = match[4] || '00';
+			const minute = match[5] || '00';
+			const second = match[6] || '00';
+			const period = Number(hour) >= 12 ? 'PM' : 'AM';
+			return month + ' ' + match[3] + ', ' + match[1] + ' ' + hour + ':' + minute + ':' + second + ' ' + period;
+		}
+
+		function renderDetailGrid(data) {
+			if (!data || !Object.keys(data).length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+
+			const hasValue = value => String(value === null || value === undefined ? '' : value).trim() !== '';
+			const value = (key, isDate = false) => {
+				const raw = data[key];
+				if (!hasValue(raw)) return '-';
+				return isDate ? formatDetailDateValue(raw) : String(raw);
+			};
+			const row = (label, displayValue, valueClass = '') => '<div class="txn-detail-row"><dt>' + escapeHtml(label) + ':</dt><dd>' + (valueClass ? '<span class="' + valueClass + '">' : '') + escapeHtml(displayValue) + (valueClass ? '</span>' : '') + '</dd></div>';
+			const hasCancelled = hasValue(data.date_cancelled);
+			const hasClaimed = hasValue(data.date_claimed);
+			const hasSend = hasValue(data.date_send);
+			const isPayout = hasClaimed;
+			const isCancelled = hasCancelled && (hasClaimed || hasSend);
+			const currencyCode = String(data.currency || '').trim().toUpperCase();
+			const currencySymbol = currencyCode === 'PHP' ? '₱' : (currencyCode === 'USD' ? '$' : '');
+			const money = key => {
+				const number = Number(data[key]);
+				const formatted = Number.isFinite(number) ? number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value(key);
+				return (currencySymbol ? currencySymbol + ' ' : '') + formatted;
+			};
+
+			let transactionRows = row('CAD Status', '-');
+			if (hasCancelled && hasClaimed) {
+				transactionRows += row('Date Cancelled', value('date_cancelled', true));
+				transactionRows += row('Date Claimed', value('date_claimed', true));
+			} else if (hasCancelled && hasSend) {
+				transactionRows += row('Date Cancelled', value('date_cancelled', true));
+				transactionRows += row('Date Send', value('date_send', true));
+			} else if (hasClaimed) {
+				transactionRows += row('Date Claimed', value('date_claimed', true));
+			} else if (hasSend) {
+				transactionRows += row('Date Send', value('date_send', true));
+			}
+			transactionRows += row('Control Series Number', value('control_series_no'));
+			transactionRows += row('KPTN', value('kptn'));
+			transactionRows += row('CCREF Number', value('ccref_no'));
+			transactionRows += row('Currency', value('currency'));
+			transactionRows += row('Sender Name', value('sender_name'));
+			if (hasClaimed) {
+				transactionRows += row('Sender Country', value('sender_country'));
+				transactionRows += row('Beneficiary Name', value('beneficiary_receiver'));
+			} else if (hasSend) {
+				transactionRows += row('Receiver Country', value('receiver_country'));
+			}
+			transactionRows += row('Receiver Name', hasCancelled && hasClaimed ? value('receiver_name') : (isPayout ? value('receiver_kyc') : value('receiver_name')));
+			transactionRows += row('Receiver Phone Number', value('receiver_phone'));
+
+			let branchRows = row('Operator', value('operator'));
+			branchRows += row('Branch Name', value('branch'));
+			branchRows += row('Branch ID', value('branch_id'));
+			branchRows += row('Remote Operator', value('remote_operator'));
+			branchRows += row('Remote Branch', value('remote_branch'));
+			branchRows += row('Uploaded Date', value('created_at', true));
+			branchRows += row('Uploaded By', hasValue(data.uploaded_by_name) ? value('uploaded_by_name') : value('uploaded_by'));
+			if (isCancelled) branchRows += '<div class="txn-detail-notes"><label for="rwdOtherDetails">Other Details:</label><textarea id="rwdOtherDetails" readonly>' + escapeHtml(value('other_details')) + '</textarea></div>';
+
+			let amountCards = '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Principal Amount</span><span class="txn-detail-amount__value">' + escapeHtml(money('amount')) + '</span></div>';
+			if (isPayout) {
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge to Customer</span><span class="txn-detail-amount__value">' + escapeHtml(money('ctc')) + '</span></div>';
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge to Partner</span><span class="txn-detail-amount__value">' + escapeHtml(money('ctp')) + '</span></div>';
+			} else if (hasSend) {
+				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge</span><span class="txn-detail-amount__value">' + escapeHtml(money('charge')) + '</span></div>';
+			}
+
+			return '<div class="txn-detail-columns">' +
+				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5><dl class="txn-detail-list">' + transactionRows + '</dl></section>' +
+				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">account_balance</span>Branch Information</h5><dl class="txn-detail-list">' + branchRows + '</dl></section>' +
+				'</div><div class="txn-detail-amounts">' + amountCards + '</div>';
+		}
+
+		function closeWebDetailModal() {
+			const modal = document.getElementById('rwdTxnDetailModal');
+			if (!modal) return;
+			modal.style.display = 'none';
+			modal.setAttribute('aria-hidden', 'true');
+		}
+
+		async function openWebDetailModal(id) {
+			const modal = document.getElementById('rwdTxnDetailModal');
+			const body = modal ? modal.querySelector('[data-role="rwdTxnDetailBody"]') : null;
+			if (!modal || !body || !id) return;
+			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
+			modal.style.display = 'flex';
+			modal.setAttribute('aria-hidden', 'false');
+			try {
+				const res = await fetch(`${getAppBasePath()}/src/controllers/recon/moneygram-web-transaction-details.php?id=${encodeURIComponent(id)}`, { method: 'GET' });
+				const json = await res.json();
+				if (!res.ok || !(json && json.success && json.data)) {
+					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+					return;
+				}
+				body.innerHTML = renderDetailGrid(json.data);
+			} catch (err) {
+				console.error('KPX Web detail error', err);
+				body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			}
+		}
+
+		document.querySelectorAll('[data-action="close-rwd-detail"]').forEach(btn => {
+			btn.addEventListener('click', closeWebDetailModal);
+		});
+
 			// --- Date validation: require both Start and End date before enabling filters/View ---
 			const startDateEl = document.getElementById('rwdStartDate');
 			const endDateEl = document.getElementById('rwdEndDate');
+			const referenceIdEl = document.getElementById('rwdReferenceId');
 			const filterIds = ['rwdMainzone','rwdZone','rwdRegion','rwdArea','rwdBranchName','rwdBranchId'];
+
+			function showDurationAlert(message){
+				if(window.Swal){
+					return Swal.fire({
+						text: String(message || ''),
+						icon: 'warning',
+						confirmButtonText: 'OK',
+						confirmButtonColor: '#dc3545',
+						heightAuto: false
+					});
+				}
+				alert(message);
+				return Promise.resolve();
+			}
+
+			function getRequiredSearchMessage(partnerValue, startValue, endValue){
+				const missing = [];
+				if (!String(partnerValue || '').trim()) missing.push('Corporate Partner');
+				if (!String(startValue || '').trim()) missing.push('Start date');
+				if (!String(endValue || '').trim()) missing.push('End date');
+				if (!missing.length) return '';
+				if (missing.length === 1) return missing[0] + ' is required.';
+				if (missing.length === 2) return missing[0] + ' and ' + missing[1] + ' are required.';
+				return 'Corporate Partner, Start date, and End date are required.';
+			}
+
+			function syncEndDateToStartDate(){
+				if(startDateEl && endDateEl && startDateEl.value){
+					endDateEl.value = startDateEl.value;
+				}
+				updateDateValidationState();
+			}
 
 			function setFiltersEnabled(enabled){
 				filterIds.forEach(id => {
@@ -843,27 +1368,36 @@
 					el.disabled = !enabled;
 					if(!enabled){ el.classList.add('rwd-disabled'); } else { el.classList.remove('rwd-disabled'); }
 				});
-				viewBtn.disabled = !enabled;
+				// Keep View clickable so required-field warnings can be displayed.
+				viewBtn.disabled = false;
 			}
 
 			function showDateRequiredMessage(e){
 				e && e.preventDefault && e.preventDefault();
-				alert('Please select Start Date and End Date first.');
+				showDurationAlert('Please select Start Date and End Date first.');
 			}
 
 			function updateDateValidationState(){
 				const s = String(startDateEl.value || '').trim();
 				const t = String(endDateEl.value || '').trim();
-				const ok = (s !== '' && t !== '');
-				setFiltersEnabled(ok);
+				const hasDateRange = (s !== '' && t !== '');
+				filterIds.forEach(id => {
+					const el = document.getElementById(id);
+					if (!el) return;
+					el.disabled = !hasDateRange;
+					el.classList.toggle('rwd-disabled', !hasDateRange);
+				});
+				// Validation runs on click; do not silently disable the action.
+				viewBtn.disabled = false;
 			}
 
 			// On load: disable filters and view button
 			setFiltersEnabled(false);
 
 			// Wire date input events
-			if(startDateEl){ startDateEl.addEventListener('change', updateDateValidationState); startDateEl.addEventListener('input', updateDateValidationState); }
+			if(startDateEl){ startDateEl.addEventListener('change', syncEndDateToStartDate); startDateEl.addEventListener('input', syncEndDateToStartDate); }
 			if(endDateEl){ endDateEl.addEventListener('change', updateDateValidationState); endDateEl.addEventListener('input', updateDateValidationState); }
+			if(referenceIdEl){ referenceIdEl.addEventListener('input', updateDateValidationState); referenceIdEl.addEventListener('change', updateDateValidationState); }
 
 			// Intercept clicks on autocomplete containers to show message when disabled
 			filterIds.forEach(id => {
@@ -888,7 +1422,9 @@
 					if(!clickedView) return; // ignore clicks on other buttons
 					const s = String(startDateEl.value || '').trim();
 					const t = String(endDateEl.value || '').trim();
-					if(!s || !t){ ev.preventDefault(); showDateRequiredMessage(ev); }
+					const referenceId = String((referenceIdEl || {}).value || '').trim();
+					const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, s, t);
+					if(requiredMessage){ ev.preventDefault(); showDurationAlert(requiredMessage); }
 				});
 			}
 
@@ -899,6 +1435,106 @@
 			if (isNaN(date.getTime())) return dateStr;
 			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 		}
+
+		function createWebSpacerRow(height, colSpan) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = colSpan;
+			td.style.height = Math.max(0, height) + 'px';
+			td.style.padding = '0';
+			td.style.border = '0';
+			tr.appendChild(td);
+			return tr;
+		}
+
+		function createWebResultRow(row, visibleIndex, isSendout) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			const cells = [
+				formatDate(row['report_date']),
+				row['branch'] || '',
+				row['branch_id'] || '',
+				row['control_series_no'] || '',
+				row['kptn'] || '',
+				row['ccref_no'] || '',
+				formatCurrency(row['amount'], row['currency']),
+				isSendout ? formatCurrency(row['charge'] || 0, row['currency']) : '',
+				row['currency'] || '',
+				row['sender_name'] || '',
+				row['beneficiary_receiver'] || '',
+				row['operator'] || '',
+				''
+			];
+
+			cells.forEach((cellValue, cellIdx) => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				td.style.whiteSpace = 'nowrap';
+				if (cellIdx === 6 || (isSendout && cellIdx === 7)) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (!isSendout && cellIdx === 7) {
+					td.style.display = 'none';
+				}
+				if (cellIdx === 12) {
+					td.style.textAlign = 'center';
+					const id = row['id'] || '';
+					if (id) {
+						const btn = document.createElement('button');
+						btn.type = 'button';
+						btn.className = 'txn-view-btn';
+						btn.textContent = 'View';
+						btn.dataset.txnId = id;
+						td.appendChild(btn);
+					}
+				} else {
+					td.textContent = cellValue;
+				}
+				tr.appendChild(td);
+			});
+
+			return tr;
+		}
+
+		function renderVirtualWebRows() {
+			if (!resultsWrap) return;
+			const rows = virtualWebRows || [];
+			const colSpan = virtualWebIsSendout ? 13 : 12;
+			const scrollTop = resultsWrap.scrollTop || 0;
+			if (!rows.length) return;
+
+			const viewportHeight = resultsWrap.clientHeight || 480;
+			const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_BUFFER_ROWS);
+			const visibleCount = Math.ceil(viewportHeight / VIRTUAL_ROW_HEIGHT) + (VIRTUAL_BUFFER_ROWS * 2);
+			const endIndex = Math.min(rows.length, startIndex + visibleCount);
+			const fragment = document.createDocumentFragment();
+			const topHeight = startIndex * VIRTUAL_ROW_HEIGHT;
+			const bottomHeight = Math.max(0, (rows.length - endIndex) * VIRTUAL_ROW_HEIGHT);
+
+			if (topHeight > 0) fragment.appendChild(createWebSpacerRow(topHeight, colSpan));
+			for (let i = startIndex; i < endIndex; i++) {
+				fragment.appendChild(createWebResultRow(rows[i], i, virtualWebIsSendout));
+			}
+			if (bottomHeight > 0) fragment.appendChild(createWebSpacerRow(bottomHeight, colSpan));
+			resultsBody.replaceChildren(fragment);
+			if (resultsWrap.scrollTop !== scrollTop) resultsWrap.scrollTop = scrollTop;
+		}
+
+		if (resultsWrap) {
+			resultsWrap.addEventListener('scroll', function() {
+				window.requestAnimationFrame(renderVirtualWebRows);
+			});
+		}
+
+		resultsBody.addEventListener('click', function(event) {
+			const btn = event.target.closest ? event.target.closest('.txn-view-btn[data-txn-id]') : null;
+			if (!btn) return;
+			openWebDetailModal(btn.dataset.txnId);
+		});
 
 		async function fetchTransactions(page) {
 			if (!currentFilters) return;
@@ -919,7 +1555,9 @@
 					area: currentFilters.area || '',
 					branch_name: currentFilters.branch_name || '',
 					branch_id: currentFilters.branch_id || '',
+					reference_id: currentFilters.reference_id || '',
 					type: currentFilters.type || '',
+					currency: currentFilters.currency || '',
 					page: String(page),
 					per_page: String(PAGE_SIZE)
 				});
@@ -944,17 +1582,17 @@
 		}
 
 		async function runReport() {
-			// Validate corporate partner and dates before running
-			if (!input.value || input.value.trim() === '') {
-				alert('Please select a corporate partner to view transactions.');
-				input.focus();
-				return;
-			}
-
+			// Corporate Partner is optional when an exact CCREF NO is provided.
+			const referenceId = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
 			const sd = String(document.getElementById('rwdStartDate').value || '').trim();
 			const ed = String(document.getElementById('rwdEndDate').value || '').trim();
-			if (!sd || !ed) {
-				alert('Please select Start Date and End Date first.');
+			const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, sd, ed);
+			if (requiredMessage) {
+				await showDurationAlert(requiredMessage);
+				return;
+			}
+			if (sd && ed && sd > ed) {
+				await showDurationAlert('Start Date cannot be greater than End Date.');
 				return;
 			}
 
@@ -967,9 +1605,11 @@
 			const area = document.getElementById('rwdArea').value || '';
 			const branch_name = document.getElementById('rwdBranchName').value || '';
 			const branch_id = document.getElementById('rwdBranchId').value || '';
+			const reference_id = (document.getElementById('rwdReferenceId') || {}).value || '';
             const type = document.getElementById('rwdType') ? (document.getElementById('rwdType').value || '') : '';
+            const currency = currencyFilter ? (currencyFilter.value || '') : '';
 
-			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, type };
+			currentFilters = { partner, startDate, endDate, mainzone, zone, region, area, branch_name, branch_id, reference_id, type, currency };
 			await fetchTransactions(1);
 		}
 
@@ -984,87 +1624,73 @@
 			await runReport();
 		});
 
+		function scheduleAutoFilterReport(delay) {
+			if (isClearingFilters || !currentFilters) return;
+			const partnerValue = String(input.value || '').trim();
+			const startDateValue = String((document.getElementById('rwdStartDate') || {}).value || '').trim();
+			const endDateValue = String((document.getElementById('rwdEndDate') || {}).value || '').trim();
+			const referenceIdValue = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
+			if ((!partnerValue && !referenceIdValue) || ((!startDateValue || !endDateValue) && !referenceIdValue)) return;
+			if (autoFilterTimer) clearTimeout(autoFilterTimer);
+			autoFilterTimer = setTimeout(async function() {
+				autoFilterTimer = null;
+				if (isClearingFilters || !currentFilters) return;
+				await runReport();
+			}, delay);
+		}
+
+		autoFilterIds.forEach(function(id) {
+			const el = document.getElementById(id);
+			if (!el) return;
+			el.addEventListener('input', function() {
+				if (el.disabled) return;
+				scheduleAutoFilterReport(600);
+			});
+			el.addEventListener('change', function() {
+				if (el.disabled) return;
+				scheduleAutoFilterReport(150);
+			});
+		});
+
+		if (currencyFilter) {
+			currencyFilter.addEventListener('change', function() {
+				if (!currentFilters) return;
+				currentFilters.currency = currencyFilter.value || '';
+				fetchTransactions(1);
+			});
+		}
+
 		// Display results in table
 		function displayResults(data) {
+			updateFilterResultsCard(data);
 			const activeDateLabel = String(data.date_label || 'Date Claimed');
 			if(dateHeader) dateHeader.textContent = activeDateLabel;
 			// Toggle Operator header to Charge for SENDOUT reports
-			const isSendout = String((data.type || '')).toLowerCase() === 'sendout';
-			if(operatorHeader) operatorHeader.textContent = isSendout ? 'Charge' : 'Operator';
-			resultsTitle.textContent = `${data.partner} — ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}`;
+			const isSendout = ['sendout', 'sendout_cancelled'].includes(String((data.type || '')).toLowerCase());
+			if(operatorHeader) operatorHeader.textContent = 'Operator';
+			if(chargeHeader) chargeHeader.style.display = isSendout ? '' : 'none';
 
-			let dateRange = '';
-			if (data.start_date && data.end_date) {
-				dateRange = ` (${data.start_date} to ${data.end_date})`;
-			} else if (data.start_date) {
-				dateRange = ` (from ${data.start_date})`;
-			} else if (data.end_date) {
-				dateRange = ` (until ${data.end_date})`;
-			}
-
-			// Render date range and currency totals (separate badges for PHP and USD)
-			const phpTotal = Number(data.php_total || 0);
-			const usdTotal = Number(data.usd_total || 0);
-			const phpBadge = `<span class="badge php">PHP Total: ₱${formatCurrency(phpTotal, 'PHP')}</span>`;
-			const usdBadge = `<span class="badge usd">USD Total: $${formatCurrency(usdTotal, 'USD')}</span>`;
-			// Show Charge total only for SENDOUT
-			const chargeTotal = Number(data.charge_total || 0);
-			const chargeBadge = `<span class="badge charge">Charge Total: ₱${formatCurrency(chargeTotal, 'PHP')}</span>`;
-			resultsSummary.innerHTML = `${dateRange} <span class="currency-summary">${phpBadge} ${usdBadge}${isSendout ? ' ' + chargeBadge : ''}</span>`;
+			resultsTitle.textContent = '';
+			resultsSummary.textContent = '';
+			resultsSummary.style.display = 'none';
 
 			// Clear table
 			resultsBody.innerHTML = '';
+			virtualWebRows = [];
 
 			if (!data.rows || data.rows.length === 0) {
-				resultsBody.innerHTML = '<tr><td colspan="10" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>';
+				if (exportBtn) exportBtn.style.display = 'none';
+				resultsBody.innerHTML = `<tr><td colspan="${isSendout ? 13 : 12}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
-				// still display totals (will be 0.00 if none)
-				const phpTotalEmpty = Number(data.php_total || 0);
-				const usdTotalEmpty = Number(data.usd_total || 0);
-				const phpBadgeEmpty = `<span class="badge php">PHP Total: ₱${formatCurrency(phpTotalEmpty, 'PHP')}</span>`;
-				const usdBadgeEmpty = `<span class="badge usd">USD Total: $${formatCurrency(usdTotalEmpty, 'USD')}</span>`;
-				const chargeTotalEmpty = Number(data.charge_total || 0);
-				const chargeBadgeEmpty = `<span class="badge charge">Charge Total: ₱${formatCurrency(chargeTotalEmpty, 'PHP')}</span>`;
-				resultsSummary.innerHTML = `${dateRange} <span class="currency-summary">${phpBadgeEmpty} ${usdBadgeEmpty}${isSendout ? ' ' + chargeBadgeEmpty : ''}</span>`;
 				resultsDiv.style.display = 'block';
 				return;
 			}
 
-			// Populate table
-			data.rows.forEach((row, idx) => {
-				const tr = document.createElement('tr');
-				tr.style.borderBottom = '1px solid #f0f0f0';
-				if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-
-				const isSendoutRow = isSendout;
-				const operatorCellValue = isSendoutRow ? formatCurrency(row['charge'] || 0, row['currency']) : (row['operator'] || '');
-				const cells = [
-					row['no'] || '',
-					row['control_series_no'] || '',
-					formatDate(row['report_date']),
-					row['ccref_no'] || '',
-					row['currency'] || '',
-					formatCurrency(row['amount'], row['currency']),
-					row['sender_name'] || '',
-					row['beneficiary_receiver'] || '',
-					operatorCellValue,
-					row['branch'] || ''
-				];
-
-				cells.forEach((cellValue, cellIdx) => {
-					const td = document.createElement('td');
-					td.style.padding = '0.75rem';
-					td.style.color = '#1f2937';
-					if (cellIdx === 5) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					td.textContent = cellValue;
-					tr.appendChild(td);
-				});
-
-				resultsBody.appendChild(tr);
-			});
+			if (exportBtn) exportBtn.style.display = '';
+			virtualWebRows = data.rows || [];
+			virtualWebIsSendout = isSendout;
+			if (resultsWrap) resultsWrap.scrollTop = 0;
+			renderVirtualWebRows();
 
 			resultsDiv.style.display = 'block';
 
@@ -1079,8 +1705,6 @@
 			nextBtn.disabled = page >= totalPages;
 			pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 
-			// Store data for export
-			resultsDiv.dataset.reportData = JSON.stringify(data);
 		}
 
 		prevBtn.addEventListener('click', function() {
@@ -1112,6 +1736,18 @@
 				const area = (document.getElementById('rwdArea') || {}).value || '';
 				const branch_name = (document.getElementById('rwdBranchName') || {}).value || '';
 				const branch_id = (document.getElementById('rwdBranchId') || {}).value || '';
+				const reference_id = (document.getElementById('rwdReferenceId') || {}).value || '';
+				const currency = currencyFilter ? (currencyFilter.value || '') : '';
+
+				const requiredMessage = reference_id.trim() ? '' : getRequiredSearchMessage(partner, startDate, endDate);
+				if (requiredMessage) {
+					await showDurationAlert(requiredMessage);
+					return;
+				}
+				if (startDate && endDate && startDate > endDate) {
+					await showDurationAlert('Start Date cannot be greater than End Date.');
+					return;
+				}
 
 				const params = new URLSearchParams({
 					partner: partner,
@@ -1123,15 +1759,21 @@
 					region: region || '',
 					area: area || '',
 					branch_name: branch_name || '',
-					branch_id: branch_id || ''
+					branch_id: branch_id || '',
+					reference_id: reference_id || '',
+					currency: currency || ''
 				});
 
 				// Build filename on client side (sanitization on server too)
 				function sanitizeFilename(s) { return (s || '').replace(/[\\/:*?"<>|]+/g, '_'); }
-				const partnerPart = (partner || '').replace(/\s+/g, '_');
+				const partnerPart = partner ? partner.replace(/\s+/g, '_') : 'ALL_PARTNERS';
 				const typePart = (type || '') === '' ? 'ALL' : type.toUpperCase();
+				const currencyPart = currency || 'ALL';
 				const branchPart = branch_name ? sanitizeFilename(branch_name) : '';
-				const filenameParts = [partnerPart, `${startDate}_to_${endDate}`, typePart];
+				const dateOrReferencePart = startDate && endDate
+					? `${startDate}_to_${endDate}`
+					: `CCREF_${sanitizeFilename(reference_id)}`;
+				const filenameParts = [partnerPart, dateOrReferencePart, typePart, currencyPart];
 				if (branchPart) filenameParts.push(branchPart);
 				const filename = filenameParts.join('_') + '.xlsx';
 
@@ -1182,7 +1824,7 @@
 		// Compute and set max height for the records table wrapper so only records scroll.
 		function setRecordsScrollHeight(){
 			try{
-				const wrap = document.querySelector('.rwd-results-table-wrap');
+				const wrap = document.querySelector('#rwdResults .rwd-results-table-wrap');
 				if(!wrap) return;
 				const rect = wrap.getBoundingClientRect();
 				const topOffset = rect.top; // distance from viewport top to wrapper top
@@ -1200,10 +1842,9 @@
 		}
 
 		window.addEventListener('resize', setRecordsScrollHeight);
-		window.addEventListener('scroll', setRecordsScrollHeight);
 		// Recompute whenever results are displayed
 		const origDisplayResults = displayResults;
-		displayResults = function(data){ origDisplayResults(data); setTimeout(setRecordsScrollHeight,50); };
+		displayResults = function(data){ origDisplayResults(data); setTimeout(function(){ setRecordsScrollHeight(); renderVirtualWebRows(); },50); };
 
 		// Initial compute in case layout is pre-populated
 		setTimeout(setRecordsScrollHeight,200);

@@ -3,6 +3,7 @@
 // Reusable insertion helper for SkyBridgePaymentInc web and partner payloads
 
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/skybridgepaymentinc-helper.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -69,6 +70,7 @@ class SkyBridgePaymentIncInsert {
 
     public function insertPartnerData(string $company, array $payloads): array{
         $pdo = $this->pdo;
+        $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $pdo->beginTransaction();
         $now = date('Y-m-d H:i:s');
         $inserted = 0;
@@ -210,6 +212,9 @@ class SkyBridgePaymentIncInsert {
                         case 'created_at':
                         case 'updated_at':
                             $mappedValues[] = $now;
+                            break;
+                        case 'uploaded_by':
+                            $mappedValues[] = $uploadedBy;
                             break;
                         default:
                             $mappedValues[] = $getRaw($r, [$col, strtoupper($col), ucwords(str_replace('_', ' ', $col))], null);

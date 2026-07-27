@@ -1,31 +1,64 @@
 <?php
-// dashboard fragment: basic account banner and two overview cards
-require_once __DIR__ . '/../../../controllers/usercontroller.php';
+// dashboard fragment: Legacy IDs overview
+require_once __DIR__ . '/../../../config/db.php';
 
-$lastLoginDisplay = '—';
+$isDashboardAdmin = isset($_SESSION['user']['role'])
+	&& strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0;
+
+$missingMoneygramLegacyBranches = [];
+$missingLegacyLookupAvailable = true;
 try {
-	$sessionLastLogin = (string) ($_SESSION['last_login_at'] ?? '');
-	if ($sessionLastLogin !== '') {
-		$ts = strtotime($sessionLastLogin);
-		if ($ts !== false) {
-			$lastLoginDisplay = date('F j, Y h:i:s A', $ts);
-		}
-	}
+	$filePdo = fileRecDbConnection();
+	$moneygramColumns = $filePdo->query('SHOW COLUMNS FROM moneygram_partner_data')->fetchAll(PDO::FETCH_COLUMN);
+	$moneygramColumns = array_map('strtolower', array_map('strval', $moneygramColumns));
+	if (!in_array('branch_id', $moneygramColumns, true)) {
+		$missingLegacyLookupAvailable = false;
+	} else {
+		$createdColumn = in_array('created_at', $moneygramColumns, true) ? '`created_at`' : 'NULL';
+		$legacyColumn = in_array('legacy_id', $moneygramColumns, true)
+			? "MAX(NULLIF(TRIM(`legacy_id`), ''))"
+			: 'NULL';
+		$sql = 'SELECT TRIM(`branch_id`) AS branch_id, ' . $legacyColumn . ' AS detected_legacy_id, '
+			. 'MIN(' . $createdColumn . ') AS first_detected, MAX(' . $createdColumn . ') AS last_detected, COUNT(*) AS transaction_count '
+			. 'FROM `moneygram_partner_data` WHERE `branch_id` IS NOT NULL AND TRIM(`branch_id`) <> \'\' '
+			. 'GROUP BY TRIM(`branch_id`) ORDER BY MAX(' . $createdColumn . ') DESC';
+		$legacyCandidates = $filePdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-	$id = (string) ($_SESSION['user']['id_number'] ?? '');
-	if ($lastLoginDisplay === '—' && $id !== '') {
-		$uc = new UserController();
-		$latest = $uc->latestUserLogByIdNumber($id);
-		if ($latest && !empty($latest['datemodified'])) {
-			$ts = strtotime($latest['datemodified']);
-			if ($ts !== false) {
-				$lastLoginDisplay = date('F j, Y h:i:s A', $ts);
+		$legacyCandidateIds = array_values(array_unique(array_filter(array_map(static function (array $row): string {
+			return trim((string) ($row['branch_id'] ?? ''));
+		}, $legacyCandidates))));
+		$profilesByBranchId = [];
+		if ($legacyCandidateIds !== []) {
+			$masterPdo = masterDataConnection();
+			foreach (array_chunk($legacyCandidateIds, 500) as $idChunk) {
+				$placeholders = implode(',', array_fill(0, count($idChunk), '?'));
+				$stmt = $masterPdo->prepare("SELECT TRIM(branch_id) AS branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE TRIM(branch_id) IN ($placeholders)");
+				$stmt->execute($idChunk);
+				foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $profile) {
+					$profilesByBranchId[trim((string) ($profile['branch_id'] ?? ''))] = $profile;
+				}
 			}
+		}
+
+		foreach ($legacyCandidates as $candidate) {
+			$branchId = trim((string) ($candidate['branch_id'] ?? ''));
+			$profile = $profilesByBranchId[$branchId] ?? null;
+			if ($profile === null || trim((string) ($profile['legacyid_moneygram'] ?? '')) !== '') continue;
+			$candidate['branch_name'] = trim((string) ($profile['branch_name'] ?? ''));
+			$candidate['partner_name'] = 'MONEYGRAM';
+			$missingMoneygramLegacyBranches[] = $candidate;
 		}
 	}
 } catch (Throwable $e) {
-	// fallback: keep placeholder
+	$missingLegacyLookupAvailable = false;
+	$missingMoneygramLegacyBranches = [];
 }
+
+$missingMoneygramLegacyCount = count($missingMoneygramLegacyBranches);
+$missingMoneygramLegacyTransactionCount = array_sum(array_map(static function (array $row): int {
+	return (int) ($row['transaction_count'] ?? 0);
+}, $missingMoneygramLegacyBranches));
+
 ?>
 <section class="dashboard-root" aria-label="Dashboard">
 	<link rel="stylesheet" href="./components/dashboard.css">
@@ -37,83 +70,176 @@ try {
 ?>
 
 <?php if ($userCreateError !== ''): ?>
-	<div style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userCreateError, ENT_QUOTES, 'UTF-8') ?></div>
+	<div data-role="user-create-alert" style="margin:0.6rem 0;padding:0.6rem;background:#ffe6e6;border:1px solid #f5c2c2;border-radius:6px;color:#8b1e1e"><?= htmlspecialchars($userCreateError, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 <?php if ($userCreateSuccess !== ''): ?>
-	<div style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userCreateSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+	<div data-role="user-create-alert" style="margin:0.6rem 0;padding:0.6rem;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:6px;color:#065f46"><?= htmlspecialchars($userCreateSuccess, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
-	<div class="dashboard-banner" style="position:relative;overflow:visible">
-		<div class="welcome">Welcome back, <span class="user-name"><?= htmlspecialchars(strtoupper((string) ($_SESSION['user']['firstname'] ?? 'User')), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars(strtoupper((string) ($_SESSION['user']['lastname'] ?? '')) , ENT_QUOTES, 'UTF-8') ?>!</span></div>
-		<div class="user-meta">
-			<div class="user-id"><?= htmlspecialchars((string) ($_SESSION['user']['employee_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
-				<div class="avatar" aria-hidden="true"><?= substr(htmlspecialchars((string) ($_SESSION['user']['firstname'] ?? 'U'), ENT_QUOTES, 'UTF-8'),0,1) ?></div>
+	<div class="dashboard-page-label">Dashboard</div>
 
-				<?php if (isset($_SESSION['user']['role']) && strcasecmp((string)$_SESSION['user']['role'], 'Admin') === 0): ?>
-					<button id="openAddUserModal" class="material-btn add-user-btn" title="Add user">Add User</button>
+	<div class="dashboard-grid dashboard-grid--legacy-only">
+		<?php if ($isDashboardAdmin): ?>
+		<div class="card legacy-ids-card<?= $missingMoneygramLegacyCount > 0 ? ' has-missing-legacy' : '' ?>">
+			<h3>Legacy IDs</h3>
+			<div class="card-body new-branches-summary">
+				<?php if (!$missingLegacyLookupAvailable): ?>
+					<div class="new-branches-state is-unavailable">
+						<span class="material-icons" aria-hidden="true">cloud_off</span>
+						<span>Legacy ID information is currently unavailable.</span>
+					</div>
+				<?php elseif ($missingMoneygramLegacyCount === 0): ?>
+					<div class="new-branches-state is-clear">
+						<span class="material-icons" aria-hidden="true">verified</span>
+						<span>All detected partner branches have registered Legacy IDs.</span>
+					</div>
+				<?php else: ?>
+					<div class="new-branches-metric legacy-ids-metric">
+						<strong><?= number_format($missingMoneygramLegacyCount) ?></strong>
+						<span>missing Legacy <?= $missingMoneygramLegacyCount === 1 ? 'ID' : 'IDs' ?></span>
+					</div>
+					<p><?= number_format($missingMoneygramLegacyTransactionCount) ?> affected <?= $missingMoneygramLegacyTransactionCount === 1 ? 'record' : 'records' ?></p>
+					<button id="openMissingLegacyModal" type="button" class="new-branches-view-btn legacy-ids-view-btn">
+						<span class="material-icons" aria-hidden="true">badge</span>
+						View Legacy IDs
+					</button>
 				<?php endif; ?>
-		</div>
-	</div>
-
-	<div class="dashboard-grid">
-		<div class="card">
-			<h3>Account Information</h3>
-			<div class="card-body">
-				<dl class="account-dl">
-					<dt>Full Name:</dt>
-					<dd><?= htmlspecialchars((string) (trim(($_SESSION['user']['firstname'] ?? '').' '.($_SESSION['user']['lastname'] ?? ''))), ENT_QUOTES, 'UTF-8') ?></dd>
-
-					<dt>Access Level:</dt>
-					<dd><span class="role"><?= htmlspecialchars((string) ($_SESSION['user']['role'] ?? 'Public'), ENT_QUOTES, 'UTF-8') ?></span></dd>
-
-
-					<dt>Status:</dt>
-					<dd><span class="status"><span class="dot" aria-hidden="true"></span><span class="lbl">Online</span></span></dd>
-				</dl>
 			</div>
 		</div>
-
-		<div class="card">
-			<h3>System Overview</h3>
-			<div class="card-body">
-				<div class="sys-line">Last Login: <?= htmlspecialchars($lastLoginDisplay, ENT_QUOTES, 'UTF-8') ?></div>
-			</div>
-		</div>
+		<?php endif; ?>
 	</div>
 
+	<?php if ($isDashboardAdmin && $missingMoneygramLegacyCount > 0): ?>
+		<div id="missingLegacyModal" class="unmapped-branches-modal" role="dialog" aria-modal="true" aria-labelledby="missingLegacyModalTitle" aria-hidden="true">
+			<div class="unmapped-branches-modal__card">
+				<div class="unmapped-branches-modal__head">
+					<div>
+						<h2 id="missingLegacyModalTitle">Missing Legacy IDs</h2>
+						<!-- <p>These branches exist in master data but the Legacy ID for the listed corporate partner is blank.</p> -->
+					</div>
+					<button type="button" class="unmapped-branches-modal__close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button>
+				</div>
+				<div class="legacy-ids-table-container">
+					<div class="legacy-ids-table-toolbar">
+						<label class="legacy-ids-search">
+							<span class="material-icons" aria-hidden="true">search</span>
+							<input id="missingLegacySearch" type="search" placeholder="Search" autocomplete="off" aria-label="Search missing Legacy IDs">
+						</label>
+					</div>
+					<div class="unmapped-branches-modal__table-wrap">
+						<table class="unmapped-branches-table legacy-ids-table">
+							<thead><tr><th>Branch ID</th><th>Branch Name</th><th>Corporate Partner</th><th>Detected Legacy ID</th><th>First Detected</th><th>Last Detected</th><th>Records</th></tr></thead>
+							<tbody>
+							<?php foreach ($missingMoneygramLegacyBranches as $branch): ?>
+								<tr>
+									<td><strong><?= htmlspecialchars((string) ($branch['branch_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong></td>
+									<td><?= htmlspecialchars((string) ($branch['branch_name'] ?: 'Unnamed branch'), ENT_QUOTES, 'UTF-8') ?></td>
+									<td><?= htmlspecialchars((string) ($branch['partner_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></td>
+									<td><?= trim((string) ($branch['detected_legacy_id'] ?? '')) !== '' ? htmlspecialchars((string) $branch['detected_legacy_id'], ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?= !empty($branch['first_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['first_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?= !empty($branch['last_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['last_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?= number_format((int) ($branch['transaction_count'] ?? 0)) ?></td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+					<div class="legacy-ids-pagination" aria-label="Missing Legacy IDs pagination">
+						<div class="legacy-ids-pagination__buttons">
+							<button id="missingLegacyPrev" type="button" class="legacy-ids-page-btn" aria-label="Previous page">
+								<span class="material-icons" aria-hidden="true">chevron_left</span>
+							</button>
+							<button id="missingLegacyNext" type="button" class="legacy-ids-page-btn" aria-label="Next page">
+								<span class="material-icons" aria-hidden="true">chevron_right</span>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div class="unmapped-branches-modal__foot">
+					<span>Register the corresponding corporate-partner Legacy ID to resolve these entries.</span>
+					<button type="button" class="new-branches-view-btn unmapped-branches-modal__done">Done</button>
+				</div>
+			</div>
+		</div>
+	<?php endif; ?>
 
 </section>
-<?php include __DIR__ . '/../../../modals/user/add-user-modal.php'; ?>
 
 <script>
 (function(){
-	if (typeof window === 'undefined') return;
-	if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+	const modal = document.getElementById('missingLegacyModal');
+	const openButton = document.getElementById('openMissingLegacyModal');
+	if (!modal || !openButton) return;
+	const closeButtons = modal.querySelectorAll('.unmapped-branches-modal__close, .unmapped-branches-modal__done');
+	const searchInput = document.getElementById('missingLegacySearch');
+	const prevButton = document.getElementById('missingLegacyPrev');
+	const nextButton = document.getElementById('missingLegacyNext');
+	const rows = Array.from(modal.querySelectorAll('.legacy-ids-table tbody tr'));
+	const rowsPerPage = 5;
+	let currentPage = 1;
+	let filteredRows = rows;
 
-	function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min }
+	function updateLegacyTable(){
+		const totalRows = filteredRows.length;
+		const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+		currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+		const start = (currentPage - 1) * rowsPerPage;
+		const end = start + rowsPerPage;
+		const visibleRows = new Set(filteredRows.slice(start, end));
 
-	function launchConfetti(container, count){
-		const colors = ['#dc3545','#f87171','#fc9aa0','#ffd166','#34d399','#60a5fa'];
-		for(let i=0;i<count;i++){
-			const el = document.createElement('div');
-			el.className = 'confetti-piece';
-			const left = Math.random()*100;
-			el.style.left = left + '%';
-			el.style.background = colors[rand(0,colors.length-1)];
-			const duration = (Math.random()*1.2 + 0.9).toFixed(2) + 's';
-			const delay = (Math.random()*0.6).toFixed(2) + 's';
-			el.style.animation = `confettiFall ${duration} cubic-bezier(.2,.6,.4,1) ${delay} forwards`;
-			// small horizontal drift using transform translateX via CSS variable
-			el.style.transform = `translateY(0)`;
-			container.appendChild(el);
-			// remove when done
-			setTimeout(()=>{ try{ container.removeChild(el) }catch(e){} }, (parseFloat(duration)+parseFloat(delay))*1000 + 200);
-		}
+		rows.forEach(row => {
+			row.hidden = !visibleRows.has(row);
+		});
+
+		if (prevButton) prevButton.disabled = currentPage <= 1;
+		if (nextButton) nextButton.disabled = currentPage >= totalPages;
 	}
 
-	// Confetti removed
-	})();
-	</script>
+	function filterLegacyRows(){
+		const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+		filteredRows = query === ''
+			? rows
+			: rows.filter(row => row.textContent.toLowerCase().includes(query));
+		currentPage = 1;
+		updateLegacyTable();
+	}
+
+	function openModal(){
+		modal.classList.add('is-open');
+		modal.setAttribute('aria-hidden', 'false');
+		document.body.classList.add('has-dashboard-modal');
+		filterLegacyRows();
+		if (searchInput) searchInput.focus();
+	}
+	function closeModal(){
+		modal.classList.remove('is-open');
+		modal.setAttribute('aria-hidden', 'true');
+		document.body.classList.remove('has-dashboard-modal');
+		openButton.focus();
+	}
+
+	openButton.addEventListener('click', openModal);
+	closeButtons.forEach(button => button.addEventListener('click', closeModal));
+	if (searchInput) searchInput.addEventListener('input', filterLegacyRows);
+	if (prevButton) {
+		prevButton.addEventListener('click', () => {
+			currentPage -= 1;
+			updateLegacyTable();
+		});
+	}
+	if (nextButton) {
+		nextButton.addEventListener('click', () => {
+			currentPage += 1;
+			updateLegacyTable();
+		});
+	}
+	updateLegacyTable();
+	modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+	document.addEventListener('keydown', event => {
+		if (event.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+	});
+})();
+</script>
 
 <!-- 3D tilt interaction for dashboard cards (prefers-reduced-motion respected) -->
 <script>

@@ -3,7 +3,7 @@
 // Shared fetch/processing modals for data uploads. Expects $modalPrefix (e.g. 'mbtc' or 'pd') to be set.
 if(!isset($modalPrefix)) $modalPrefix = '';
 $prefix = $modalPrefix;
-$cssPath = '/autorecon/src/modals/data-modals/fetch-modal.css';
+$cssPath = ($appBaseUrl ?? '') . '/src/modals/data-modals/fetch-modal.css';
 ?>
 <link rel="stylesheet" href="<?= $cssPath ?>">
 
@@ -13,7 +13,7 @@ $cssPath = '/autorecon/src/modals/data-modals/fetch-modal.css';
         <div class="dm-title">Processing files</div>
         <div id="<?= $prefix ?>ProgressText" class="dm-sub">Extracted 0 of 0 files</div>
         <div class="dm-barwrap"><div id="<?= $prefix ?>ProgressBar" class="dm-bar"></div></div>
-        <div style="text-align:right;margin-top:0.5rem"><button id="<?= $prefix ?>CancelBtn" class="material-btn">Close</button></div>
+        <div style="text-align:right;margin-top:0.5rem"><button id="<?= $prefix ?>CancelBtn" class="material-btn">Cancel</button></div>
     </div>
 </div>
 

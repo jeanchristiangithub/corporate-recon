@@ -74,9 +74,37 @@ try {
 		}
 
 		/* Partner table: sticky header and scrollable body */
-		.rpd-results .rwd-results-table-wrap {
+		#rpdResults .rwd-results-table-wrap {
 			overflow: auto;
 			/* height will be set dynamically by JS */
+			scrollbar-color: #df3345 #f1f3f5 !important;
+			scrollbar-width: auto;
+			color-scheme: light;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar {
+			width: 12px;
+			height: 12px;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-track {
+			background: #f1f3f5 !important;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb,
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:horizontal,
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:vertical {
+			background-color: #df3345 !important;
+			border: 2px solid #f1f3f5;
+			border-radius: 999px;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-thumb:hover {
+			background-color: #bd2637 !important;
+		}
+
+		#rpdResults .rwd-results-table-wrap::-webkit-scrollbar-corner {
+			background: #f1f3f5 !important;
 		}
 
 		.rpd-results .rwd-results-table-wrap table thead th {
@@ -84,6 +112,44 @@ try {
 			top: 0;
 			z-index: 6;
 			background: #f9fafb;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic {
+			width: 760px !important;
+			table-layout: fixed;
+			border-collapse: collapse;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic th,
+		.rpd-results .rwd-results-table.rpd-table--wic td {
+			padding: 8px 10px !important;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThControlSeries,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(1) {
+			width: 220px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThDateClaimed,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(2) {
+			width: 220px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThCurrency,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(3) {
+			width: 180px;
+			text-align: left !important;
+		}
+
+		.rpd-results .rwd-results-table.rpd-table--wic #rpdThAmount,
+		.rpd-results .rwd-results-table.rpd-table--wic tbody td:nth-child(4) {
+			width: 140px;
+			text-align: center !important;
 		}
 
 		/* Validation modal and invalid field styles */
@@ -100,15 +166,269 @@ try {
 		.rpd-modal-ok:hover { background:#b02a37; }
 
 		.rpd-summary-badges { display:inline-flex; gap:10px; align-items:center; flex-wrap:wrap; margin-left:10px; }
+		.rpd-summary-label { color:#1f2937; font-weight:800; font-size:0.95rem; }
+		.rpd-summary-group { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; }
 		.rpd-summary-badge { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; font-weight:700; font-size:0.9rem; line-height:1; box-shadow:0 2px 6px rgba(2,6,23,0.06); }
 		.rpd-summary-badge--php { background:#ecfdf5; color:#065f46; }
 		.rpd-summary-badge--usd { background:#eff6ff; color:#1e3a8a; }
 
+		.reports-webdata-content .rpd-results-layout {
+			display: grid;
+			grid-template-columns: 280px minmax(0, 1fr);
+			gap: 0.75rem;
+			align-items: stretch;
+		}
+
+		.reports-webdata-content .rpd-results-card {
+			border: 1px solid #e6eef6;
+			border-radius: 8px;
+			background: #fff;
+			padding: 1rem;
+			min-height: 340px;
+			height: 100%;
+			box-sizing: border-box;
+			box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+		}
+
+		.reports-webdata-content .rpd-results-card__title {
+			margin: 0 0 1.5rem;
+			color: #dc3545;
+			font-size: 0.78rem;
+			font-weight: 800;
+			text-align: center;
+			text-transform: uppercase;
+		}
+
+		.reports-webdata-content .rpd-results-card__section {
+			margin-top: 1.25rem;
+		}
+
+		.reports-webdata-content .rpd-results-card__label {
+			margin: 0;
+			color: #dc3545;
+			font-size: 0.78rem;
+			font-weight: 800;
+			text-transform: uppercase;
+		}
+
+		.reports-webdata-content .rpd-results-card__value {
+			margin: 0.35rem 0 0;
+			color: #111827;
+			font-size: 0.9rem;
+			font-weight: 700;
+			overflow-wrap: anywhere;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue {
+			margin: 0.55rem 0 0;
+			font-size: 0.82rem;
+			font-weight: 700;
+			overflow-wrap: anywhere;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue--php {
+			color: #065f46;
+		}
+
+		.reports-webdata-content .rpd-results-card__subvalue--usd {
+			color: #1e3a8a;
+		}
+
+		.reports-webdata-content .rpd-results-main {
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+
+		.reports-webdata-content .rpd-results-main .rwd-results-table-wrap {
+			flex: 1 1 auto;
+		}
+
+		@media (max-width: 900px) {
+			.reports-webdata-content .rpd-results-layout {
+				grid-template-columns: 1fr;
+			}
+
+			.reports-webdata-content .rpd-results-card {
+				min-height: 0;
+			}
+		}
+
+		.reports-webdata-content .rwd-results-header {
+			gap: 1rem;
+			align-items: flex-start !important;
+		}
+
+		.reports-webdata-content .rwd-results-header > div:first-child {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+
+		.reports-webdata-content .rwd-results-header > div:last-child {
+			flex: 0 0 auto;
+			flex-wrap: nowrap !important;
+		}
+
+		.reports-webdata-content #rpdExportBtn {
+			background: #198754;
+			border-color: #198754;
+			color: #fff;
+			white-space: nowrap;
+		}
+
+		.reports-webdata-content #rpdExportBtn:hover:not(:disabled) {
+			background: #157347;
+			border-color: #157347;
+		}
+
+		.reports-webdata-content .txn-view-btn {
+			border: 1px solid #dc3545;
+			background: #fff;
+			color: #dc3545;
+			border-radius: 999px;
+			padding: 2px 10px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			line-height: 1.35;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+
+		.reports-webdata-content .txn-view-btn:hover {
+			background: #dc3545;
+			color: #fff;
+		}
+
+		.txn-detail-modal {
+			position: fixed;
+			inset: 0;
+			z-index: 12000;
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.txn-detail-modal__overlay {
+			position: absolute;
+			inset: 0;
+			background: rgba(15, 23, 42, 0.48);
+		}
+
+		.txn-detail-modal__dialog {
+			position: relative;
+			width: min(1140px, 96vw);
+			max-height: 88vh;
+			display: flex;
+			flex-direction: column;
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+			overflow: hidden;
+		}
+
+		.txn-detail-modal__head {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 16px 18px;
+			background: #df3345;
+			color: #fff;
+		}
+
+		.txn-detail-modal__head h4 {
+			margin: 0;
+			color: #fff;
+			font-size: 1.2rem;
+			font-weight: 700;
+		}
+
+		.txn-detail-modal__body {
+			padding: 14px 28px 26px;
+			overflow: auto;
+			scrollbar-color: #df3345 #f1f3f5;
+			scrollbar-width: thin;
+		}
+		.txn-detail-modal__body::-webkit-scrollbar { width: 10px; height: 10px; }
+		.txn-detail-modal__body::-webkit-scrollbar-track { background: #f1f3f5; }
+		.txn-detail-modal__body::-webkit-scrollbar-thumb { background: #df3345; border: 2px solid #f1f3f5; border-radius: 999px; }
+		.txn-detail-modal__body::-webkit-scrollbar-thumb:hover { background: #bd2637; }
+
+		.txn-detail-section-title { margin: 0 0 10px; padding-bottom: 7px; border-bottom: 1px solid #d8dee7; color: #2f3137; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+		.txn-detail-section-title .material-icons { color: #df3345; font-size: 18px; }
+		.txn-detail-list {
+			margin: 0 0 16px;
+			display: grid;
+			grid-template-columns: 175px minmax(0, 1fr);
+			grid-auto-rows: max-content;
+			align-content: start;
+			gap: 5px 18px;
+		}
+		.txn-detail-list dt { margin: 0; color: #30323a; font-size: .9rem; font-weight: 700; }
+		.txn-detail-list dd { margin: 0; min-width: 0; color: #696b70; font-size: .9rem; overflow-wrap: anywhere; }
+		.txn-detail-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 44px; }
+		.txn-detail-status { display: inline-block; padding: 3px 8px; border-radius: 6px; background: #ffc107; color: #202020; font-size: .75rem; font-weight: 800; }
+		.txn-detail-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; text-align: center; }
+		.txn-detail-amount-label { display: block; color: #30323a; font-size: .95rem; font-weight: 700; }
+		.txn-detail-amount-value { display: block; margin-top: 4px; color: #df3345; font-size: 1.45rem; font-weight: 700; }
+		.txn-detail-close {
+			border: 0;
+			background: transparent;
+			color: #ffd7dc;
+			padding: 0 3px;
+			font-size: 2rem;
+			font-weight: 300;
+			line-height: 1;
+			cursor: pointer;
+		}
+		.txn-detail-close:hover, .txn-detail-close:focus-visible { color: #fff; background: transparent; box-shadow: none; outline: none; }
+		@media (max-width: 760px) {
+			.txn-detail-groups, .txn-detail-amounts { grid-template-columns: 1fr; }
+			.txn-detail-groups { gap: 0; }
+			.txn-detail-list { grid-template-columns: minmax(145px, 175px) minmax(0, 1fr); }
+			.txn-detail-modal__body { padding: 14px 18px 22px; }
+		}
+
+		.txn-detail-item dt {
+			margin: 0 0 4px;
+			color: #6b7280;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+
+		.txn-detail-item dd {
+			margin: 0;
+			color: #1f2937;
+			font-size: 0.86rem;
+			overflow-wrap: anywhere;
+		}
+
+		.txn-detail-close-old {
+			border: 1px solid #e5e7eb;
+			background: #fff;
+			color: #374151;
+			border-radius: 999px;
+			padding: 8px 18px;
+			font-weight: 700;
+			cursor: pointer;
+			transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+		}
+
+		.txn-detail-close-old:hover,
+		.txn-detail-close-old:focus-visible {
+			background: #dc3545;
+			border-color: #dc3545;
+			color: #fff;
+			box-shadow: 0 8px 18px rgba(220, 53, 69, 0.22);
+			outline: none;
+		}
+
 		@keyframes rpdModalIn { from { opacity:0; transform: translateY(-6px) scale(0.98); } to { opacity:1; transform: translateY(0) scale(1); } }
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
-		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">Partner data transactions</h3>
-		<p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the Partner Data Uploader, filtered by corporate partner.</p>
+		<h3 style="margin:0 0 0.25rem;color:#1f2937;font-size:1.125rem;font-weight:600">Partner Data Transactions</h3>
+		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the Partner Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="rpdForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
 			<label for="rpdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
@@ -131,7 +451,33 @@ try {
 			</div>
 
 			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+				<label for="rpdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
+					<select id="rpdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
+						<option value="" selected>Select Currency</option>
+						<!-- <option value="">ALL</option> -->
+						<option value="PHP">PHP</option>
+						<option value="USD">USD</option>
+					</select>
+				</label>
+				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
+					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
+					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
+						<option value="" selected>Select Transaction Type</option>
+						<!-- <option value="">ALL</option> -->
+						<option value="payout">PAYOUT</option>
+						<option value="payout-cancelled">PAYOUT CANCELLED</option>
+						<option value="sendout">SENDOUT</option>
+						<option value="sendout-cancelled">SENDOUT CANCELLED</option>
+					</select>
+				</label>
+				<label for="rpdReferenceId" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
+					<span style="font-size:0.75rem;color:#6b7280">REFERENCE ID</span>
+					<input id="rpdReferenceId" name="reference_id" type="text" placeholder="Enter Reference ID" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
+				</label>
 				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Export to Excel</button>
+				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
 			</div>
 		</form>
 
@@ -151,40 +497,81 @@ try {
 
 		<!-- Results container -->
 		<div id="rpdResults" class="rwd-results" style="margin-top:1.5rem;display:none">
-			<div class="rwd-results-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:2px solid #e6eef6">
-				<div>
-					<h4 id="rpdResultsTitle" style="margin:0;color:#1f2937;font-size:1rem;font-weight:600"></h4>
-					<p id="rpdResultsSummary" style="margin:0.25rem 0 0 0;color:#6b7280;font-size:0.9rem"></p>
+			<div class="rpd-results-layout">
+				<aside class="rpd-results-card" aria-label="Results summary">
+					<h5 class="rpd-results-card__title">Filter Results</h5>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Corporate Partner:</p>
+						<p id="rpdCardPartner" class="rpd-results-card__value">-</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Transaction Date:</p>
+						<p id="rpdCardTransactionDate" class="rpd-results-card__value">-</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Currency:</p>
+						<p id="rpdCardCurrency" class="rpd-results-card__value">ALL</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Transaction Type:</p>
+						<p id="rpdCardTransactionType" class="rpd-results-card__value">ALL</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Volume:</p>
+						<p id="rpdCardVolume" class="rpd-results-card__value">0</p>
+					</div>
+					<div class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Principal:</p>
+						<p id="rpdCardPrincipalPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">PHP: 0.00</p>
+						<p id="rpdCardPrincipalUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">USD: 0.00</p>
+					</div>
+					<div id="rpdCardCommissionSection" class="rpd-results-card__section">
+						<p class="rpd-results-card__label">Commission:</p>
+						<p id="rpdCardCommissionPhp" class="rpd-results-card__subvalue rpd-results-card__subvalue--php">PHP: 0.00</p>
+						<p id="rpdCardCommissionUsd" class="rpd-results-card__subvalue rpd-results-card__subvalue--usd">USD: 0.00</p>
+					</div>
+				</aside>
+				<div class="rpd-results-main">
+					<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
+						<table id="rpdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
+							<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
+								<tr>
+									<th id="rpdThNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
+									<th id="rpdThControlSeries" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
+									<th id="rpdThDateClaimed" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
+									<th id="rpdThCcrefNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
+									<th id="rpdThCurrency" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
+									<th id="rpdThAmount" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
+									<th id="rpdThSender" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
+									<th id="rpdThBeneficiary" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
+									<th id="rpdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
+									<th id="rpdThBranch" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
+								</tr>
+							</thead>
+							<tbody id="rpdResultsBody">
+							</tbody>
+						</table>
+					</div>
+					<div id="rpdPagination" class="rwd-pagination" style="display:none">
+						<div id="rpdPaginationInfo" class="rwd-pagination-info"></div>
+						<div class="rwd-pagination-actions">
+							<button type="button" id="rpdPrevBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Previous</button>
+							<button type="button" id="rpdNextBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Next</button>
+						</div>
+					</div>
 				</div>
-				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.25rem 1rem;border-radius:6px">Export Excel</button>
 			</div>
-			<div class="rwd-results-table-wrap" style="overflow-x:auto;border:1px solid #e6eef6;border-radius:8px">
-				<table id="rpdResultsTable" class="rwd-results-table" style="width:100%;border-collapse:collapse;font-size:0.6rem">
-					<thead style="background:#f9fafb;border-bottom:1px solid #e6eef6">
-						<tr>
-							<th id="rpdThNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">No.</th>
-							<th id="rpdThControlSeries" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Control Series</th>
-							<th id="rpdThDateClaimed" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Date Claimed</th>
-							<th id="rpdThCcrefNo" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">CCREF NO</th>
-							<th id="rpdThCurrency" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Currency</th>
-							<th id="rpdThAmount" style="padding:0.5rem;text-align:right;color:#6b7280;font-weight:600;white-space:nowrap">Amount</th>
-							<th id="rpdThSender" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Sender</th>
-							<th id="rpdThBeneficiary" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Beneficiary</th>
-							<th id="rpdThOperator" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Operator</th>
-							<th id="rpdThBranch" style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;white-space:nowrap">Branch</th>
-						</tr>
-					</thead>
-					<tbody id="rpdResultsBody">
-					</tbody>
-				</table>
+		</div>
+	</div>
+
+	<div id="rpdTxnDetailModal" class="txn-detail-modal" aria-hidden="true">
+		<div class="txn-detail-modal__overlay" data-action="close-rpd-detail"></div>
+		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="MONEYGRAM Partner Transaction Details">
+			<div class="txn-detail-modal__head">
+				<h4>Partner Transaction Details</h4>
+				<button type="button" class="txn-detail-close" data-action="close-rpd-detail" aria-label="Close">&times;</button>
 			</div>
-			<div id="rpdPagination" class="rwd-pagination" style="display:none">
-				<div id="rpdPaginationInfo" class="rwd-pagination-info"></div>
-				<div class="rwd-pagination-actions">
-					<button type="button" id="rpdPrevBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Previous</button>
-					<button type="button" id="rpdNextBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Next</button>
-				</div>
-			</div>
+			<div class="txn-detail-modal__body" data-role="rpdTxnDetailBody">Loading...</div>
 		</div>
 	</div>
 
@@ -197,15 +584,69 @@ try {
 		const resultsTitle = document.getElementById('rpdResultsTitle');
 		const resultsSummary = document.getElementById('rpdResultsSummary');
 		const resultsBody = document.getElementById('rpdResultsBody');
+		const resultsWrap = document.querySelector('#rpdResults .rwd-results-table-wrap');
 		const exportBtn = document.getElementById('rpdExportBtn');
+		const hideBtn = document.getElementById('rpdHideBtn');
+		const typeFilter = document.getElementById('rpdType');
+		const currencyFilter = document.getElementById('rpdCurrencyFilter');
+		const referenceIdFilter = document.getElementById('rpdReferenceId');
 		const pagination = document.getElementById('rpdPagination');
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
 		const prevBtn = document.getElementById('rpdPrevBtn');
 		const nextBtn = document.getElementById('rpdNextBtn');
+		const cardPartner = document.getElementById('rpdCardPartner');
+		const cardTransactionDate = document.getElementById('rpdCardTransactionDate');
+		const cardTransactionType = document.getElementById('rpdCardTransactionType');
+		const cardCurrency = document.getElementById('rpdCardCurrency');
+		const cardVolume = document.getElementById('rpdCardVolume');
+		const cardPrincipalPhp = document.getElementById('rpdCardPrincipalPhp');
+		const cardPrincipalUsd = document.getElementById('rpdCardPrincipalUsd');
+		const cardCommissionSection = document.getElementById('rpdCardCommissionSection');
+		const cardCommissionPhp = document.getElementById('rpdCardCommissionPhp');
+		const cardCommissionUsd = document.getElementById('rpdCardCommissionUsd');
 		const partners = <?= json_encode($partners) ?>;
-		const PAGE_SIZE = 10000;
+		const DEFAULT_PAGE_SIZE = 10000;
+		const VIRTUAL_ROW_HEIGHT = 48;
+		const VIRTUAL_BUFFER_ROWS = 12;
 		let currentFilters = null;
 		let lastReportData = null;
+		let virtualPartnerRows = [];
+		let virtualPartnerMode = 'standard';
+		let virtualPartnerColCount = 10;
+
+		function updateResultsCard(data, totals, hideCommission) {
+			const filters = currentFilters || {};
+			const startDate = filters.startDate || (data && data.start_date) || '';
+			const endDate = filters.endDate || (data && data.end_date) || '';
+			const transactionDate = startDate && endDate
+				? (startDate === endDate ? formatDateLong(startDate) : `${formatDateLong(startDate)} to ${formatDateLong(endDate)}`)
+				: (startDate ? `From ${formatDateLong(startDate)}` : (endDate ? `Until ${formatDateLong(endDate)}` : '-'));
+			const transactionType = filters.type ? String(filters.type).toUpperCase() : 'ALL';
+			const selectedCurrency = filters.currency || 'ALL';
+			const count = Number(data && data.page_count !== undefined ? data.page_count : (data && data.count ? data.count : 0));
+			if (cardPartner) cardPartner.textContent = (data && data.partner) || filters.partner || '-';
+			if (cardTransactionDate) cardTransactionDate.textContent = transactionDate;
+			if (cardTransactionType) cardTransactionType.textContent = transactionType;
+			if (cardCurrency) cardCurrency.textContent = selectedCurrency;
+			if (cardVolume) cardVolume.textContent = formatNumber(count);
+			if (cardPrincipalPhp) {
+				cardPrincipalPhp.textContent = `PHP: ${formatCurrencyAllowZero(totals.phpTotal)}`;
+				cardPrincipalPhp.style.display = selectedCurrency === 'USD' ? 'none' : '';
+			}
+			if (cardPrincipalUsd) {
+				cardPrincipalUsd.textContent = `USD: ${formatCurrencyAllowZero(totals.usdTotal)}`;
+				cardPrincipalUsd.style.display = selectedCurrency === 'PHP' ? 'none' : '';
+			}
+			if (cardCommissionSection) cardCommissionSection.style.display = hideCommission ? 'none' : '';
+			if (cardCommissionPhp) {
+				cardCommissionPhp.textContent = `PHP: ${formatCurrencyAllowZero(totals.phpCommissionTotal)}`;
+				cardCommissionPhp.style.display = selectedCurrency === 'USD' ? 'none' : '';
+			}
+			if (cardCommissionUsd) {
+				cardCommissionUsd.textContent = `USD: ${formatCurrencyAllowZero(totals.usdCommissionTotal)}`;
+				cardCommissionUsd.style.display = selectedCurrency === 'PHP' ? 'none' : '';
+			}
+		}
 
 		// Autocomplete function
 		function attachPartnerAutocomplete(inputEl, suggestions){
@@ -247,8 +688,8 @@ try {
 
 			function selectSuggestion(value){
 				inputEl.value = value;
-				closeSuggestions();
 				inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+				closeSuggestions();
 				inputEl.dispatchEvent(new Event('change', { bubbles: true }));
 			}
 
@@ -318,6 +759,19 @@ try {
 
 		function showRequiredModal(missing) {
 			if (!Array.isArray(missing)) missing = [String(missing || '')];
+			if (window.Swal) {
+				const html = '<ul style="margin:0;text-align:left;padding-left:1.25rem;">' + missing.map(function(it){
+					return '<li>' + escapeHtml(String(it || '')) + '</li>';
+				}).join('') + '</ul>';
+				return Swal.fire({
+					title: 'Required Fields',
+					html: html,
+					icon: 'warning',
+					confirmButtonText: 'OK',
+					confirmButtonColor: '#dc3545',
+					heightAuto: false
+				});
+			}
 			missingListEl.innerHTML = '';
 			missing.forEach(it => {
 				const li = document.createElement('li');
@@ -342,13 +796,46 @@ try {
 		// Remove red border on input when user fills value
 		const sdEl = document.getElementById('rpdStartDate');
 		const edEl = document.getElementById('rpdEndDate');
-		if (sdEl) sdEl.addEventListener('input', function(){ if (sdEl.value) sdEl.classList.remove('rpd-invalid'); });
+		function showDurationAlert(message) {
+			if (window.Swal) {
+				return Swal.fire({
+					text: String(message || ''),
+					icon: 'warning',
+					confirmButtonText: 'OK',
+					confirmButtonColor: '#dc3545',
+					heightAuto: false
+				});
+			}
+			alert(message);
+			return Promise.resolve();
+		}
+		function syncEndDateToStartDate() {
+			if (sdEl && edEl && sdEl.value) {
+				edEl.value = sdEl.value;
+				edEl.classList.remove('rpd-invalid');
+			}
+			if (sdEl && sdEl.value) sdEl.classList.remove('rpd-invalid');
+		}
+		if (sdEl) {
+			sdEl.addEventListener('input', syncEndDateToStartDate);
+			sdEl.addEventListener('change', syncEndDateToStartDate);
+		}
 		if (edEl) edEl.addEventListener('input', function(){ if (edEl.value) edEl.classList.remove('rpd-invalid'); });
 
 		// Format currency
 		function formatCurrency(value, currency) {
 			if (value === '' || value === null || value === undefined || isNaN(Number(value))) return '';
 			const num = parseFloat(value);
+			try {
+				return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+			} catch (e) {
+				return num.toFixed(2);
+			}
+		}
+
+		function formatCurrencyAbsolute(value) {
+			if (value === '' || value === null || value === undefined || isNaN(Number(value))) return '';
+			const num = Math.abs(parseFloat(value));
 			try {
 				return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 			} catch (e) {
@@ -378,12 +865,133 @@ try {
 			return parts.length > 0 ? `/${parts[0]}` : '';
 		}
 
+		function escapeHtml(value) {
+			return String(value === null || value === undefined ? '' : value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function formatDetailDateValue(value) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+			if (!match) return raw;
+			return match[2] + '-' + match[3] + '-' + match[1] + (match[4] || '');
+		}
+
+		function formatDetailLongDate(value, includeTime) {
+			const raw = String(value === null || value === undefined ? '' : value).trim();
+			if (!raw) return '';
+			const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+			if (!match) return raw;
+			const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			let output = monthNames[Number(match[2]) - 1] + ' ' + match[3] + ', ' + match[1];
+			if (includeTime) {
+				const hour = Number(match[4] || 0);
+				output += ' ' + String(hour).padStart(2, '0') + ':' + (match[5] || '00') + ':' + (match[6] || '00') + ' ' + (hour >= 12 ? 'PM' : 'AM');
+			}
+			return output;
+		}
+
+		function isAmountDetailField(key) {
+			return /(^|_)(amount|amt|php|usd|charge|fee|comm|commission|total|principal)(_|$)/i.test(String(key || ''));
+		}
+
+		function renderDetailGrid(data) {
+			if (!data || !Object.keys(data).length) return '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			const pick = (...keys) => {
+				for (const key of keys) if (data[key] !== null && data[key] !== undefined && String(data[key]).trim() !== '') return data[key];
+				return '-';
+			};
+			const text = (label, value, options = {}) => {
+				let shown = value;
+				if (options.date && value !== '-') shown = formatDetailLongDate(value, false);
+				if (options.dateTime && value !== '-') shown = formatDetailLongDate(value, true);
+				if (options.amount && value !== '-') shown = formatCurrencyAbsolute(value);
+				if (options.status && value !== '-') shown = '<span class="txn-detail-status">' + escapeHtml(value) + '</span>';
+				else shown = escapeHtml(shown);
+				return '<dt>' + escapeHtml(label) + ':</dt><dd>' + shown + '</dd>';
+			};
+			const left = text('Transaction Date', pick('tran_date', 'transaction_date'), { date: true }) +
+				text('Transaction ID', pick('transaction_id')) +
+				text('Reference ID', pick('reference_id')) +
+				text('Product Type', pick('product')) +
+				text('Transaction Type', pick('tran_type'));
+			const right = text('Account Number', pick('account_number')) +
+				text('Agent Name', pick('agent_name')) +
+				text('Legacy ID', pick('legacy_id')) +
+				text('Original Country', pick('orig_cntry')) +
+				text('Receiver Country', pick('rcv_cntry')) +
+				text('Settlement Currency', pick('settlement_currency')) +
+				text('Transaction Currency', pick('transaction_currency'));
+			const forex = text('Forex Date', pick('fx_date_trn'), { date: true }) +
+				text('Transaction Forex Rate', pick('fx_rate_trn', 'tran_fx_rate')) +
+				text('Margin', pick('margin')) +
+				text('Fee Amount', pick('fee_tran_amt'), { amount: true });
+			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by_name', 'uploaded_by', 'created_by'));
+			const transactionCurrency = String(pick('transaction_currency')).trim().toUpperCase();
+			const currencySign = transactionCurrency === 'PHP' ? '\u20B1' : (transactionCurrency === 'USD' ? '$' : '');
+			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : (currencySign ? currencySign + ' ' : '') + formatCurrencyAbsolute(value)) + '</span></div>';
+			return '<h5 class="txn-detail-section-title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5>' +
+				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + left + '</dl><dl class="txn-detail-list">' + right + '</dl></div>' +
+				'<div class="txn-detail-groups"><dl class="txn-detail-list">' + forex + '</dl><dl class="txn-detail-list">' + upload + '</dl></div>' +
+				'<div class="txn-detail-amounts">' + amount('Principal Amount', pick('base_amt')) + amount('Forex Revenue Share Amount', pick('fx_rev_share_amt')) + amount('Commission Amount', pick('comm_amt')) + '</div>';
+		}
+
+		function closePartnerDetailModal() {
+			const modal = document.getElementById('rpdTxnDetailModal');
+			if (!modal) return;
+			modal.style.display = 'none';
+			modal.setAttribute('aria-hidden', 'true');
+		}
+
+		async function openPartnerDetailModal(id) {
+			const modal = document.getElementById('rpdTxnDetailModal');
+			const body = modal ? modal.querySelector('[data-role="rpdTxnDetailBody"]') : null;
+			if (!modal || !body || !id) return;
+			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
+			modal.style.display = 'flex';
+			modal.setAttribute('aria-hidden', 'false');
+			try {
+				const res = await fetch(`${getAppBasePath()}/src/controllers/recon/moneygram-partner-transaction-details.php?id=${encodeURIComponent(id)}`, { method: 'GET' });
+				const json = await res.json();
+				if (!res.ok || !(json && json.success && json.data)) {
+					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+					return;
+				}
+				body.innerHTML = renderDetailGrid(json.data);
+			} catch (err) {
+				console.error('MONEYGRAM partner detail error', err);
+				body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
+			}
+		}
+
+		document.querySelectorAll('[data-action="close-rpd-detail"]').forEach(btn => {
+			btn.addEventListener('click', closePartnerDetailModal);
+		});
+
 		// Format date
-		function formatDate(dateStr) {
+		function formatDateLong(dateStr) {
 			if (!dateStr) return '';
-			const date = new Date(dateStr);
-			if (isNaN(date.getTime())) return dateStr;
-			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+			const value = String(dateStr).trim();
+			const dateOnly = value.split(/\s+/)[0];
+			const parts = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+			const date = parts
+				? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+				: new Date(value);
+			if (isNaN(date.getTime())) return value;
+			return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+		}
+
+		function formatDate(dateStr) {
+			return formatDateLong(dateStr);
+		}
+
+		function formatDateMonthDayYear(dateStr) {
+			return formatDateLong(dateStr);
 		}
 
 		async function fetchTransactions(page) {
@@ -393,14 +1001,18 @@ try {
 			viewBtn.textContent = 'Loading...';
 			prevBtn.disabled = true;
 			nextBtn.disabled = true;
+			if (exportBtn) exportBtn.disabled = true;
 
 			try {
 				const params = new URLSearchParams({
 					partner: currentFilters.partner,
 					start_date: currentFilters.startDate,
 					end_date: currentFilters.endDate,
+					type: currentFilters.type || '',
+					settlement_currency: currentFilters.currency || '',
+					reference_id: currentFilters.referenceId || '',
 					page: String(page),
-					per_page: String(PAGE_SIZE)
+					per_page: String(DEFAULT_PAGE_SIZE)
 				});
 
 				const response = await fetch(`${getAppBasePath()}/src/controllers/excelcontrol/partner-data-report.php?${params.toString()}`);
@@ -428,22 +1040,34 @@ try {
 			const partnerVal = input.value && input.value.trim() ? input.value.trim() : '';
 			const startDate = (document.getElementById('rpdStartDate') || {}).value || '';
 			const endDate = (document.getElementById('rpdEndDate') || {}).value || '';
+			const referenceId = referenceIdFilter ? referenceIdFilter.value.trim() : '';
 
 			// clear previous markers
 			if (sdEl) sdEl.classList.remove('rpd-invalid');
 			if (edEl) edEl.classList.remove('rpd-invalid');
 
 			if (!partnerVal) missing.push('Corporate Partner');
-			if (!startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
-			if (!endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
+			if (!referenceId && !startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
+			if (!referenceId && !endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
 
 			if (missing.length > 0) {
 				showRequiredModal(missing);
 				if (!partnerVal) input.focus();
 				return;
 			}
+			if (startDate && endDate && startDate > endDate) {
+				await showDurationAlert('Start Date cannot be greater than End Date.');
+				return;
+			}
 
-			currentFilters = { partner: partnerVal, startDate, endDate };
+			currentFilters = {
+				partner: partnerVal,
+				startDate,
+				endDate,
+				type: typeFilter ? typeFilter.value : '',
+				currency: currencyFilter ? currencyFilter.value : '',
+				referenceId
+			};
 			await fetchTransactions(1);
 		}
 
@@ -458,6 +1082,8 @@ try {
 			await runReport();
 		});
 
+		// Currency and transaction type are applied only when View transactions is clicked.
+
 		function isWorldcomPartner(name) {
 			return /worldcom|\bwic\b/i.test(String(name || ''));
 		}
@@ -468,6 +1094,39 @@ try {
 
 		function isMoneygramPartner(name) {
 			return /^moneygram$/i.test(String(name || '').trim());
+		}
+
+		function hideReportData() {
+			resultsBody.innerHTML = '';
+			if (resultsDiv) {
+				resultsDiv.style.display = 'none';
+				if (resultsDiv.dataset) resultsDiv.dataset.reportData = '';
+			}
+			if (pagination) pagination.style.display = 'none';
+			if (hideBtn) hideBtn.style.display = 'none';
+			if (exportBtn) {
+				exportBtn.style.display = 'none';
+				exportBtn.disabled = false;
+				exportBtn.textContent = 'Export to Excel';
+			}
+			virtualPartnerRows = [];
+			lastReportData = null;
+			currentFilters = null;
+		}
+
+		if (hideBtn) {
+			hideBtn.addEventListener('click', function(e) {
+				e.preventDefault();
+				if (form) form.reset();
+				if (sdEl) sdEl.classList.remove('rpd-invalid');
+				if (edEl) edEl.classList.remove('rpd-invalid');
+				const partnerSuggestions = document.getElementById('rpdPartnerSuggestions');
+				if (partnerSuggestions) {
+					partnerSuggestions.innerHTML = '';
+					partnerSuggestions.hidden = true;
+				}
+				hideReportData();
+			});
 		}
 
 		function applyPartnerColumnConfig(partnerName) {
@@ -510,22 +1169,20 @@ try {
 			}
 
 			noHeader.textContent = 'No.';
-			controlSeriesHeader.textContent = isWic ? 'Transaction Id' : 'Control Series';
-			dateClaimedHeader.textContent = isWic ? 'Date' : 'Date Claimed';
-			// For WIC we hide the original CCREF NO column (it was renamed earlier),
-			// and display Currency as "Coin" and the numeric Amount as the last column.
+			noHeader.style.display = isWic ? 'none' : '';
+			controlSeriesHeader.textContent = isWic ? 'Date' : 'Control Series';
+			dateClaimedHeader.textContent = isWic ? 'Transaction ID' : 'Date Claimed';
 			ccrefHeader.textContent = 'CCREF NO';
 			ccrefHeader.style.display = isWic ? 'none' : '';
-			currencyHeader.textContent = isWic ? 'Coin' : 'Currency';
-			amountHeader.textContent = isWic ? 'Amount' : 'Amount';
+			currencyHeader.textContent = isWic ? 'Amount' : 'Currency';
+			amountHeader.textContent = isWic ? 'Coin' : 'Amount';
 			senderHeader.textContent = 'Sender';
 			beneficiaryHeader.textContent = 'Beneficiary';
 			operatorHeader.textContent = 'Operator';
 			branchHeader.textContent = 'Branch';
 
-			// Align headers for WIC: Coin (currency code) left, Amount (numeric) right
-			currencyHeader.style.textAlign = isWic ? 'left' : 'left';
-			amountHeader.style.textAlign = isWic ? 'right' : 'right';
+			currencyHeader.style.textAlign = 'left';
+			amountHeader.style.textAlign = isWic ? 'center' : 'right';
 			beneficiaryHeader.style.textAlign = 'left';
 			operatorHeader.style.textAlign = 'left';
 			branchHeader.style.textAlign = 'left';
@@ -536,9 +1193,171 @@ try {
 			});
 		}
 
+		const moneygramCols = ['tran_date','agent_name','legacy_id','account_number','reference_id','tran_type','tran_fx_rate','fx_rev_share_amt','settlement_currency','base_amt','comm_amt','orig_cntry','rcv_cntry'];
+		const moneygramAmtCols = new Set(['fx_rev_share_amt','base_amt','comm_amt']);
+
+		function createPartnerSpacerRow(height, colSpan) {
+			const tr = document.createElement('tr');
+			const td = document.createElement('td');
+			td.colSpan = colSpan;
+			td.style.height = Math.max(0, height) + 'px';
+			td.style.padding = '0';
+			td.style.border = '0';
+			tr.appendChild(td);
+			return tr;
+		}
+
+		function createMoneygramResultRow(row, visibleIndex) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			moneygramCols.forEach(col => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				const raw = (row[col] === null || row[col] === undefined) ? '' : row[col];
+				if(col === 'tran_date'){
+					td.textContent = formatDateMonthDayYear(raw);
+				} else if(col === 'tran_type'){
+					const value = String(raw || '').trim();
+					td.textContent = value.toUpperCase() === 'REC' ? 'REC(PAY OUT)' : value;
+				} else if(moneygramAmtCols.has(col)){
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+					td.textContent = raw !== '' ? formatCurrencyAbsolute(raw) : '';
+				} else if(col === 'tran_fx_rate'){
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+					td.textContent = raw !== '' ? String(raw) : '';
+				} else if (col === 'legacy_id') {
+					td.style.textAlign = 'center';
+					td.textContent = raw !== '' ? String(raw) : '';
+				} else {
+					td.textContent = String(raw);
+				}
+				tr.appendChild(td);
+			});
+
+			const viewTd = document.createElement('td');
+			viewTd.style.padding = '0.75rem';
+			viewTd.style.color = '#1f2937';
+			viewTd.style.textAlign = 'center';
+			const id = row['id'] || '';
+			if(id){
+				const viewBtn = document.createElement('button');
+				viewBtn.type = 'button';
+				viewBtn.className = 'txn-view-btn';
+				viewBtn.textContent = 'View';
+				viewBtn.dataset.txnId = id;
+				viewTd.appendChild(viewBtn);
+			}
+			tr.appendChild(viewTd);
+			return tr;
+		}
+
+		function createStandardPartnerResultRow(row, visibleIndex, mode) {
+			const tr = document.createElement('tr');
+			tr.style.borderBottom = '1px solid #f0f0f0';
+			if (visibleIndex % 2 === 1) tr.style.backgroundColor = '#fafafa';
+
+			const allCells = [
+				row['no'] || '',
+				row['control_series_no'] || '',
+				formatDate(row['date_claimed']),
+				row['ccref_no'] || '',
+				row['currency'] || '',
+				formatCurrencyAbsolute(row['amount']),
+				row['sender_name'] || '',
+				row['beneficiary_receiver'] || '',
+				row['operator'] || '',
+				row['branch'] || ''
+			];
+
+			const mbtcCells = [
+				formatDateLong(row['partner_date'] || row['date_claimed'] || ''),
+				row['partner_time'] || '',
+				row['partner_reference_no'] || row['control_series_no'] || '',
+				row['partner_rts_tracer_no'] || '',
+				row['partner_provider'] || '',
+				row['partner_beneficiary_name'] || row['beneficiary_receiver'] || '',
+				row['partner_remitter_name'] || row['sender_name'] || '',
+				formatCurrencyAbsolute(row['partner_php']),
+				formatCurrencyAbsolute(row['partner_usd']),
+				formatCurrencyAbsolute(row['partner_in_php'])
+			];
+
+			const isMbtcMode = mode === 'mbtc';
+			const isWicMode = mode === 'wic';
+			const cells = isMbtcMode ? mbtcCells : (isWicMode ? [allCells[2], allCells[1], allCells[5], allCells[4]] : allCells);
+			const amountCellIdx = isWicMode ? 2 : 5;
+
+			cells.forEach((cellValue, cellIdx) => {
+				const td = document.createElement('td');
+				td.style.padding = '0.75rem';
+				td.style.color = '#1f2937';
+				if (isMbtcMode && (cellIdx === 7 || cellIdx === 8 || cellIdx === 9)) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (!isMbtcMode && cellIdx === amountCellIdx && !isWicMode) {
+					td.style.textAlign = 'right';
+					td.style.fontFamily = 'monospace';
+				}
+				if (isWicMode && cellIdx === amountCellIdx) {
+					td.style.textAlign = 'left';
+					td.style.fontFamily = 'monospace';
+				}
+				if (isWicMode && cellIdx === 3) {
+					td.style.textAlign = 'center';
+				}
+				td.textContent = cellValue;
+				tr.appendChild(td);
+			});
+
+			return tr;
+		}
+
+		function renderVirtualPartnerRows() {
+			if (!resultsWrap) return;
+			const rows = virtualPartnerRows || [];
+			const scrollTop = resultsWrap.scrollTop || 0;
+			if (!rows.length) return;
+
+			const viewportHeight = resultsWrap.clientHeight || 480;
+			const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_BUFFER_ROWS);
+			const visibleCount = Math.ceil(viewportHeight / VIRTUAL_ROW_HEIGHT) + (VIRTUAL_BUFFER_ROWS * 2);
+			const endIndex = Math.min(rows.length, startIndex + visibleCount);
+			const fragment = document.createDocumentFragment();
+			const topHeight = startIndex * VIRTUAL_ROW_HEIGHT;
+			const bottomHeight = Math.max(0, (rows.length - endIndex) * VIRTUAL_ROW_HEIGHT);
+
+			if (topHeight > 0) fragment.appendChild(createPartnerSpacerRow(topHeight, virtualPartnerColCount));
+			for (let i = startIndex; i < endIndex; i++) {
+				fragment.appendChild(virtualPartnerMode === 'moneygram'
+					? createMoneygramResultRow(rows[i], i)
+					: createStandardPartnerResultRow(rows[i], i, virtualPartnerMode));
+			}
+			if (bottomHeight > 0) fragment.appendChild(createPartnerSpacerRow(bottomHeight, virtualPartnerColCount));
+			resultsBody.replaceChildren(fragment);
+			if (resultsWrap.scrollTop !== scrollTop) resultsWrap.scrollTop = scrollTop;
+		}
+
+		if (resultsWrap) {
+			resultsWrap.addEventListener('scroll', function() {
+				window.requestAnimationFrame(renderVirtualPartnerRows);
+			});
+		}
+
+		resultsBody.addEventListener('click', function(event) {
+			const btn = event.target.closest ? event.target.closest('.txn-view-btn[data-txn-id]') : null;
+			if (!btn) return;
+			openPartnerDetailModal(btn.dataset.txnId);
+		});
+
 		// Display results in table
 		function displayResults(data) {
-			resultsTitle.textContent = `${data.partner} — ${formatNumber(data.count)} transaction${data.count !== 1 ? 's' : ''}`;
+			if (resultsTitle) resultsTitle.textContent = data.partner || 'Partner data transactions';
 
 			let dateRange = '';
 			if (data.start_date && data.end_date) {
@@ -549,38 +1368,52 @@ try {
 				dateRange = ` (until ${data.end_date})`;
 			}
 
-			if (isMoneygramPartner(data.partner)) {
-				const phpTotal = Number(data.moneygram_php_total || 0);
-				const usdTotal = Number(data.moneygram_usd_total || 0);
-				resultsSummary.innerHTML = `${dateRange}<span class="rpd-summary-badges"><span class="rpd-summary-badge rpd-summary-badge--php">PHP Total: ₱${formatCurrencyAllowZero(phpTotal)}</span><span class="rpd-summary-badge rpd-summary-badge--usd">USD Total: $${formatCurrencyAllowZero(usdTotal)}</span></span>`;
-			} else {
-				resultsSummary.textContent = dateRange;
-			}
-
 			const isMoneygram = isMoneygramPartner(data.partner);
 			const isWic = isWorldcomPartner(data.partner);
 			const isMbtc = isMetrobankHeadOfficePartner(data.partner);
+			const phpTotal = Math.abs(Number(data.php_total !== undefined ? data.php_total : (data.moneygram_php_total || 0)));
+			const usdTotal = Math.abs(Number(data.usd_total !== undefined ? data.usd_total : (data.moneygram_usd_total || 0)));
+			const phpCommissionTotal = Math.abs(Number(data.php_commission_total !== undefined ? data.php_commission_total : (data.moneygram_commission_php_total || 0)));
+			const usdCommissionTotal = Math.abs(Number(data.usd_commission_total !== undefined ? data.usd_commission_total : (data.moneygram_commission_usd_total || 0)));
+			updateResultsCard(data, {
+				phpTotal: phpTotal,
+				usdTotal: usdTotal,
+				phpCommissionTotal: phpCommissionTotal,
+				usdCommissionTotal: usdCommissionTotal
+			}, isWic);
+			if (resultsSummary) {
+				resultsSummary.textContent = dateRange ? dateRange.replace(/^\s*\(|\)\s*$/g, '') : '';
+				resultsSummary.style.display = resultsSummary.textContent ? '' : 'none';
+			}
+			const resultsTable = document.getElementById('rpdResultsTable');
+			if (resultsTable) {
+				resultsTable.classList.toggle('rpd-table--wic', isWic);
+			}
 			if(!isMoneygram){
 				applyPartnerColumnConfig(data.partner);
 			}
-			const visibleColCount = isMoneygram ? 9 : (isWic ? 5 : 10);
+			const visibleColCount = isMoneygram ? 14 : (isWic ? 4 : 10);
+			const rowsForDisplay = isMoneygram ? (Array.isArray(data.moneygram_rows) ? data.moneygram_rows : []) : (Array.isArray(data.rows) ? data.rows : []);
 
 			// Clear table
 			resultsBody.innerHTML = '';
+			virtualPartnerRows = [];
 
-			if (!data.rows || data.rows.length === 0) {
+			if (rowsForDisplay.length === 0) {
 				resultsBody.innerHTML = `<tr><td colspan="${visibleColCount}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
+				if (hideBtn) hideBtn.style.display = '';
+				if (exportBtn) {
+					exportBtn.style.display = 'none';
+					exportBtn.disabled = true;
+				}
 				return;
 			}
 
-			// Populate table
 			if(isMoneygram){
-				// Moneygram: 9 specific columns with proper formatting (includes Legacy ID)
-				const mgCols = ['transaction_id','reference_id','tran_date','tran_type','base_tran_amt','total_tran_amt','settlement_currency','agent_name','legacy_id'];
-				const mgHeaders = ['Transaction ID','Reference ID','Tran Date','Tran Type','Base Tran Amt','Total Tran Amt','Settlement Currency','Agent Name','Legacy ID'];
-				const mgAmtCols = new Set(['base_tran_amt','total_tran_amt']);
+				const mgHeaders = ['Tran Date','Agent Name','Legacy ID','Account Number','Reference ID','Tran Type','Tran Fx Rate','Fx Rev Share Amt','Settlement Currency','Base Amt','Comm Amt','Orig Cntry','Rcv Cntry','Details'];
+				const mgNumericCols = new Set(['tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt']);
 				const thead = document.querySelector('#rpdResultsTable thead');
 				if(thead){
 					const tr = document.createElement('tr');
@@ -592,8 +1425,9 @@ try {
 						th.style.whiteSpace = 'nowrap';
 						th.style.background = '#f9fafb';
 						// Right align amounts, center legacy id, left otherwise
-						if (mgAmtCols.has(mgCols[i])) th.style.textAlign = 'right';
-						else if (mgCols[i] === 'legacy_id') th.style.textAlign = 'center';
+						const colName = moneygramCols[i] || '';
+						if (mgNumericCols.has(colName)) th.style.textAlign = 'right';
+						else if (colName === 'legacy_id' || h === 'Details') th.style.textAlign = 'center';
 						else th.style.textAlign = 'left';
 						th.textContent = h;
 						tr.appendChild(th);
@@ -601,92 +1435,26 @@ try {
 					thead.innerHTML = '';
 					thead.appendChild(tr);
 				}
-				const mgRows = Array.isArray(data.moneygram_rows) ? data.moneygram_rows : [];
-				mgRows.forEach((row, idx) => {
-					const tr = document.createElement('tr');
-					tr.style.borderBottom = '1px solid #f0f0f0';
-					if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-					mgCols.forEach(col => {
-						const td = document.createElement('td');
-						td.style.padding = '0.75rem';
-						td.style.color = '#1f2937';
-						const raw = (row[col] === null || row[col] === undefined) ? '' : row[col];
-						if(mgAmtCols.has(col)){
-							td.style.textAlign = 'right';
-							td.style.fontFamily = 'monospace';
-							td.textContent = raw !== '' ? formatCurrency(raw) : '';
-						} else if (col === 'legacy_id') {
-							td.style.textAlign = 'center';
-							td.textContent = raw !== '' ? String(raw) : '';
-						} else {
-							td.textContent = String(raw);
-						}
-						tr.appendChild(td);
-					});
-					resultsBody.appendChild(tr);
-				});
+				virtualPartnerRows = rowsForDisplay;
+				virtualPartnerMode = 'moneygram';
+				virtualPartnerColCount = 14;
 			} else {
-				data.rows.forEach((row, idx) => {
-				const tr = document.createElement('tr');
-				tr.style.borderBottom = '1px solid #f0f0f0';
-				if (idx % 2 === 1) tr.style.backgroundColor = '#fafafa';
-
-				const allCells = [
-					row['no'] || '',
-					row['control_series_no'] || '',
-					formatDate(row['date_claimed']),
-					row['ccref_no'] || '',
-					row['currency'] || '',
-					formatCurrency(row['amount'], row['currency']),
-					row['sender_name'] || '',
-					row['beneficiary_receiver'] || '',
-					row['operator'] || '',
-					row['branch'] || ''
-				];
-
-				const mbtcCells = [
-					row['partner_date'] || row['date_claimed'] || '',
-					row['partner_time'] || '',
-					row['partner_reference_no'] || row['control_series_no'] || '',
-					row['partner_rts_tracer_no'] || '',
-					row['partner_provider'] || '',
-					row['partner_beneficiary_name'] || row['beneficiary_receiver'] || '',
-					row['partner_remitter_name'] || row['sender_name'] || '',
-					formatCurrency(row['partner_php'], 'PHP'),
-					formatCurrency(row['partner_usd'], 'USD'),
-					formatCurrency(row['partner_in_php'], 'PHP')
-				];
-
-				// For WIC exclude the CCREF NO column (index 3). Final WIC columns: No., Transaction Id, Date, Coin, Amount
-				const cells = isMbtc
-					? mbtcCells
-					: (isWic ? [allCells[0], allCells[1], allCells[2], allCells[4], allCells[5]] : allCells);
-				const amountCellIdx = isWic ? 4 : 5;
-
-				cells.forEach((cellValue, cellIdx) => {
-					const td = document.createElement('td');
-					td.style.padding = '0.75rem';
-					td.style.color = '#1f2937';
-					if (isMbtc && (cellIdx === 7 || cellIdx === 8 || cellIdx === 9)) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					if (!isMbtc && cellIdx === amountCellIdx) {
-						td.style.textAlign = 'right';
-						td.style.fontFamily = 'monospace';
-					}
-					td.textContent = cellValue;
-					tr.appendChild(td);
-				});
-
-					resultsBody.appendChild(tr);
-				});
+				virtualPartnerRows = rowsForDisplay;
+				virtualPartnerMode = isMbtc ? 'mbtc' : (isWic ? 'wic' : 'standard');
+				virtualPartnerColCount = visibleColCount;
 			}
+			if (resultsWrap) resultsWrap.scrollTop = 0;
+			renderVirtualPartnerRows();
 
 			resultsDiv.style.display = 'block';
+			if (hideBtn) hideBtn.style.display = '';
+			if (exportBtn) {
+				exportBtn.style.display = '';
+				exportBtn.disabled = false;
+			}
 
 			const page = Number(data.page || 1);
-			const perPage = Number(data.per_page || PAGE_SIZE);
+			const perPage = Number(data.per_page || DEFAULT_PAGE_SIZE);
 			const totalPages = Number(data.total_pages || 1);
 			const totalCount = Number(data.count || 0);
 			const startRow = totalCount === 0 ? 0 : ((page - 1) * perPage) + 1;
@@ -696,8 +1464,6 @@ try {
 			nextBtn.disabled = page >= totalPages;
 			pagination.style.display = totalPages > 1 ? 'flex' : 'none';
 
-			// Store data for export
-			resultsDiv.dataset.reportData = JSON.stringify(data);
 		}
 
 		prevBtn.addEventListener('click', function() {
@@ -717,9 +1483,9 @@ try {
 
 		// Export to CSV
 		exportBtn.addEventListener('click', function() {
-			if (!resultsDiv.dataset.reportData) return;
+			if (!lastReportData) return;
 
-			const data = JSON.parse(resultsDiv.dataset.reportData);
+			const data = lastReportData;
 			const partner = data.partner;
 				const rows = data.rows;
 const csvIsMoneygram = isMoneygramPartner(partner);
@@ -728,7 +1494,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 
 			// Moneygram: request server-side Excel export including Legacy ID
 			if(csvIsMoneygram){
-				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '' });
+				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '', reference_id: currentFilters && currentFilters.referenceId ? currentFilters.referenceId : '' });
 				const url = `${getAppBasePath()}/src/controllers/excelcontrol/partner-data-export.php?${params.toString()}`;
 				exportBtn.disabled = true;
 				exportBtn.textContent = 'Preparing...';
@@ -755,7 +1521,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				}).catch(err => {
 					console.error('Export error', err);
 					alert('Export failed: ' + err.message);
-				}).finally(() => { exportBtn.disabled = false; exportBtn.textContent = 'Export Excel'; });
+				}).finally(() => { exportBtn.disabled = false; exportBtn.textContent = 'Export to Excel'; });
 
 				return;
 			}
@@ -770,7 +1536,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				headers = csvIsMbtc
 				? ['Date', 'Time', 'Reference No.', 'RTS Tracer No.', 'Provider', 'Beneficiary Name', 'Remitter Name', 'Payout Amount PHP', 'USD', 'In PHP']
 				: (csvIsWic
-				? ['No.', 'Transaction Id', 'Date', 'Coin', 'Amount']
+				? ['Date', 'Transaction ID', 'Amount', 'Coin']
 					: ['No.', 'Control Series', 'Date Claimed', 'CCREF NO', 'Currency', 'Amount', 'Sender', 'Beneficiary', 'Operator', 'Branch']);
 
 			// Build CSV content
@@ -803,7 +1569,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 				];
 				const values = csvIsMbtc
 					? mbtcValues
-					: (csvIsWic ? [allValues[0], allValues[1], allValues[2], allValues[4], allValues[5]] : allValues);
+					: (csvIsWic ? [allValues[2], allValues[1], allValues[5], allValues[4]] : allValues);
 				const line = values.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',');
 
 				csv += line + '\n';
@@ -843,9 +1609,8 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 		}
 
 		window.addEventListener('resize', setPartnerRecordsHeight);
-		window.addEventListener('scroll', setPartnerRecordsHeight);
 		const origDisplayResultsRpd = displayResults;
-		displayResults = function(data){ origDisplayResultsRpd(data); setTimeout(setPartnerRecordsHeight,50); };
+		displayResults = function(data){ origDisplayResultsRpd(data); setTimeout(function(){ setPartnerRecordsHeight(); renderVirtualPartnerRows(); },50); };
 		setTimeout(setPartnerRecordsHeight,200);
 	})();
 	</script>

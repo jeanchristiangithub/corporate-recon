@@ -119,6 +119,8 @@ try{
 
         $results = [];
         $seen = [];
+        $datePairs = [];
+        $looseIds = [];
         foreach($pairs as $p){
             $idVal = '';
             if(isset($p['transaction_id'])) $idVal = trim((string)$p['transaction_id']);
@@ -140,11 +142,35 @@ try{
             }
 
             if($dateOnly !== null && $dateCol !== null){
-                $stmt = $pdo->prepare("SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} = ? AND DATE({$dateCol}) = ? GROUP BY {$idCol}, {$dateCol}");
-                $stmt->execute([$idVal, $dateOnly]);
-                $r = $stmt->fetchAll();
-                foreach($r as $ra){
+                $datePairs[$idVal . '|' . $dateOnly] = [$idVal, $dateOnly];
+            } else {
+                $looseIds[$idVal] = true;
+            }
+        }
+
+        $matchedDatePairs = [];
+        if($dateCol !== null && !empty($datePairs)){
+            foreach(array_chunk(array_values($datePairs), 500) as $chunk){
+                $where = [];
+                $params = [];
+                foreach($chunk as $pair){
+                    // MoneyGram tran_date is a DATE column. Comparing it directly allows
+                    // the composite transaction/date index to service this lookup.
+                    $where[] = "({$idCol} = ? AND {$dateCol} = ?)";
+                    $params[] = $pair[0];
+                    $params[] = $pair[1];
+                }
+                $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE " . implode(' OR ', $where) . " GROUP BY {$idCol}, {$dateCol}";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                foreach($stmt->fetchAll() as $ra){
                     if(isset($ra['cnt']) && (int)$ra['cnt'] > 0){
+                        $dateOnly = '';
+                        if($ra['dcol'] !== null && $ra['dcol'] !== ''){
+                            $ts = strtotime((string)$ra['dcol']);
+                            $dateOnly = $ts !== false ? date('Y-m-d', $ts) : substr((string)$ra['dcol'], 0, 10);
+                        }
+                        $matchedDatePairs[$ra['idcol'] . '|' . $dateOnly] = true;
                         $key = $ra['idcol'].'|'.$ra['dcol'];
                         if(!isset($seen[$key])){
                             $seen[$key]=true;
@@ -154,25 +180,34 @@ try{
                         }
                     }
                 }
-                if(!empty($r)) continue;
             }
+        }
 
-            // last resort: any rows matching ID
-            if($dateCol !== null){
-                $stmt3 = $pdo->prepare("SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} = ? GROUP BY {$idCol}, {$dateCol}");
-            } else {
-                $stmt3 = $pdo->prepare("SELECT {$idCol} as idcol, NULL as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} = ? GROUP BY {$idCol}");
+        foreach($datePairs as $pairKey => $pair){
+            if(!isset($matchedDatePairs[$pairKey])){
+                $looseIds[$pair[0]] = true;
             }
-            $stmt3->execute([$idVal]);
-            $r3 = $stmt3->fetchAll();
-            foreach($r3 as $ra){
-                if(isset($ra['cnt']) && (int)$ra['cnt'] > 0){
-                    $key = $ra['idcol'].'|'.$ra['dcol'];
-                    if(!isset($seen[$key])){
-                        $seen[$key]=true;
-                        $entry = ['cnt'=>(int)$ra['cnt'], 'date'=>$ra['dcol'], 'tran_date'=>$ra['dcol']];
-                        $entry[$idCol] = $ra['idcol'];
-                        $results[] = $entry;
+        }
+
+        if(!empty($looseIds)){
+            foreach(array_chunk(array_keys($looseIds), 1000) as $chunk){
+                $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+                if($dateCol !== null){
+                    $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}) GROUP BY {$idCol}, {$dateCol}";
+                } else {
+                    $sql = "SELECT {$idCol} as idcol, NULL as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}) GROUP BY {$idCol}";
+                }
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($chunk);
+                foreach($stmt->fetchAll() as $ra){
+                    if(isset($ra['cnt']) && (int)$ra['cnt'] > 0){
+                        $key = $ra['idcol'].'|'.$ra['dcol'];
+                        if(!isset($seen[$key])){
+                            $seen[$key]=true;
+                            $entry = ['cnt'=>(int)$ra['cnt'], 'date'=>$ra['dcol'], 'tran_date'=>$ra['dcol']];
+                            $entry[$idCol] = $ra['idcol'];
+                            $results[] = $entry;
+                        }
                     }
                 }
             }
@@ -240,6 +275,13 @@ try{
         echo json_encode(['success'=>true,'deleted'=>$cnt]); exit;
     }
 
+    if($action === 'precheck_partner_legacy'){
+        $payloads = isset($data['payloads']) && is_array($data['payloads']) ? $data['payloads'] : [];
+        $ins = new MoneygramInsert();
+        $res = $ins->precheckPartnerLegacyIds($payloads);
+        echo json_encode($res); exit;
+    }
+
     if($action === 'insert_web'){
         $company = isset($data['company']) ? $data['company'] : 'MONEYGRAM';
         $payloads = isset($data['payloads']) && is_array($data['payloads']) ? $data['payloads'] : [];
@@ -250,9 +292,10 @@ try{
 
     if($action === 'insert_partner'){
         $company = isset($data['company']) ? $data['company'] : 'MONEYGRAM';
+        $partnerId = isset($data['partner_id']) ? trim((string)$data['partner_id']) : '';
         $payloads = isset($data['payloads']) && is_array($data['payloads']) ? $data['payloads'] : [];
         $ins = new MoneygramInsert();
-        $res = $ins->insertPartnerData($company, $payloads);
+        $res = $ins->insertPartnerData($company, $payloads, $partnerId);
         echo json_encode($res); exit;
     }
 

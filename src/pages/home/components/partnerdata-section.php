@@ -3,20 +3,29 @@
 require_once __DIR__ . '/../../../config/db.php';
 
 $partners = [];
+$partnerIds = [];
 try {
     // Use master data connection and corpo_partner_masterfile for the canonical partner list
     $pdo = masterDataConnection();
-    $stmt = $pdo->query("SELECT DISTINCT partner_name FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
-    $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $stmt = $pdo->query("SELECT partner_name, partner_id FROM corpo_partner_masterfile WHERE partner_name IS NOT NULL AND partner_name <> '' ORDER BY partner_name ASC");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (is_array($rows) && count($rows) > 0) {
-        $partners = $rows;
+        foreach ($rows as $row) {
+            $name = trim((string)($row['partner_name'] ?? ''));
+            if ($name === '') continue;
+            if (!in_array($name, $partners, true)) $partners[] = $name;
+            if (!array_key_exists($name, $partnerIds)) {
+                $partnerIds[$name] = (string)($row['partner_id'] ?? '');
+            }
+        }
     }
 } catch (Throwable $e) {
     // If DB access fails, fall back to an empty partners list (UI will still render)
     $partners = [];
+    $partnerIds = [];
 }
 ?>
-<section id="partnerdataSection" class="partnerdata-section" aria-label="Partner Data Uploader">
+<section id="partnerdataSection" class="partnerdata-section" aria-label="Partner Data Uploader" style="display:none; padding:1rem">
     <div class="partnerdata-inner">
         <h2 class="partnerdata-title">Partner Data Uploader</h2>
 
@@ -37,6 +46,9 @@ try {
                         </datalist>
                     </div>
                 </label>
+                <label class="pd-filter"><span>Partner ID</span>
+                    <input id="pdPartnerId" type="text" maxlength="4" placeholder="ID" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;min-width:6ch;width:6ch;box-sizing:border-box;background:#fff;color:#111;text-align:center;">
+                </label>
                 <!-- Month and Year removed: detected automatically from Excel `Date` column -->
             </div>
             <div class="filters-actions">
@@ -52,6 +64,11 @@ try {
                     <p class="pd-drop-hint">Supports multiple files</p>
                 </div>
                 <input id="pdFiles" type="file" multiple accept=".xls,.xlsx,.xlsm,.xlsb,.ods,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled,application/vnd.ms-excel.sheet.binary.macroEnabled,application/vnd.oasis.opendocument.spreadsheet" style="display:none" />
+            </div>
+
+            <div id="pdRemoveAllWrap" style="display:none;align-items:center;justify-content:space-between;margin-top:0.65rem">
+                <span id="pdReadyCount" style="font-weight:600;color:#4b5563"></span>
+                <button id="pdRemoveAll" type="button" class="material-btn" style="background:#dc2626;color:#fff;border-color:#dc2626">Remove All</button>
             </div>
 
             <div class="pd-filelist" id="pdFileList" aria-live="polite" style="display:none">
@@ -72,12 +89,55 @@ try {
     <script>
     (function(){
         const company = document.getElementById('pdCompany');
+        const partnerIdInput = document.getElementById('pdPartnerId');
         const partners = <?= json_encode($partners, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
+        const partnerIds = <?= json_encode($partnerIds, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_AMP|JSON_HEX_QUOT) ?>;
         const MBTC_PARTNER_NAME = 'METROBANK HEAD OFFICE';
         const WIC_PARTNER_NAME = 'WORLDCOM INTERNATIONAL COMMUNICATIONS';
         const RCBC_PARTNER_NAME = 'RIZAL COMMERCIAL BANKING CORPORATION';
         const SKYBRIDGE_PARTNER_NAME = 'SKYBRIDGE PAYMENT INC.';
         const MONEYGRAM_PARTNER_NAME = 'MONEYGRAM';
+
+        function updatePartnerIdField(){
+            if(!partnerIdInput) return;
+            const selected = String(company && company.value ? company.value : '').trim();
+            let id = '';
+            if(selected){
+                const exactName = (partners || []).find(name => String(name || '').trim().toLowerCase() === selected.toLowerCase());
+                if(exactName && Object.prototype.hasOwnProperty.call(partnerIds, exactName)){
+                    id = partnerIds[exactName] || '';
+                }
+            }
+            partnerIdInput.value = id;
+        }
+
+        function findPartnerNameById(id){
+            const normalizedId = String(id || '').trim();
+            if(!normalizedId) return '';
+            return (partners || []).find(name => {
+                const partnerName = String(name || '').trim();
+                const partnerId = Object.prototype.hasOwnProperty.call(partnerIds, partnerName) ? String(partnerIds[partnerName] || '').trim() : '';
+                return partnerId !== '' && partnerId === normalizedId;
+            }) || '';
+        }
+
+        function updateCompanyFromPartnerId(){
+            if(!partnerIdInput || !company) return;
+            const normalizedId = String(partnerIdInput.value || '').trim();
+            if(normalizedId === ''){
+                if(String(company.value || '') === '') return;
+                company.value = '';
+                company.dispatchEvent(new Event('input', { bubbles: true }));
+                company.dispatchEvent(new Event('change', { bubbles: true }));
+                return;
+            }
+            const partnerName = findPartnerNameById(normalizedId);
+            if(!partnerName) return;
+            if(String(company.value || '').trim() === partnerName) return;
+            company.value = partnerName;
+            company.dispatchEvent(new Event('input', { bubbles: true }));
+            company.dispatchEvent(new Event('change', { bubbles: true }));
+        }
 
         function attachPartnerAutocomplete(input, suggestions){
             const container = input ? input.closest('.autocomplete-field') : null;
@@ -118,8 +178,8 @@ try {
 
             function selectSuggestion(value){
                 input.value = value;
-                closeSuggestions();
                 input.dispatchEvent(new Event('input', { bubbles: true }));
+                closeSuggestions();
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
@@ -206,7 +266,7 @@ try {
 
         const UPLOADER_TEMPLATE_SIGNATURES = {
             moneygram: {
-                partnerFilenameTokens: ['SETTLEMENTDETAIL', 'SETTLEMENT DETAIL', 'SETTLEMENT DETAILS'],
+                partnerFilenameTokens: ['SETTLEMENTDETAIL', 'SETTLEMENT DETAIL', 'SETTLEMENT DETAILS', 'DAILYACTIVITY', 'DAILY ACTIVITY'],
                 webFilenameTokens: ['SENDOUT', 'SEND OUT', 'TRANSACTION-REPORT-ALL', 'PAYOUT', 'PAY OUT', 'CLAIMED'],
                 partnerHeaders: ['ACCOUNT NUMBER','AGENT NAME','LEGACY ID','TRAN DATE','TRANSACTION ID','REFERENCE ID','PRODUCT','TRAN TYPE','ORIG CNTRY','RCV CNTRY'],
                 webHeaders: ['NO','CONTROL SERIES NO','DATE CLAIMED','DATE SEND','KPTN','CCREF NO','CURRENCY','AMOUNT']
@@ -322,6 +382,9 @@ try {
         const fileListEl = document.getElementById('pdFileList');
         const uploadBtn = document.getElementById('pdUpload');
         const cardsEl = document.getElementById('pdCards');
+        const removeAllWrap = document.getElementById('pdRemoveAllWrap');
+        const removeAllBtn = document.getElementById('pdRemoveAll');
+        const readyCount = document.getElementById('pdReadyCount');
         const overlayEl = document.getElementById('pdOverlay');
         const progressBar = document.getElementById('pdProgressBar');
         const progressText = document.getElementById('pdProgressText');
@@ -375,11 +438,48 @@ try {
             });
         }
 
+        function countPendingPartnerUploads(){
+            if(isUploading) return Math.max(1, files.length);
+            let pending = files.length;
+            Object.keys(processedByCompany).forEach(function(key){
+                pending += (processedByCompany[key] || []).filter(function(item){
+                    return item && !item._uploaded;
+                }).length;
+            });
+            return pending;
+        }
+
+        function getPendingProcessedList(){
+            return getProcessedList().filter(function(item){
+                return item && !item._uploaded;
+            });
+        }
+
+        function clearPendingPartnerUploads(){
+            files = [];
+            if(fileInput) fileInput.value = '';
+            Object.keys(processedByCompany).forEach(function(key){
+                processedByCompany[key] = (processedByCompany[key] || []).filter(function(item){
+                    return item && item._uploaded;
+                });
+            });
+            refreshState();
+            updateCards();
+        }
+
+        window.AutoReconUploadPending = window.AutoReconUploadPending || {};
+        window.AutoReconUploadPending.partner = {
+            label: 'Partner Data Uploader',
+            count: countPendingPartnerUploads,
+            clear: clearPendingPartnerUploads
+        };
+
         // small styles for icon buttons and cards
         (function(){
             const css = `
             .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:6px;background:transparent;border:1px solid transparent;cursor:pointer;padding:0;margin:0}
             .icon-btn:hover{background:#f5f5f5;border-color:#e6e6e6;transform:translateY(-1px);transition:all .12s ease}
+            .icon-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;pointer-events:none}
             .upload-status{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1;border:1px solid #d9dfe8;color:#4b5563;background:#f8fafc}
             .upload-status .material-icons{font-size:14px;line-height:14px}
             .upload-status.is-uploaded{color:#166534;background:#ecfdf5;border-color:#bbf7d0}
@@ -399,14 +499,112 @@ try {
             document.head.appendChild(style);
         })();
 
+        let partnerUploadRunning = false;
+        let isUploading = false;
+        let uploadCancelled = false;
+        let uploadController = null;
+        let progressTimer = null;
+        let uploadSessionId = 0;
+        const nativeFetch = window.fetch.bind(window);
+
+        function isUploadAbortError(err){
+            return !!(err && (err.name === 'AbortError' || err.code === 20));
+        }
+
+        function createUploadAbortError(){
+            try{ return new DOMException('Upload cancelled', 'AbortError'); }
+            catch(e){ const err = new Error('Upload cancelled'); err.name = 'AbortError'; return err; }
+        }
+
+        function throwIfUploadCancelled(){
+            if(uploadCancelled || (uploadController && uploadController.signal.aborted)) throw createUploadAbortError();
+        }
+
+        function startUploadRequest(){
+            if(uploadController){
+                try{ uploadController.abort(); }catch(e){}
+            }
+            uploadController = new AbortController();
+            isUploading = true;
+            uploadCancelled = false;
+            uploadSessionId += 1;
+            return uploadSessionId;
+        }
+
+        function stopProgressTimer(){
+            if(progressTimer){
+                clearInterval(progressTimer);
+                progressTimer = null;
+            }
+        }
+
+        function resetProcessingProgress(){
+            if(progressBar) progressBar.style.width = '0%';
+            if(progressText) progressText.textContent = 'Analyzing 0 of 0 files';
+            lastProcessingPct = null;
+            lastProcessingText = '';
+        }
+
+        function finishUploadRequest(sessionId){
+            if(sessionId && sessionId !== uploadSessionId) return;
+            uploadController = null;
+            isUploading = false;
+            uploadCancelled = false;
+            stopProgressTimer();
+        }
+
+        function cancelUploadRequest(){
+            uploadCancelled = true;
+            isUploading = false;
+            if(uploadController){
+                try{ uploadController.abort(); }catch(e){}
+            }
+            uploadController = null;
+            clearPendingPartnerUploads();
+            stopProgressTimer();
+            hideProcessingOverlay();
+            resetProcessingProgress();
+            partnerUploadRunning = false;
+            refreshState();
+        }
+
+        async function fetch(input, init){
+            throwIfUploadCancelled();
+            const options = Object.assign({}, init || {});
+            if(uploadController && !options.signal) options.signal = uploadController.signal;
+            return await nativeFetch(input, options);
+        }
+
         function refreshState(){
             // enable when any company is selected
             const ready = !!company.value;
-            const currentProcessed = getProcessedList();
+            const currentProcessed = getPendingProcessedList();
             if(ready){ dropzone.classList.remove('pd-dropzone--disabled'); }
             else { dropzone.classList.add('pd-dropzone--disabled'); }
-            uploadBtn.disabled = !(ready && (files.length>0 || currentProcessed.length>0));
+            uploadBtn.disabled = partnerUploadRunning || isUploading || !(ready && (files.length>0 || currentProcessed.length>0));
             renderFileList();
+            updateRemoveAllButton();
+        }
+
+        function updateRemoveAllButton(){
+            if(!removeAllWrap || !removeAllBtn || !readyCount) return;
+            const cardCount = getProcessedList().length;
+            removeAllWrap.style.display = cardCount > 0 ? 'flex' : 'none';
+            readyCount.textContent = cardCount + ' file' + (cardCount === 1 ? '' : 's') + ' ready';
+            removeAllBtn.style.display = cardCount >= 2 ? '' : 'none';
+            removeAllBtn.disabled = partnerUploadRunning || isUploading;
+        }
+
+        if(removeAllBtn){
+            removeAllBtn.addEventListener('click', function(){
+                if(partnerUploadRunning || isUploading) return;
+                files = [];
+                if(fileInput) fileInput.value = '';
+                const key = getCompanyKey();
+                if(key) processedByCompany[key] = [];
+                refreshState();
+                updateCards();
+            });
         }
 
         function renderFileList(){
@@ -540,7 +738,7 @@ try {
             const dates = collectPayloadDatesForLockCheck(payloads);
             if(!partnerName || !dates.length) return { blocked: false };
 
-            const endpoint = location.origin + '/autorecon/src/controllers/recon/check_locked_reconciliation_dates.php';
+            const endpoint = window.autoreconBaseUrl + '/src/controllers/recon/check_locked_reconciliation_dates.php';
             const resRaw = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -566,18 +764,24 @@ try {
 
         // upload click triggers fetch of extracted payloads (per-file extraction) and insertion when MBTC selected
         uploadBtn.addEventListener('click', async function(){
-            const currentProcessed = getProcessedList();
+            const currentProcessed = getPendingProcessedList();
             console.log('[pd] upload clicked', {disabled: uploadBtn.disabled, company: company && company.value});
             if(uploadBtn.disabled) return;
             if(!company.value){ await showSelectCompanyModal(); return; }
             let excelFiles = files.filter(isExcelFile);
             if(excelFiles.length === 0 && currentProcessed.length === 0){ await showAlert('No Excel files to upload or processed.'); return; }
 
+            partnerUploadRunning = true;
+            const activeUploadSession = startUploadRequest();
+            uploadBtn.disabled = true;
+            try{
             // If there are staged Excel files, extract them first
             if(excelFiles.length > 0){
                 showProcessingOverlay(excelFiles.length);
+                await waitForNextFrame();
                 let idx = 0;
                 for(const f of excelFiles){
+                    throwIfUploadCancelled();
                     idx++;
                     progressText.textContent = 'Extracting file ' + idx + ' of ' + excelFiles.length + '...';
                     updateProcessing(idx-1, excelFiles.length);
@@ -589,6 +793,7 @@ try {
                             continue;
                         }
                         const res = await uploadToPartnerWithRetry(f);
+                        throwIfUploadCancelled();
                         if(res && res.success){
                             const classification = classifyForPartnerUploader(res.payload, f.name);
                             if(!classification.accepted){
@@ -602,16 +807,18 @@ try {
                             console.warn('Extraction failed for', f.name, res);
                             if(res && res.errorCode !== 'password_prompt_cancelled') await showAlert(res.error || ('Processing failed for ' + f.name));
                         }
-                    }catch(err){ console.error('Extract error', err); }
+                    }catch(err){ if(isUploadAbortError(err)) throw err; console.error('Extract error', err); }
                     updateProcessing(idx, excelFiles.length);
                 }
                 hideProcessingOverlay();
             }
 
-            const payloadsForLockCheck = getProcessedList().slice();
+            const payloadsForLockCheck = getPendingProcessedList();
             if(payloadsForLockCheck.length > 0){
                 try {
+                    throwIfUploadCancelled();
                     const lockCheck = await enforceLockedReconciliationDateCheck(company.value, payloadsForLockCheck);
+                    throwIfUploadCancelled();
                     if(lockCheck && lockCheck.error){
                         await showAlert(lockCheck.error, 'Notice');
                         return;
@@ -621,6 +828,7 @@ try {
                         return;
                     }
                 } catch (e) {
+                    if(isUploadAbortError(e)) throw e;
                     await showAlert('Failed to validate locked reconciliation dates.', 'Notice');
                     return;
                 }
@@ -628,7 +836,7 @@ try {
 
             // At this point `processed` contains extracted payloads. If company is MBTC, insert into DB.
             if(isMetrobankHeadOffice(company.value)){
-                const payloads = getProcessedList().slice();
+                const payloads = getPendingProcessedList();
                 console.log('[pd] payloads count', payloads.length, payloads.map(p=>p.filename));
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
                 try{
@@ -646,16 +854,17 @@ try {
                     });
                     const pairs = Array.from(pairMap.values());
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-insert.php';
                     console.log('[pd] starting duplicate checks against', url);
                     // per-file duplicate check
                     const totalFiles = payloads.length || 0;
                     // Ensure the processing overlay is visible during duplicate-check and insert stages
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                     const allDuplicates = [];
                     for(let i=0;i<totalFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         console.log('[pd] checking file', i+1, pl.filename);
                         const filePairs = [];
@@ -670,11 +879,12 @@ try {
                         if(filePairs.length === 0){
                             const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                            progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                             continue;
                         }
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: filePairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         console.log('[pd] duplicate check response', chk);
@@ -682,7 +892,7 @@ try {
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                         const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                         progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                        progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
 
                     // if duplicates found, ask user once and delete if confirmed
@@ -700,12 +910,14 @@ try {
                                 confirmed = confirm(msg);
                             }
                         }catch(e){ console.warn('[pd] showConfirm failed', e); confirmed = false; }
+                        throwIfUploadCancelled();
                         if(!confirmed){ hideProcessingOverlay(); return; }
                         const delCount = allDuplicates.length;
                         progressBar.style.width = '55%';
                         progressText.textContent = 'Deleting existing records: 0 of ' + delCount;
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: allDuplicates.map(d=>({ reference_no: d.reference_no, date: d.date })) }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         console.log('[pd] delete response', del);
@@ -718,11 +930,13 @@ try {
                     // perform insert per file
                     const totalInsertFiles = payloads.length;
                     for(let i=0;i<totalInsertFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                        progressText.textContent = 'Inserting files: ' + (totalInsertFiles > 0 ? i + 1 : 0) + ' of ' + totalInsertFiles;
                         const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: [pl] }) });
                         const insTxt = await insResRaw.text();
+                        throwIfUploadCancelled();
                         let ins;
                         try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
                         if(!insResRaw.ok || !(ins && ins.success)){ await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -737,15 +951,16 @@ try {
                     files = files.filter(ff=>!excelFiles.includes(ff));
                     fileInput.value = '';
                     refreshState();
+                    throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                }catch(e){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
 
             // If company is WORLD INTERNATIONAL COMMUNICATIONS, perform duplicate checks and insert into simplified partner table when available
             if(isWorldcomInternationalCommunications(company.value)){
-                const payloads = getProcessedList().slice();
+                const payloads = getPendingProcessedList();
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
                 try{
                     // build unique pairs for duplicate check (transaction_id + date)
@@ -762,12 +977,12 @@ try {
                     });
                     const pairs = Array.from(pairMap.values());
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/wic/wic-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/wic/wic-insert.php';
                     // per-file duplicate check
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                     const allDuplicates = [];
                     for(let i=0;i<totalFiles;i++){
                         const pl = payloads[i];
@@ -780,26 +995,29 @@ try {
                             if(dateFull) dateOnly = dateFull.split(' ')[0];
                             if(tx) filePairs.push({ transaction_id: tx, date: dateOnly });
                         });
-                        if(filePairs.length === 0){ const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45); progressBar.style.width = pct + '%'; progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles; continue; }
+                        if(filePairs.length === 0){ const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45); progressBar.style.width = pct + '%'; progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles; continue; }
+                        throwIfUploadCancelled();
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: filePairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         if(!chkResRaw.ok || !(chk && chk.success)){ await showAlert('Duplicate check failed: ' + (chk && chk.error ? chk.error : 'unknown')); hideProcessingOverlay(); return; }
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                         const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                         progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                        progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
 
                     if(allDuplicates.length>0){
-                        const msg = 'Data with the same Transaction Id and Date already exists. Do you want to overwrite the existing data?';
+                        const msg = 'Data with the same Transaction ID and DATE already exists. Do you want to overwrite the existing data?';
                         const dialogPresent = !!document.getElementById('pdDialog');
                         let confirmed = false;
                         try{
                             if(dialogPresent) confirmed = await showConfirm(msg);
                             else confirmed = confirm(msg);
                         }catch(e){ confirmed = false; }
+                        throwIfUploadCancelled();
                         if(!confirmed){ hideProcessingOverlay(); return; }
                         const delCount = allDuplicates.length;
                         progressBar.style.width = '55%';
@@ -807,6 +1025,7 @@ try {
                         const delPairs = allDuplicates.map(d=>({ transaction_id: (d.transaction_id||d.reference_no||''), date: d.date }));
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: delPairs }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         if(!delResRaw.ok || !(del && del.success)){ await showAlert('Delete failed: ' + (del && del.error ? del.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -818,11 +1037,13 @@ try {
                     // perform insert per file
                     const totalInsertFiles = payloads.length;
                     for(let i=0;i<totalInsertFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                        progressText.textContent = 'Inserting files: ' + (totalInsertFiles > 0 ? i + 1 : 0) + ' of ' + totalInsertFiles;
                         const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: [pl] }) });
                         const insTxt = await insResRaw.text();
+                        throwIfUploadCancelled();
                         let ins;
                         try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
                         if(!insResRaw.ok || !(ins && ins.success)){ await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -837,15 +1058,16 @@ try {
                     files = files.filter(ff=>!excelFiles.includes(ff));
                     fileInput.value = '';
                     refreshState();
+                    throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                }catch(e){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
 
             // If company is RCBC, perform duplicate checks and insert into RCBC partner table
             if(isRcbc(company.value)){
-                const payloads = getProcessedList().slice();
+                const payloads = getPendingProcessedList();
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
                 try{
                     // build unique pairs for duplicate check (transaction_id/reference_no + date)
@@ -861,11 +1083,11 @@ try {
                         });
                     });
 
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/rcbc/rcbc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/rcbc/rcbc-insert.php';
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                     const allDuplicates = [];
 
                     for(let i=0;i<totalFiles;i++){
@@ -882,18 +1104,20 @@ try {
                         if(filePairs.length === 0){
                             const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                            progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                             continue;
                         }
+                        throwIfUploadCancelled();
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: filePairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         if(!chkResRaw.ok || !(chk && chk.success)){ await showAlert('Duplicate check failed: ' + (chk && chk.error ? chk.error : 'unknown')); hideProcessingOverlay(); return; }
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                         const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                         progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                        progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
 
                     if(allDuplicates.length>0){
@@ -904,6 +1128,7 @@ try {
                             if(dialogPresent) confirmed = await showConfirm(msg);
                             else confirmed = confirm(msg);
                         }catch(e){ confirmed = false; }
+                        throwIfUploadCancelled();
                         if(!confirmed){ hideProcessingOverlay(); return; }
 
                         const delCount = allDuplicates.length;
@@ -912,6 +1137,7 @@ try {
                         const delPairs = allDuplicates.map(d=>({ transaction_id: (d.transaction_id||d.reference_no||d.ref_no||d.payout_id||''), date: d.date }));
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: delPairs }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         if(!delResRaw.ok || !(del && del.success)){ await showAlert('Delete failed: ' + (del && del.error ? del.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -923,11 +1149,13 @@ try {
                     // perform insert per file
                     const totalInsertFiles = payloads.length;
                     for(let i=0;i<totalInsertFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                        progressText.textContent = 'Inserting files: ' + (totalInsertFiles > 0 ? i + 1 : 0) + ' of ' + totalInsertFiles;
                         const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: [pl] }) });
                         const insTxt = await insResRaw.text();
+                        throwIfUploadCancelled();
                         let ins;
                         try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
                         if(!insResRaw.ok || !(ins && ins.success)){ await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -941,21 +1169,22 @@ try {
                     files = files.filter(ff=>!excelFiles.includes(ff));
                     fileInput.value = '';
                     refreshState();
+                    throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                }catch(e){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
 
             if(isSkybridgePaymentInc(company.value)){
-                const payloads = getProcessedList().slice();
+                const payloads = getPendingProcessedList();
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
                 try{
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-insert.php';
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                    progressText.textContent = 'Checking data for duplicates: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
                     const allDuplicates = [];
 
                     for(let i=0;i<totalFiles;i++){
@@ -972,18 +1201,20 @@ try {
                         if(filePairs.length === 0){
                             const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                             progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                            progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                             continue;
                         }
+                        throwIfUploadCancelled();
                         const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: filePairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         if(!chkResRaw.ok || !(chk && chk.success)){ await showAlert('Duplicate check failed: ' + (chk && chk.error ? chk.error : 'unknown')); hideProcessingOverlay(); return; }
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
                         const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
                         progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
+                        progressText.textContent = 'Checking data for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
 
                     if(allDuplicates.length>0){
@@ -994,6 +1225,7 @@ try {
                             if(dialogPresent) confirmed = await showConfirm(msg);
                             else confirmed = confirm(msg);
                         }catch(e){ confirmed = false; }
+                        throwIfUploadCancelled();
                         if(!confirmed){ hideProcessingOverlay(); return; }
 
                         const delCount = allDuplicates.length;
@@ -1001,6 +1233,7 @@ try {
                         progressText.textContent = 'Deleting existing records: 0 of ' + delCount;
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: allDuplicates.map(d=>({ reference_no: d.reference_no, date: d.date })) }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         if(!delResRaw.ok || !(del && del.success)){ await showAlert('Delete failed: ' + (del && del.error ? del.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -1011,11 +1244,13 @@ try {
 
                     const totalInsertFiles = payloads.length;
                     for(let i=0;i<totalInsertFiles;i++){
+                        throwIfUploadCancelled();
                         const pl = payloads[i];
                         progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                        progressText.textContent = 'Inserting files: ' + (totalInsertFiles > 0 ? i + 1 : 0) + ' of ' + totalInsertFiles;
                         const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: [pl] }) });
                         const insTxt = await insResRaw.text();
+                        throwIfUploadCancelled();
                         let ins;
                         try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
                         if(!insResRaw.ok || !(ins && ins.success)){ await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -1029,62 +1264,65 @@ try {
                     files = files.filter(ff=>!excelFiles.includes(ff));
                     fileInput.value = '';
                     refreshState();
+                    throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                }catch(e){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
 
             if(isMoneygram(company.value)){
-                const payloads = getProcessedList().slice();
+                const payloads = getPendingProcessedList();
                 if(payloads.length === 0){ await showAlert('No extracted payloads to insert.'); return; }
 
                 try{
-                    const url = location.origin + '/autorecon/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
+                    const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-insert.php';
                     const totalFiles = payloads.length || 0;
                     try{ showProcessingOverlay(totalFiles); }catch(e){}
+                    await waitForNextFrame();
                     progressBar.style.width = '0%';
-                    progressText.textContent = 'Checking database for duplicates: 0 of ' + totalFiles;
+                    progressText.textContent = 'Preparing duplicate check for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's') + '...';
                     const allDuplicates = [];
+                    const pairMap = new Map();
 
-                    for(let i=0;i<totalFiles;i++){
-                        const pl = payloads[i];
-                        const filePairs = [];
+                    payloads.forEach(pl => {
                         (pl.rows||[]).forEach(r=>{
                             const transactionId = getMoneygramTransactionId(r);
                             const rawDate = getMoneygramTranDate(r, pl);
                             const dateFull = normalizeClientDate(rawDate);
                             const dateOnly = dateFull ? dateFull.split(' ')[0] : '';
-                            if(transactionId) filePairs.push({ transaction_id: transactionId, tran_date: dateOnly });
+                            if(transactionId){
+                                const pairKey = transactionId + '|' + dateOnly;
+                                pairMap.set(pairKey, { transaction_id: transactionId, tran_date: dateOnly });
+                            }
                         });
+                    });
 
-                        if(filePairs.length === 0){
-                            const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
-                            progressBar.style.width = pct + '%';
-                            progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
-                            continue;
-                        }
+                    const allPairs = Array.from(pairMap.values());
 
-                        const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: filePairs }) });
+                    if(allPairs.length > 0){
+                        progressText.textContent = 'Checking ' + allPairs.length.toLocaleString() + ' unique transactions for duplicates...';
+                        throwIfUploadCancelled();
+                        const chkResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'check_partner', pairs: allPairs }) });
                         const chkTxt = await chkResRaw.text();
+                        throwIfUploadCancelled();
                         let chk;
                         try{ chk = JSON.parse(chkTxt); }catch(e){ console.error('Duplicate check returned non-JSON', chkTxt); await showAlert('Duplicate check failed: '+chkTxt); hideProcessingOverlay(); return; }
                         if(!chkResRaw.ok || !(chk && chk.success)){ await showAlert('Duplicate check failed: ' + (chk && chk.error ? chk.error : 'unknown')); hideProcessingOverlay(); return; }
                         if(Array.isArray(chk.duplicates) && chk.duplicates.length>0){ allDuplicates.push(...chk.duplicates); }
-
-                        const pct = Math.round(((i+1)/Math.max(1,totalFiles)) * 45);
-                        progressBar.style.width = pct + '%';
-                        progressText.textContent = 'Checking database for duplicates: ' + (i+1) + ' of ' + totalFiles;
                     }
+                    progressBar.style.width = '45%';
+                    progressText.textContent = 'Duplicate check completed for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's');
 
                     if(allDuplicates.length > 0){
-                        const msg = 'Data with the same Transaction Id and Transaction Date already exists. Do you want to overwrite the existing data?';
+                        const msg = 'Data with the same Transaction ID and Transaction DATE already exists. Do you want to overwrite the existing data?';
                         const dialogPresent = !!document.getElementById('pdDialog');
                         let confirmed = false;
                         try{
                             if(dialogPresent) confirmed = await showConfirm(msg);
                             else confirmed = confirm(msg);
                         }catch(e){ confirmed = false; }
+                        throwIfUploadCancelled();
                         if(!confirmed){ hideProcessingOverlay(); return; }
 
                         const delCount = allDuplicates.length;
@@ -1099,6 +1337,7 @@ try {
                         ));
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: delPairs }) });
                         const delTxt = await delResRaw.text();
+                        throwIfUploadCancelled();
                         let del;
                         try{ del = JSON.parse(delTxt); }catch(e){ console.error('Delete returned non-JSON', delTxt); await showAlert('Delete failed: '+delTxt); hideProcessingOverlay(); return; }
                         if(!delResRaw.ok || !(del && del.success)){ await showAlert('Delete failed: ' + (del && del.error ? del.error : 'unknown')); hideProcessingOverlay(); return; }
@@ -1108,35 +1347,37 @@ try {
                         progressText.textContent = 'Deleting existing records: ' + deletedCount + ' of ' + delCount;
                     }
 
-                    const totalInsertFiles = payloads.length;
                     let totalInserted = 0;
-                    for(let i=0;i<totalInsertFiles;i++){
-                        const pl = payloads[i];
-                        progressBar.style.width = Math.round(75 + ((i)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i) + ' of ' + totalInsertFiles;
+                    progressBar.style.width = '75%';
+                    progressText.textContent = 'Inserting files: ' + (totalFiles > 0 ? 1 : 0) + ' of ' + totalFiles;
 
-                        const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'insert_partner', company: company.value, payloads: [pl] }) });
-                        const insTxt = await insResRaw.text();
-                        let ins;
-                        try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
+                    throwIfUploadCancelled();
+                    const insResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+                        action: 'insert_partner',
+                        company: company.value,
+                        partner_id: partnerIdInput ? partnerIdInput.value : '',
+                        payloads: payloads
+                    }) });
+                    const insTxt = await insResRaw.text();
+                    throwIfUploadCancelled();
+                    let ins;
+                    try{ ins = JSON.parse(insTxt); }catch(e){ console.error('Insert returned non-JSON', insTxt); await showAlert('Insert failed: '+insTxt); hideProcessingOverlay(); return; }
 
-                        if(!insResRaw.ok || !(ins && ins.success)){
-                            const detailText = (ins && Array.isArray(ins.error_details) && ins.error_details.length)
-                                ? ('\n' + ins.error_details.slice(0, 10).map(function(er){
-                                    const rowNo = er && er.row ? ('Row ' + er.row) : 'Row ?';
-                                    const reason = er && er.reason ? er.reason : 'Validation error';
-                                    return rowNo + ': ' + reason;
-                                }).join('\n'))
-                                : '';
-                            await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown') + detailText);
-                            hideProcessingOverlay();
-                            return;
-                        }
-
-                        totalInserted += Number(ins.inserted || 0);
-                        progressBar.style.width = Math.round(75 + ((i+1)/Math.max(1,totalInsertFiles))*25) + '%';
-                        progressText.textContent = 'Inserting files: ' + (i+1) + ' of ' + totalInsertFiles;
+                    if(!insResRaw.ok || !(ins && ins.success)){
+                        const detailText = (ins && Array.isArray(ins.error_details) && ins.error_details.length)
+                            ? ('\n' + ins.error_details.slice(0, 10).map(function(er){
+                                const rowNo = er && er.row ? ('Row ' + er.row) : 'Row ?';
+                                const reason = er && er.reason ? er.reason : 'Validation error';
+                                return rowNo + ': ' + reason;
+                            }).join('\n'))
+                            : '';
+                        await showAlert('Insert failed: ' + (ins && ins.error ? ins.error : 'unknown') + detailText);
+                        hideProcessingOverlay();
+                        return;
                     }
+                    totalInserted += Number(ins.inserted || 0);
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Inserting files: ' + (totalFiles > 0 ? totalFiles : 0) + ' of ' + totalFiles;
 
                     addUniqueProcessed(payloads);
                     markPayloadsUploaded(payloads, true);
@@ -1144,14 +1385,25 @@ try {
                     files = files.filter(ff=>!excelFiles.includes(ff));
                     fileInput.value = '';
                     refreshState();
+                    throwIfUploadCancelled();
                     await showAlert('Successfully uploaded.', 'Success');
-                }catch(e){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); }
+                }catch(e){ if(!isUploadAbortError(e)){ console.error(e); await showAlert('Insert failed: ' + (e && e.message)); } }
                 hideProcessingOverlay();
                 return;
             }
 
             // fallback: if not MBTC or WORLD INTERNATIONAL COMMUNICATIONS, just show extracted results
             refreshState();
+            } catch(e) {
+                if(!isUploadAbortError(e)){
+                    console.error(e);
+                    await showAlert('Upload failed: ' + (e && e.message ? e.message : 'Unknown error'));
+                }
+            } finally {
+                partnerUploadRunning = false;
+                finishUploadRequest(activeUploadSession);
+                refreshState();
+            }
         });
 
         function isExcelFile(f){ const name = (f.name||'').toLowerCase(); if(name.endsWith('.xls') || name.endsWith('.xlsx') || name.endsWith('.xlsm') || name.endsWith('.xlsb') || name.endsWith('.ods')) return true; // legacy Excel
@@ -1250,7 +1502,7 @@ try {
             // build endpoint based on selected company while keeping METROBANK HEAD OFFICE mapped to mbtc routes
             const companyKey = resolveCompanyKey(company.value);
             if(!companyKey) return { success:false, error:'No company selected' };
-            const url = location.origin + '/autorecon/src/controllers/excelcontrol/' + companyKey + '/' + companyKey + '-partnerdata.php';
+            const url = window.autoreconBaseUrl + '/src/controllers/excelcontrol/' + companyKey + '/' + companyKey + '-partnerdata.php';
             const password = options && typeof options.password === 'string' ? options.password : '';
             const fd = new FormData(); fd.append('file', file); fd.append('filename', file.name); fd.append('company', company.value || ''); fd.append('password', password);
             try{
@@ -1268,7 +1520,11 @@ try {
                 if(maybeJson){ if(parsed && typeof parsed === 'object') return parsed; console.error('Invalid JSON response', txt); return { success:false, error:'Invalid JSON', raw: txt }; }
                 console.error('Expected JSON response, got:', ct, txt);
                 return { success:false, error:'Non-JSON response', raw: txt };
-            }catch(e){ console.error('Fetch error', e); return { success:false, error: e.message }; }
+            }catch(e){
+                if(isUploadAbortError(e)) throw e;
+                console.error('Fetch error', e);
+                return { success:false, error: e.message };
+            }
         }
 
         async function uploadToPartnerWithRetry(file){
@@ -1302,15 +1558,41 @@ try {
             return response;
         }
 
-        function showProcessingOverlay(total){ if(!overlayEl) return; progressBar.style.width='0%'; progressText.textContent = 'Extracted 0 of ' + total + ' files'; overlayEl.style.display='flex'; cancelBtn.onclick = ()=>{ overlayEl.style.display='none'; }; }
-        function updateProcessing(done,total){ if(!overlayEl) return; const pct = Math.round((done/total)*100); progressBar.style.width = pct + '%'; progressText.textContent = 'Extracted ' + done + ' of ' + total + ' files'; }
+        function waitForNextFrame(){ return new Promise(resolve => requestAnimationFrame(() => resolve())); }
+        let lastProcessingPct = null;
+        let lastProcessingText = '';
+        function showProcessingOverlay(total){
+            if(!overlayEl) return;
+            const safeTotal = Math.max(0, Number(total || 0));
+            lastProcessingPct = null;
+            lastProcessingText = '';
+            progressBar.style.width='0%';
+            progressText.textContent = 'Analyzing ' + (safeTotal > 0 ? 1 : 0) + ' of ' + safeTotal + ' files';
+            lastProcessingPct = 0;
+            lastProcessingText = progressText.textContent;
+            overlayEl.style.display='flex';
+            cancelBtn.onclick = ()=>{ cancelUploadRequest(); };
+        }
+        function updateProcessing(done,total){
+            if(!overlayEl) return;
+            const safeTotal = Math.max(0, Number(total || 0));
+            const rawDone = Math.max(0, Number(done || 0));
+            const displayDone = safeTotal > 0 ? Math.min(Math.max(1, rawDone), safeTotal) : 0;
+            const pct = Math.round((rawDone/Math.max(1,safeTotal))*100);
+            const text = 'Analyzing ' + displayDone + ' of ' + safeTotal + ' files';
+            if(pct === lastProcessingPct && text === lastProcessingText) return;
+            lastProcessingPct = pct;
+            lastProcessingText = text;
+            progressBar.style.width = pct + '%';
+            progressText.textContent = text;
+        }
         function hideProcessingOverlay(){ if(overlayEl) overlayEl.style.display='none'; }
 
         function updateCards(){
             const processed = getProcessedList();
             processed.sort((a,b)=>{ return getPayloadTimestamp(a) - getPayloadTimestamp(b); });
             cardsEl.innerHTML = '';
-            if(processed.length===0) return;
+            if(processed.length===0){ updateRemoveAllButton(); return; }
             const list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='0.5rem';
             processed.forEach((p,idx)=>{
                 const cardWrap = document.createElement('div');
@@ -1318,25 +1600,20 @@ try {
                 cardWrap.style.alignItems='center';
                 cardWrap.style.justifyContent='space-between';
                 cardWrap.style.background='#f5f5f5';
-                cardWrap.style.padding='0.5rem 0.75rem';
+                cardWrap.style.padding='0.2rem 0.6rem';
                 cardWrap.style.borderRadius='8px';
                 cardWrap.style.border='1px solid #eee';
                 const left = document.createElement('div');
                 left.style.display='flex';
                 left.style.flexDirection='column';
                 left.style.gap='2px';
-                const displayCompany = (company && company.value) ? company.value : 'Partner';
-                const displayDateRaw = getPayloadDateRaw(p);
-                const displayDate = displayDateRaw ? formatDisplayDate(displayDateRaw) : '';
                 const title=document.createElement('div');
                 title.style.fontWeight='600';
-                // Use company-aware date mapping (e.g., MBTC coverDate) for accurate display.
-                title.textContent = '[' + (displayDate || p.dateStr || '') + '] ' + (p.rows ? (formatNumber(p.rows.length) + ' rows') : '');
+                title.textContent = (p.filename || '');
                 const meta = document.createElement('div');
-                meta.style.fontSize = '0.9rem';
+                meta.style.fontSize = '0.85rem';
                 meta.style.color = '#666';
-                // filename only; rows count shown next to date in the title
-                meta.textContent = (p.filename || '');
+                meta.textContent = p.rows ? (formatNumber(p.rows.length) + ' rows') : '';
                 left.appendChild(title);
                 left.appendChild(meta);
                 const right=document.createElement('div');
@@ -1362,7 +1639,13 @@ try {
                 delBtn.title='Delete';
                 delBtn.setAttribute('aria-label','Delete');
                 delBtn.innerHTML='<span class="material-icons" aria-hidden="true">delete</span>';
-                delBtn.onclick = ()=> { processed.splice(idx,1); updateCards(); };
+                if(p._uploaded){
+                    delBtn.disabled = true;
+                    delBtn.title = 'Uploaded files cannot be deleted';
+                    delBtn.setAttribute('aria-label','Delete disabled for uploaded file');
+                } else {
+                    delBtn.onclick = ()=> { processed.splice(idx,1); updateCards(); };
+                }
                 if(status) right.appendChild(status);
                 right.appendChild(viewBtn);
                 right.appendChild(delBtn);
@@ -1371,6 +1654,7 @@ try {
                 list.appendChild(cardWrap);
             });
             cardsEl.appendChild(list);
+            updateRemoveAllButton();
         }
 
         function buildViewerPayload(payload){
@@ -1396,18 +1680,18 @@ try {
 
         function getViewerUrl(){
             const selectedCompany = company && company.value ? company.value : '';
-            if(isRcbc(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/rcbc/rcbc-viewer.php';
-            if(isWorldcomInternationalCommunications(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/wic/wic-viewer.php';
-            if(isSkybridgePaymentInc(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-viewer.php';
-            if(isMoneygram(selectedCompany)) return location.origin + '/autorecon/src/controllers/excelcontrol/moneygram/moneygram-viewer.php';
-            return location.origin + '/autorecon/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
+            if(isRcbc(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/rcbc/rcbc-viewer.php';
+            if(isWorldcomInternationalCommunications(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/wic/wic-viewer.php';
+            if(isSkybridgePaymentInc(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/skybridgepaymentinc/skybridgepaymentinc-viewer.php';
+            if(isMoneygram(selectedCompany)) return window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/moneygram-viewer.php';
+            return window.autoreconBaseUrl + '/src/controllers/excelcontrol/mbtc/mbtc-viewer.php';
         }
 
         async function openViewer(payload){ try{ const url = getViewerUrl(); const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: buildViewerPayload(payload) }) }); const html = await res.text(); showModal(html); }catch(e){ console.error(e); await showAlert('Failed to open viewer'); } }
 
         // modal helpers
         let modalEl = null;
-        function showModal(html){ if(!modalEl){ modalEl = document.createElement('div'); modalEl.className='pd-modal'; modalEl.style.position='fixed'; modalEl.style.left=0; modalEl.style.top=0; modalEl.style.right=0; modalEl.style.bottom=0; modalEl.style.background='rgba(0,0,0,0.6)'; modalEl.style.display='flex'; modalEl.style.alignItems='center'; modalEl.style.justifyContent='center'; modalEl.style.zIndex=11000; modalEl.innerHTML = '<div class="pd-modal-inner"> <button class="pd-close" aria-label="Close"><span class="material-icons">close</span></button><div class="pd-modal-body"></div></div>'; document.body.appendChild(modalEl); modalEl.querySelector('.pd-close').addEventListener('click', ()=>{ modalEl.style.display='none'; }); modalEl.addEventListener('click', function(e){ if(e.target === modalEl) modalEl.style.display='none'; }); } const body = modalEl.querySelector('.pd-modal-body'); body.innerHTML = html; const inner = modalEl.querySelector('.pd-modal-inner'); if(inner){ inner.style.width='98%'; inner.style.height='96%'; inner.style.maxWidth='none'; inner.style.maxHeight='none'; inner.style.background='#fff'; inner.style.padding='0.5rem'; inner.style.borderRadius='6px'; inner.style.boxShadow='0 10px 40px rgba(0,0,0,0.4)'; inner.style.overflow='hidden'; inner.style.position='relative';
+        function showModal(html){ if(!modalEl){ modalEl = document.createElement('div'); modalEl.className='pd-modal'; modalEl.style.position='fixed'; modalEl.style.left=0; modalEl.style.top=0; modalEl.style.right=0; modalEl.style.bottom=0; modalEl.style.background='rgba(0,0,0,0.6)'; modalEl.style.display='flex'; modalEl.style.alignItems='center'; modalEl.style.justifyContent='center'; modalEl.style.zIndex=11000; modalEl.innerHTML = '<div class="pd-modal-inner"> <button type="button" class="pd-close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button><div class="pd-modal-body"></div></div>'; document.body.appendChild(modalEl); modalEl.querySelector('.pd-close').addEventListener('click', (event)=>{ event.preventDefault(); event.stopPropagation(); modalEl.style.display='none'; }); modalEl.addEventListener('click', function(e){ if(e.target === modalEl) modalEl.style.display='none'; }); } const body = modalEl.querySelector('.pd-modal-body'); body.innerHTML = html; const inner = modalEl.querySelector('.pd-modal-inner'); if(inner){ inner.style.width='98%'; inner.style.height='96%'; inner.style.maxWidth='none'; inner.style.maxHeight='none'; inner.style.background='#fff'; inner.style.padding='0.5rem'; inner.style.borderRadius='6px'; inner.style.boxShadow='0 10px 40px rgba(0,0,0,0.4)'; inner.style.overflow='hidden'; inner.style.position='relative';
                 // style close button to match web viewer modal
                 const closeBtn = modalEl.querySelector('.pd-close');
                 if(closeBtn){
@@ -1419,6 +1703,8 @@ try {
                     closeBtn.style.cursor = 'pointer';
                     closeBtn.style.padding = '6px';
                     closeBtn.style.borderRadius = '6px';
+                    closeBtn.style.zIndex = '20';
+                    closeBtn.style.pointerEvents = 'auto';
                     closeBtn.onmouseover = ()=>{ closeBtn.style.background = '#f5f5f5'; };
                     closeBtn.onmouseout = ()=>{ closeBtn.style.background = 'transparent'; };
                 }
@@ -1445,6 +1731,18 @@ try {
             if(document.getElementById('mbtcDialog')) return 'mbtc';
             return '';
         }
+        function formatLockedDateUploadMessage(message){
+            const text = String(message || '');
+            if(!/Upload blocked/i.test(text) || !/Reconciled dates are locked/i.test(text)) return text;
+            const dates = Array.from(new Set((text.match(/\d{4}-\d{2}-\d{2}/g) || [])));
+            if(dates.length === 0) return text;
+            const formattedDates = dates.map(date => {
+                const parts = date.split('-').map(Number);
+                const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                return d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+            }).join('\n');
+            return 'Transaction already locked:\n' + formattedDates;
+        }
         function _closeDialog(){ const prefix = getDialogPrefix(); if(!prefix) return; const dlg = document.getElementById(prefix + 'Dialog'); if(dlg) dlg.style.display='none'; }
         function showAlert(message, title){ return new Promise((resolve)=>{
             const prefix = getDialogPrefix(); const dlg = document.getElementById(prefix + 'Dialog');
@@ -1454,12 +1752,119 @@ try {
             const ok = dlg.querySelector('.' + prefix + 'DialogOk');
             const cancel = dlg.querySelector('.' + prefix + 'DialogCancel');
             if(titleEl) titleEl.textContent = title || 'Notice';
-            if(msgEl) msgEl.textContent = message;
+            if(msgEl){
+                msgEl.textContent = formatLockedDateUploadMessage(message);
+                msgEl.style.whiteSpace = 'pre-line';
+            }
+            if(ok) ok.textContent = 'OK';
+            if(cancel) cancel.textContent = 'Cancel';
             if(cancel) cancel.style.display = 'none';
             if(ok) ok.style.display = '';
             dlg.style.display = 'flex';
             if(ok) ok.onclick = function(){ _closeDialog(); resolve(); };
         }); }
+        function escapeHtml(value){
+            return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
+                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[ch] || ch;
+            });
+        }
+        function buildMissingMoneygramBranchListHtml(branches){
+            const seen = new Set();
+            const items = (Array.isArray(branches) ? branches : []).map(function(item){
+                const branchName = String(item && item.branch_name ? item.branch_name : '').trim();
+                const branchId = String(item && item.branch_id ? item.branch_id : '').trim();
+                const key = branchId || branchName;
+                if(!key || seen.has(key)) return null;
+                seen.add(key);
+                const label = branchName || (branchId ? ('Branch ID ' + branchId) : 'Unknown branch');
+                return { label, branchId };
+            }).filter(Boolean);
+
+            if(items.length === 0){
+                return '<div style="text-align:left;color:#4b5563;">No branch details returned.</div>';
+            }
+
+            return '<div style="text-align:left;color:#4b5563;font-weight:600;margin:0 0 0.75rem;">Total branches: ' + items.length + '</div>'
+                + '<div style="max-height:340px;overflow:auto;text-align:left;">'
+                + '<ul style="margin:0;padding-left:1.1rem;">'
+                + items.map(function(item){
+                    const idText = item.branchId ? ' <span style="color:#6b7280;font-size:0.85em;">(' + escapeHtml(item.branchId) + ')</span>' : '';
+                    return '<li style="margin:0.35rem 0;">' + escapeHtml(item.label) + idText + '</li>';
+                }).join('')
+                + '</ul></div>';
+        }
+        async function showMoneygramLegacyIdNotice(missingBranches){
+            const message = 'Legacy ID not yet registered, Contact Administrator.';
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                const setSwalZIndex = function(){
+                    const container = document.querySelector('.swal2-container');
+                    if(container) container.style.zIndex = '12020';
+                };
+                const result = await window.Swal.fire({
+                    title: 'Notice',
+                    text: message,
+                    confirmButtonText: 'View',
+                    confirmButtonColor: '#DC3545',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    allowEnterKey: false,
+                    showCloseButton: false,
+                    didOpen: setSwalZIndex
+                });
+                if(result && result.isConfirmed){
+                    await window.Swal.fire({
+                        title: 'Branches with unregistered Legacy ID',
+                        html: buildMissingMoneygramBranchListHtml(missingBranches),
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#DC3545',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        allowEnterKey: false,
+                        showCloseButton: false,
+                        width: 640,
+                        didOpen: setSwalZIndex
+                    });
+                }
+                return;
+            }
+            return showAlert(message, 'Notice');
+        }
+        async function showMoneygramNewBranchNotice(newBranches){
+            const message = 'New branch detected, Contact Administrator.';
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                const setSwalZIndex = function(){
+                    const container = document.querySelector('.swal2-container');
+                    if(container) container.style.zIndex = '12020';
+                };
+                const result = await window.Swal.fire({
+                    title: 'Notice',
+                    text: message,
+                    confirmButtonText: 'View',
+                    confirmButtonColor: '#DC3545',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    allowEnterKey: false,
+                    showCloseButton: false,
+                    didOpen: setSwalZIndex
+                });
+                if(result && result.isConfirmed){
+                    await window.Swal.fire({
+                        title: 'New branches not found in master data',
+                        html: buildMissingMoneygramBranchListHtml(newBranches),
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#DC3545',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        allowEnterKey: false,
+                        showCloseButton: false,
+                        width: 640,
+                        didOpen: setSwalZIndex
+                    });
+                }
+                return;
+            }
+            return showAlert(message, 'Notice');
+        }
         function showConfirm(message, title){ return new Promise((resolve)=>{
             const prefix = getDialogPrefix(); const dlg = document.getElementById(prefix + 'Dialog');
             if(!dlg){ console.warn('Dialog not available (confirm):', message); return resolve(false); }
@@ -1469,6 +1874,8 @@ try {
             const cancel = dlg.querySelector('.' + prefix + 'DialogCancel');
             if(titleEl) titleEl.textContent = title || 'Confirm';
             if(msgEl) msgEl.textContent = message;
+            if(ok) ok.textContent = 'Yes';
+            if(cancel) cancel.textContent = 'No';
             if(cancel) cancel.style.display = '';
             if(ok) ok.style.display = '';
             dlg.style.display = 'flex';
@@ -1479,53 +1886,83 @@ try {
         async function processPartnerFiles(excelFiles){
             if(!excelFiles || excelFiles.length===0) return;
             const targetCompanyKey = getCompanyKey();
+            const activeUploadSession = startUploadRequest();
             showProcessingOverlay(excelFiles.length);
             let done = 0;
 
-            for(const f of excelFiles.slice()){
-                try{
-                    const precheck = classifyForPartnerUploader(null, f.name);
-                    if(!precheck.accepted){
-                        await showAlert(precheck.message || 'Invalid File Format', 'Notice');
-                        done++;
-                        updateProcessing(done, excelFiles.length);
-                        continue;
+            try{
+                for(const f of excelFiles.slice()){
+                    throwIfUploadCancelled();
+                    try{
+                        const precheck = classifyForPartnerUploader(null, f.name);
+                        if(!precheck.accepted){
+                            await showAlert(precheck.message || 'Invalid File Format', 'Notice');
+                            throwIfUploadCancelled();
+                            done++;
+                            updateProcessing(done, excelFiles.length);
+                            continue;
+                        }
+
+                        const res = await uploadToPartnerWithRetry(f);
+                        throwIfUploadCancelled();
+                        if(res && res.success){
+                            const pl = res.payload;
+                            const classification = classifyForPartnerUploader(pl, f.name);
+                            if(!classification.accepted){
+                                await showAlert(classification.message || 'Invalid File Format', 'Notice');
+                                throwIfUploadCancelled();
+                            } else {
+                                const list = getProcessedList(targetCompanyKey);
+                                const exists = list.find(x=> (x.filename===pl.filename && x.dateStr===pl.dateStr));
+                                if(!exists){
+                                    if(typeof pl._uploaded === 'undefined') pl._uploaded = false;
+                                    list.push(pl);
+                                    updateCards();
+                                } else if(exists._uploaded){
+                                    // File was already successfully uploaded — allow re-uploading it as a new entry
+                                    pl._uploaded = false;
+                                    list.push(pl);
+                                    updateCards();
+                                }
+                            }
+                        } else if(res && res.errorCode !== 'password_prompt_cancelled') {
+                            console.error('Processing failed', res);
+                            await showAlert(res.error || ('Processing failed for ' + f.name));
+                            throwIfUploadCancelled();
+                        }
+                    }catch(err){
+                        if(isUploadAbortError(err)) throw err;
+                        console.error(err);
                     }
 
-                    const res = await uploadToPartnerWithRetry(f);
-                    if(res && res.success){
-                        const pl = res.payload;
-                        const classification = classifyForPartnerUploader(pl, f.name);
-                        if(!classification.accepted){
-                            await showAlert(classification.message || 'Invalid File Format', 'Notice');
-                        } else {
-                            const list = getProcessedList(targetCompanyKey);
-                            const exists = list.find(x=> (x.filename===pl.filename && x.dateStr===pl.dateStr));
-                            if(!exists){
-                                if(typeof pl._uploaded === 'undefined') pl._uploaded = false;
-                                list.push(pl);
-                                updateCards();
-                            }
-                        }
-                    } else if(res && res.errorCode !== 'password_prompt_cancelled') {
-                        console.error('Processing failed', res);
-                        await showAlert(res.error || ('Processing failed for ' + f.name));
-                    }
-                }catch(err){
-                    console.error(err);
+                    done++;
+                    updateProcessing(done, excelFiles.length);
                 }
 
-                done++;
-                updateProcessing(done, excelFiles.length);
+                hideProcessingOverlay();
+                files = files.filter(ff=>!excelFiles.includes(ff));
+                fileInput.value='';
+                refreshState();
+            }catch(err){
+                if(!isUploadAbortError(err)) console.error(err);
+                hideProcessingOverlay();
+                refreshState();
+            } finally {
+                finishUploadRequest(activeUploadSession);
+                refreshState();
             }
-
-            hideProcessingOverlay();
-            files = files.filter(ff=>!excelFiles.includes(ff));
-            fileInput.value='';
-            refreshState();
         }
 
+        if(company){
+            company.addEventListener('input', updatePartnerIdField);
+            company.addEventListener('change', updatePartnerIdField);
+        }
+        if(partnerIdInput){
+            partnerIdInput.addEventListener('input', updateCompanyFromPartnerId);
+            partnerIdInput.addEventListener('change', updateCompanyFromPartnerId);
+        }
         attachPartnerAutocomplete(company, partners);
+        updatePartnerIdField();
         refreshState();
         updateCards();
     })();

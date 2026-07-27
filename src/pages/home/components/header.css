@@ -96,11 +96,28 @@
 
 /* Logout modal styles for header.php */
 .logout-modal{display:none;position:fixed;inset:0;z-index:1200;font-family:inherit}
+.logout-modal--pending{z-index:200100}
 .logout-modal[aria-hidden="false"]{display:block}
-.logout-modal__overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45)}
-.logout-modal__dialog{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:20px;border-radius:8px;min-width:320px;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,0.2);color:#111}
-.logout-modal__dialog h2{margin:0 0 8px;font-size:1.05rem}
-.logout-modal__dialog p{margin:0 0 16px;color:#444}
-.logout-modal__actions{display:flex;gap:8px;justify-content:flex-end}
-.logout-modal__actions .material-btn{padding:8px 12px;border-radius:6px;border:1px solid rgba(0,0,0,0.08);background:#f5f5f5}
-.logout-modal__actions .material-btn.primary{background:#dc3545;color:#fff;border-color:#dc3545}
+.logout-modal__overlay{position:fixed;inset:0;background:rgba(8,15,30,0.68);backdrop-filter:blur(2px);animation:logoutFadeIn .18s ease both}
+.logout-modal__dialog{position:fixed;left:50%;top:50%;width:min(440px,calc(100vw - 40px));transform:translate(-50%,-50%) scale(.96);background:#fff;padding:30px 28px 24px;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.28);color:#111827;text-align:center;animation:logoutScaleIn .22s cubic-bezier(.2,.8,.2,1) both}
+.logout-modal__icon{display:none;width:56px;height:56px;margin:0 auto 16px;border-radius:50%;background:#fff1f2;color:#dc2626;border:1px solid #fecdd3;align-items:center;justify-content:center}
+.logout-modal__icon .material-icons{font-size:34px;line-height:1}
+.logout-modal--pending .logout-modal__icon{display:flex}
+.logout-modal__dialog h2{margin:0 0 10px;font-size:22px;font-weight:800;color:#111827;letter-spacing:0}
+.logout-modal__dialog p{margin:0;color:#475569;font-size:15px;line-height:1.55}
+.logout-modal__summary{margin:18px 0 0;padding:12px 14px;border-radius:12px;background:#f8fafc;border:1px solid #e5e7eb;text-align:left;color:#334155;font-size:14px;line-height:1.45}
+.logout-modal__summary div+div{margin-top:6px}
+.logout-modal__question{margin-top:18px!important;color:#111827!important;font-weight:700}
+.logout-modal__actions{display:flex;gap:12px;justify-content:center;margin-top:24px}
+.logout-modal__actions .material-btn{min-width:112px;padding:11px 18px;border-radius:999px;border:0;background:#f1f5f9;color:#334155;font-size:14px;font-weight:800;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
+.logout-modal__actions .material-btn:hover{background:#e2e8f0}
+.logout-modal__actions .material-btn:active{transform:translateY(1px)}
+.logout-modal__actions .material-btn.primary{background:#dc2626;color:#fff;box-shadow:0 10px 22px rgba(220,38,38,.28)}
+.logout-modal__actions .material-btn.primary:hover{background:#b91c1c}
+@keyframes logoutFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes logoutScaleIn{to{transform:translate(-50%,-50%) scale(1)}}
+@media (max-width:520px){
+    .logout-modal__dialog{padding:26px 20px 20px;border-radius:16px}
+    .logout-modal__actions{flex-direction:column-reverse}
+    .logout-modal__actions .material-btn{width:100%}
+}

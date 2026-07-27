@@ -6,10 +6,17 @@ require_once __DIR__ . '/session.php';
 
 function autoreconIndexUrl(): string
 {
+    $basePath = autoreconBasePath();
+
+    return ($basePath !== '' ? $basePath : '') . '/index.php';
+}
+
+function autoreconBasePath(): string
+{
     $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
     $basePath = preg_replace('#/src/.*$#', '', $scriptName) ?: '';
 
-    return ($basePath !== '' ? $basePath : '') . '/index.php';
+    return $basePath === '/' ? '' : rtrim($basePath, '/');
 }
 
 function requireAuth(): void

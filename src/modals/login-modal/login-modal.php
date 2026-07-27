@@ -11,7 +11,7 @@ $csrfInput = csrfField();
 
         <div class="login-modal__grid">
             <div class="login-modal__brand">
-                <img src="../../assets/logo2.png" alt="M Lhuillier logo" class="login-modal__logo">
+                <img src="../../assets/12.png" alt="M Lhuillier logo" class="login-modal__logo">
                 <h2 id="loginModalTitle">Sign in</h2>
                 <p class="login-modal__subtitle">Access your reconciliation dashboard securely.</p>
             </div>

@@ -3,7 +3,7 @@
   "description": "AutoRecon project dependencies",
   "require": {
     "phpoffice/phpspreadsheet": "^5.4",
-    "php": "^8.2"
+    "php": ">=8.2.12 <=8.5.7"
   },
   "config": {
     "audit": {

@@ -3,6 +3,7 @@
 // Returns per-day recon summary for MONEYGRAM (used by the UI)
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/daycard-locks-common.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -57,7 +58,8 @@ try{
         $cursor->modify('+1 day');
     }
 
-    $pdo = fileRecDbConnection();
+    $pdo = reconDaycardLocksDb();
+
     $tryQuery = function(array $sqls, array $params) use ($pdo){
         foreach($sqls as $sql){
             try{
@@ -73,8 +75,31 @@ try{
         }
         return [];
     };
+    $tryQueryAll = function(array $sqls, array $params) use ($pdo){
+        $rows = [];
+        $seen = [];
+        foreach($sqls as $sql){
+            try{
+                $statement = $pdo->prepare($sql);
+                $statement->execute($params);
+                foreach($statement->fetchAll() as $row){
+                    $key = md5(json_encode($row));
+                    if(isset($seen[$key])) continue;
+                    $seen[$key] = true;
+                    $rows[] = $row;
+                }
+            }catch(PDOException $e){
+                $code = $e->getCode();
+                if(strpos($e->getMessage(), 'Unknown column') === false && $code !== '42S22'){
+                    throw $e;
+                }
+            }
+        }
+        return $rows;
+    };
 
     $detail = isset($_GET['detail']) ? (int)$_GET['detail'] : 0;
+    $rangeDetail = isset($_GET['range_detail']) ? (int)$_GET['range_detail'] : 0;
     $reqDay = isset($_GET['day']) ? (int)$_GET['day'] : 0;
     $reqDate = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
     if($reqDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $reqDate)){
@@ -106,6 +131,34 @@ try{
         return (int)round(($rightTs - $leftTs) / 86400);
     };
 
+    $branchNameById = [];
+    $branchProfileById = [];
+    $branchProfileByLegacyId = [];
+    try {
+        $masterPdo = masterDataConnection();
+        $branchStmt = $masterPdo->query('SELECT branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE branch_id IS NOT NULL AND TRIM(branch_id) <> \'\'');
+        foreach ($branchStmt->fetchAll(PDO::FETCH_ASSOC) as $branchRow) {
+            $branchId = trim((string)($branchRow['branch_id'] ?? ''));
+            if ($branchId === '') {
+                continue;
+            }
+            $branchKey = $normalizeKey($branchId);
+            $branchNameById[$branchKey] = (string)($branchRow['branch_name'] ?? '');
+            $branchProfileById[$branchKey] = [
+                'branch_name' => (string)($branchRow['branch_name'] ?? ''),
+                'legacyid_moneygram' => (string)($branchRow['legacyid_moneygram'] ?? ''),
+            ];
+            $legacyKey = $normalizeKey($branchRow['legacyid_moneygram'] ?? '');
+            if ($legacyKey !== '') {
+                $branchProfileByLegacyId[$legacyKey] = $branchProfileById[$branchKey];
+            }
+        }
+    } catch (Throwable $e) {
+        $branchNameById = [];
+        $branchProfileById = [];
+        $branchProfileByLegacyId = [];
+    }
+
     $expandedStartObj = clone $startDtObj;
     $expandedStartObj->modify('-1 day');
     $expandedEndObj = clone $endDtObj;
@@ -121,13 +174,23 @@ try{
     $sqlRangeWeb = [
         "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
+        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
+        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT * FROM ml_web_data WHERE DATE(date) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
         "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
         "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
+        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
+        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
     ];
 
     $partnerRowsRaw = $tryQuery($sqlRangePart, [$startDate, $endDate]);
-    $webRowsRaw = $tryQuery($sqlRangeWeb, array_merge([$expandedStartDate, $expandedEndDate], $partnerNameList));
+    $webRowsRaw = $tryQueryAll($sqlRangeWeb, array_merge([$expandedStartDate, $expandedEndDate], $partnerNameList));
+    $webRowsRaw = array_values(array_filter($webRowsRaw, function($row) use ($partnerNameList, $normalizeKey){
+        $rowPartner = $row['partnerName'] ?? ($row['partner_name'] ?? ($row['corporate_partner'] ?? ($row['corporatePartner'] ?? '')));
+        $rowPartnerKey = $normalizeKey($rowPartner);
+        if($rowPartnerKey === '') return true;
+        return in_array($rowPartnerKey, $partnerNameList, true);
+    }));
 
     $partnerRows = [];
     foreach($partnerRowsRaw as $index => $row){
@@ -138,37 +201,73 @@ try{
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
+        $tranType = $normalizeKey($row['tran_type'] ?? ($row['transaction_type'] ?? ''));
+        $reportType = '';
+        if($tranType === 'REC') $reportType = 'payout';
+        elseif($tranType === 'SEN') $reportType = 'sendout';
+        elseif($tranType === 'RRC') $reportType = 'payout-cancelled';
+        elseif($tranType === 'RSN' || $tranType === 'REF') $reportType = 'sendout-cancelled';
+
         $partnerRows[] = [
             'index' => $index,
             'date' => $dateOnly,
             'ref' => $ref,
             'raw_ref' => $rawRef,
-            'amount' => isset($row['base_tran_amt']) ? (float)$row['base_tran_amt'] : (isset($row['total_tran_amt']) ? (float)$row['total_tran_amt'] : (isset($row['partner_principal']) ? (float)$row['partner_principal'] : 0.0)),
-            'commission' => isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0)),
-            'currency' => $normalizeCurrency($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? '')))),
+            'report_type' => $reportType,
+            'amount' => isset($row['base_amt']) ? abs((float)$row['base_amt']) : 0.0,
+            'commission' => isset($row['comm_amt']) ? (float)$row['comm_amt'] : (isset($row['comm_tran_amt']) ? (float)$row['comm_tran_amt'] : (isset($row['fee_tran_amt']) ? (float)$row['fee_tran_amt'] : (isset($row['partner_commission']) ? (float)$row['partner_commission'] : 0.0))),
+            'currency' => $normalizeCurrency($row['settlement_currency'] ?? ($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? ''))))),
+            'agent_name' => (string)($row['agent_name'] ?? ''),
+            'legacy_id' => (string)($row['legacy_id'] ?? ($row['legacyid'] ?? ($row['legacyId'] ?? ''))),
+            'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
             'raw' => $row,
         ];
     }
 
     $webRows = [];
     foreach($webRowsRaw as $index => $row){
-        $dateOnly = $normalizeDate($row['date_claimed'] ?? ($row['date'] ?? ''));
-        if($dateOnly === '' || $dateOnly < $expandedStartDate || $dateOnly > $expandedEndDate) continue;
-
         $rawRef = (string)($row['ccref_no'] ?? ($row['cc_ref'] ?? ''));
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
-        $webRows[] = [
-            'index' => $index,
-            'date' => $dateOnly,
-            'ref' => $ref,
-            'raw_ref' => $rawRef,
-            'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
-            'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
-            'currency' => $normalizeCurrency($row['currency'] ?? ''),
-            'raw' => $row,
+        $dateCancelled = trim((string)($row['date_cancelled'] ?? ($row['date_cancellation'] ?? '')));
+        $isCancelled = $dateCancelled !== '';
+        $dateCandidates = [
+            [
+                'date' => $normalizeDate($row['date_claimed'] ?? ''),
+                'report_type' => $isCancelled ? 'payout-cancelled' : 'payout',
+                'date_source' => 'date_claimed',
+            ],
+            [
+                'date' => $normalizeDate($row['date_send'] ?? ''),
+                'report_type' => $isCancelled ? 'sendout-cancelled' : 'sendout',
+                'date_source' => 'date_send',
+            ],
         ];
+
+        $candidateOffset = 0;
+        foreach($dateCandidates as $candidate){
+            $dateOnly = $candidate['date'];
+            if($dateOnly === '' || $dateOnly < $expandedStartDate || $dateOnly > $expandedEndDate) continue;
+
+            $webRows[] = [
+                'index' => ($index * 10) + $candidateOffset,
+                'date' => $dateOnly,
+                'ref' => $ref,
+                'raw_ref' => $rawRef,
+                'report_type' => $candidate['report_type'],
+                'date_source' => $candidate['date_source'],
+                'kptn' => (string)($row['kptn'] ?? ''),
+                'branch' => (string)($row['branch'] ?? ($row['account_name'] ?? ($row['accountName'] ?? ''))),
+                'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
+                'branch_name' => (string)($branchNameById[$normalizeKey($row['branch_id'] ?? ($row['branchId'] ?? ''))] ?? ''),
+                'amount' => isset($row['amount']) ? (float)$row['amount'] : (isset($row['web_amount']) ? (float)$row['web_amount'] : 0.0),
+                'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (isset($row['web_ctp']) ? (float)$row['web_ctp'] : 0.0),
+                'currency' => $normalizeCurrency($row['currency'] ?? ''),
+                'raw' => $row,
+            ];
+            $candidateOffset++;
+        }
     }
 
     usort($partnerRows, function($left, $right){
@@ -202,6 +301,7 @@ try{
             if(isset($usedWebIndexes[$candidateIndex])) continue;
 
             $webRow = $webRows[$candidateIndex];
+            if(($partnerRow['report_type'] ?? '') !== '' && ($webRow['report_type'] ?? '') !== '' && $partnerRow['report_type'] !== $webRow['report_type']) continue;
             // Only consider web rows that fall within the requested reconciliation range.
             // This prevents pulling/matching web rows that are outside the user-selected date window
             // (e.g. a 04-17 web row should not match when the user requested range ends 04-16).
@@ -360,7 +460,7 @@ try{
             'duplicates' => $duplicate_refs,
         ];
 
-        if($detail && (($reqDate !== '' && $reqDate === $dt) || ($reqDate === '' && $reqDay && $reqDay === $d))){
+        if($detail && ($rangeDetail || (($reqDate !== '' && $reqDate === $dt) || ($reqDate === '' && $reqDay && $reqDay === $d)))){
             $rows = [];
             foreach($dayPairs as $pair){
                 $partner = $pair['partner'] ?? null;
@@ -374,21 +474,93 @@ try{
                     }
                     $row['partner_principal'] = (float)$partner['amount'];
                     $row['partner_commission'] = (float)$partner['commission'];
+                    $row['partner_report_type'] = (string)($partner['report_type'] ?? '');
+                    $row['partner_agent_name'] = (string)($partner['agent_name'] ?? '');
+                    $row['partner_legacy_id'] = (string)($partner['legacy_id'] ?? '');
+                    $row['partner_branch_id'] = (string)($partner['branch_id'] ?? '');
                 } else {
                     $row['partner_principal'] = 0.0;
                     $row['partner_commission'] = 0.0;
+                    $row['partner_report_type'] = '';
+                    $row['partner_agent_name'] = '';
+                    $row['partner_legacy_id'] = '';
+                    $row['partner_branch_id'] = '';
                 }
 
                 if($web){
                     foreach(($web['raw'] ?? []) as $col => $val){
                         $row['web_'.$col] = $val;
                     }
+                    $row['web_kptn'] = (string)($web['kptn'] ?? '');
+                    $row['web_branch'] = (string)($web['branch'] ?? '');
+                    $row['web_branch_id'] = (string)($web['branch_id'] ?? '');
+                    $row['web_branch_name'] = (string)($web['branch_name'] ?? '');
                     $row['web_amount'] = (float)$web['amount'];
                     $row['web_ctp'] = (float)$web['ctp'];
+                    $row['web_report_type'] = (string)($web['report_type'] ?? '');
+                    $row['web_report_date'] = (string)($web['date'] ?? '');
+                    $row['web_report_date_source'] = (string)($web['date_source'] ?? '');
                 } else {
+                    $row['web_kptn'] = '';
+                    $row['web_branch'] = '';
+                    $row['web_branch_id'] = '';
+                    $row['web_branch_name'] = '';
                     $row['web_amount'] = 0.0;
                     $row['web_ctp'] = 0.0;
+                    $row['web_report_type'] = '';
+                    $row['web_report_date'] = '';
+                    $row['web_report_date_source'] = '';
                 }
+
+                $row['legacy_detection_remark'] = '';
+                $row['registered_legacyid_moneygram'] = '';
+                if($partner && $web){
+                    $webBranchKey = $normalizeKey($web['branch_id'] ?? '');
+                    $partnerLegacyId = trim((string)($partner['legacy_id'] ?? ''));
+                    $branchProfile = $webBranchKey !== '' ? ($branchProfileById[$webBranchKey] ?? null) : null;
+                    $registeredLegacyId = $branchProfile ? trim((string)($branchProfile['legacyid_moneygram'] ?? '')) : '';
+                    $row['registered_legacyid_moneygram'] = $registeredLegacyId;
+
+                    if(!$branchProfile){
+                        $row['legacy_detection_remark'] = 'Maybe New Branch';
+                        $legacyProfile = $partnerLegacyId !== '' ? ($branchProfileByLegacyId[$normalizeKey($partnerLegacyId)] ?? null) : null;
+                        if(!$legacyProfile){
+                            $row['legacy_detection_remark'] = 'Maybe New Branch Legacy ID not yet registered. Contact System Administrator';
+                        }
+                    } elseif($registeredLegacyId === ''){
+                        $row['legacy_detection_remark'] = 'Legacy ID not yet registered. Contact System Administrator';
+                    } elseif($normalizeKey($registeredLegacyId) !== $normalizeKey($partnerLegacyId)){
+                        $row['legacy_detection_remark'] = 'Legacy ID not yet registered. Contact System Administrator';
+                    }
+                }
+                if(!$partner && $web){
+                    $webBranchKey = $normalizeKey($web['branch_id'] ?? '');
+                    $branchProfile = $webBranchKey !== '' ? ($branchProfileById[$webBranchKey] ?? null) : null;
+                    if(!$branchProfile){
+                        $row['legacy_detection_remark'] = 'Maybe New Branch';
+                    }
+                }
+
+                // Show cancellation details first, followed by any missing-data
+                // combination detected by VIEW DATA DETECTED.
+                $webRaw = $web['raw'] ?? [];
+                $dateCancelled = trim((string)($webRaw['date_cancelled'] ?? ($webRaw['date_cancellation'] ?? '')));
+                $remarks = [];
+                if($dateCancelled !== ''){
+                    $otherDetails = trim((string)($webRaw['other_details'] ?? ''));
+                    if($otherDetails !== ''){
+                        foreach(preg_split('/\R+/', $otherDetails) ?: [] as $detail){
+                            $detail = trim((string)$detail);
+                            if($detail !== '') $remarks[] = '• ' . $detail;
+                        }
+                    }
+                }
+                if($partner && !$web){
+                    $remarks[] = '• PARTNER Data: REFERENCE ID not found in KPX Report';
+                } elseif(!$partner && $web){
+                    $remarks[] = '• KPX Data: CCREF NO not found in Partners Report';
+                }
+                $row['remarks'] = implode("\n", array_values(array_unique($remarks)));
 
                 $row['is_cross_date_match'] = ($partner && $web && $partner['date'] !== $web['date']);
                 $rows[] = $row;
@@ -402,10 +574,19 @@ try{
         $days[] = $dayPayload;
     }
 
-    echo json_encode(['success' => true, 'start_date' => $startDate, 'end_date' => $endDate, 'days' => $days]);
+    $response = ['success' => true, 'start_date' => $startDate, 'end_date' => $endDate, 'days' => $days];
+    if(defined('MONEYGRAM_RECON_RETURN_DATA') && MONEYGRAM_RECON_RETURN_DATA){
+        return $response;
+    }
+
+    echo json_encode($response);
     exit;
 
 }catch(Throwable $e){
+    if(defined('MONEYGRAM_RECON_RETURN_DATA') && MONEYGRAM_RECON_RETURN_DATA){
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     exit;

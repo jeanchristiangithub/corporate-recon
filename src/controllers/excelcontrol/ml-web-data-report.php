@@ -18,6 +18,8 @@ try {
     $area = isset($_GET['area']) ? trim((string)$_GET['area']) : '';
     $branch_name = isset($_GET['branch_name']) ? trim((string)$_GET['branch_name']) : '';
     $branch_id = isset($_GET['branch_id']) ? trim((string)$_GET['branch_id']) : '';
+    $reference_id = isset($_GET['reference_id']) ? trim((string)$_GET['reference_id']) : '';
+    $currency = strtoupper(trim((string)($_GET['currency'] ?? '')));
 
     // Treat 'ALL' (case-insensitive) as empty / no-filter
     if (strcasecmp($mainzone, 'ALL') === 0) $mainzone = '';
@@ -37,14 +39,8 @@ try {
         $perPage = 10000;
     }
     
-    if ($partner === '') {
-        echo json_encode(['success' => false, 'error' => 'Corporate partner is required']);
-        exit;
-    }
-
-    // Enforce that both start_date and end_date are provided
-    if ($start_date === '' || $end_date === '') {
-        echo json_encode(['success' => false, 'error' => 'Start date and End date are required']);
+    if ($reference_id === '' && ($partner === '' || $start_date === '' || $end_date === '')) {
+        echo json_encode(['success' => false, 'error' => 'Corporate Partner, Start date, and End date are required.']);
         exit;
     }
     
@@ -65,16 +61,21 @@ try {
 
     $branchNameColumn = isset($availableColumns['branch_name']) ? 'branch_name' : (isset($availableColumns['branch']) ? 'branch' : null);
 
-    // Read optional type filter (all / payout / sendout)
+    // Read optional type filter (all / payout / payout_cancelled / sendout / sendout_cancelled)
     $type = isset($_GET['type']) ? trim((string)$_GET['type']) : '';
+    $normalizedType = strtolower($type);
 
-    // Base filter by partner name
-    $whereSql = ' FROM ml_web_data WHERE partnerName = ?';
-    $params = [$partner];
+    // CCREF NO can be searched globally; otherwise scope results to the selected partner.
+    $whereSql = ' FROM ml_web_data WHERE 1 = 1';
+    $params = [];
+    if ($partner !== '') {
+        $whereSql .= ' AND partnerName = ?';
+        $params[] = $partner;
+    }
     
     // Decide which date column to use for filtering/ordering and for the UI date column.
     $dateColumn = 'date_claimed';
-    if (strtolower($type) === 'sendout' && isset($availableColumns['date_send'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['date_send'])) {
         $dateColumn = 'date_send';
     }
     $dateLabel = $dateColumn === 'date_send' ? 'Date Send' : 'Date Claimed';
@@ -94,16 +95,26 @@ try {
     $php_total = 0.0;
     $usd_total = 0.0;
     $charge_total = 0.0;
+    $php_commission_total = 0.0;
+    $usd_commission_total = 0.0;
 
     // Apply transaction-type specific filters based on presence of date_send
     // PAYOUT: date_send IS NULL OR date_send = ''
     // SENDOUT: date_send IS NOT NULL AND date_send != ''
     if (isset($availableColumns['date_send'])) {
-        if (strtolower($type) === 'payout') {
+        if ($normalizedType === 'payout') {
             $whereSql .= ' AND (date_send IS NULL OR TRIM(COALESCE(date_send, "")) = "")';
-        } elseif (strtolower($type) === 'sendout') {
+        } elseif ($normalizedType === 'sendout') {
             $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
         }
+    }
+
+    if ($normalizedType === 'payout_cancelled') {
+        $whereSql .= ' AND (date_claimed IS NOT NULL AND TRIM(COALESCE(date_claimed, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
+    } elseif ($normalizedType === 'sendout_cancelled') {
+        $whereSql .= ' AND (date_send IS NOT NULL AND TRIM(COALESCE(date_send, "")) != "")';
+        $whereSql .= ' AND (date_cancelled IS NOT NULL AND TRIM(COALESCE(date_cancelled, "")) != "")';
     }
 
     // Apply ml_web_data filters directly so table, count, and CSV all reflect the same data set.
@@ -137,11 +148,29 @@ try {
         $params[] = '%' . strtolower($branch_id) . '%';
     }
 
+    if ($reference_id !== '' && isset($availableColumns['ccref_no'])) {
+        $whereSql .= ' AND TRIM(COALESCE(ccref_no, "")) = ?';
+        $params[] = $reference_id;
+    }
+
+    if (in_array($currency, ['PHP', 'USD'], true) && isset($availableColumns['currency'])) {
+        $whereSql .= ' AND UPPER(TRIM(currency)) = ?';
+        $params[] = $currency;
+    }
+
     // Compute currency totals for the fully-built WHERE clause (use same params)
     try {
         $totalsSelect = ''
             . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "PHP" THEN COALESCE(amount,0) ELSE 0 END), 0) AS php_total, '
             . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "USD" THEN COALESCE(amount,0) ELSE 0 END), 0) AS usd_total';
+
+        if (isset($availableColumns['ctp'])) {
+            $totalsSelect .= ', '
+                . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "PHP" THEN COALESCE(ctp,0) ELSE 0 END), 0) AS php_commission_total, '
+                . 'COALESCE(SUM(CASE WHEN UPPER(TRIM(currency)) = "USD" THEN COALESCE(ctp,0) ELSE 0 END), 0) AS usd_commission_total';
+        } else {
+            $totalsSelect .= ', 0 AS php_commission_total, 0 AS usd_commission_total';
+        }
 
         if (isset($availableColumns['charge'])) {
             // Sum charge treating blank strings as 0
@@ -154,6 +183,8 @@ try {
         $totRow = $totStmt->fetch(PDO::FETCH_ASSOC);
         $php_total = isset($totRow['php_total']) ? (float)$totRow['php_total'] : 0.0;
         $usd_total = isset($totRow['usd_total']) ? (float)$totRow['usd_total'] : 0.0;
+        $php_commission_total = isset($totRow['php_commission_total']) ? (float)$totRow['php_commission_total'] : 0.0;
+        $usd_commission_total = isset($totRow['usd_commission_total']) ? (float)$totRow['usd_commission_total'] : 0.0;
         if (isset($totRow['charge_total'])) {
             $charge_total = (float)$totRow['charge_total'];
         } else {
@@ -163,6 +194,8 @@ try {
         $php_total = 0.0;
         $usd_total = 0.0;
         $charge_total = 0.0;
+        $php_commission_total = 0.0;
+        $usd_commission_total = 0.0;
     }
 
     $countSql = 'SELECT COUNT(*)' . $whereSql;
@@ -179,8 +212,12 @@ try {
     
     // Order by chosen date column descending (newest first). Select both date_claimed and date_send when available.
     $selectCols = 'id, partner_id, partnerName, `no`, control_series_no, kptn, ccref_no, currency, amount, ctc, ctp, sender_name, sender_country, beneficiary_receiver, receiver_kyc, receiver_phone, operator, branch, remote_operator, remote_branch, created_at';
+    if (isset($availableColumns['branch_id'])) {
+        $selectCols = 'branch_id, ' . $selectCols;
+    }
+
     // When reporting SENDOUT, include `charge` column if present so frontend can display it.
-    if (strtolower($type) === 'sendout' && isset($availableColumns['charge'])) {
+    if (in_array($normalizedType, ['sendout', 'sendout_cancelled'], true) && isset($availableColumns['charge'])) {
         // append charge so it's available in result rows
         $selectCols = 'charge, ' . $selectCols;
     }
@@ -216,10 +253,13 @@ try {
         'type' => $type,
         'date_column' => $dateColumn,
         'date_label' => $dateLabel,
+        'currency_filter' => $currency,
         'rows' => $rows,
         'php_total' => $php_total,
         'usd_total' => $usd_total,
-        'charge_total' => $charge_total
+        'charge_total' => $charge_total,
+        'php_commission_total' => $php_commission_total,
+        'usd_commission_total' => $usd_commission_total
     ]);
     exit;
 
