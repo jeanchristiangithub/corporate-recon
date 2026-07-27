@@ -271,7 +271,9 @@ try {
             }
 
             if (is_array($settlementRow)) {
-                $linkSettlement->execute([$fileLogId, $userId, (int)$settlementRow['id']]);
+                if (trim((string)($settlementRow['ufl_file_log_id'] ?? '')) === '') {
+                    $linkSettlement->execute([$fileLogId, $userId, (int)$settlementRow['id']]);
+                }
                 $settlementPatch = [];
                 foreach ($subsetFields as $field) {
                     if (!settlementSubsetHasValue($field, $settlementRow[$field] ?? null) && settlementSubsetHasValue($field, $merged[$field] ?? null)) {
