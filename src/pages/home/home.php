@@ -51,6 +51,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-upload/kpx-webdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-upload/settlement-detail/daily/settlementdaily-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-entry/settlement-detail/data-entry-settlement-detail-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/webdata-cancellation-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/recon-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/reconreport-section.css">
@@ -155,7 +156,21 @@ if ($currentUserId !== '') {
                    
                 </ul>
             </li>
-                
+
+            <li class="nav-group">
+                <button class="nav-group-toggle" aria-expanded="false" aria-controls="dataEntryMenu">
+                    <span class="icon material-icons" aria-hidden="true">edit_note</span>
+                    <span class="label">Data Entry</span>
+                    <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                </button>
+                <ul id="dataEntryMenu" class="nav-group-menu" style="display:none;">
+                    <li><a href="#" id="navDataEntrySettlementDetail" data-show="dataEntrySettlementDetailSection">
+                        <span class="icon material-icons" aria-hidden="true">payments</span>
+                        <span class="label">Settlement Detail</span>
+                    </a></li>
+                </ul>
+            </li>
+
                 <li class="nav-group">
                     <button class="nav-group-toggle" aria-expanded="false" aria-controls="reportsMenu">
                         <span class="icon material-icons" aria-hidden="true">insert_chart</span>
@@ -287,6 +302,7 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/data-upload/kpx-webdata-section.php'; ?>
     <?php include __DIR__ . '/components/data-upload/settlement-detail/daily/settlementdaily-section.php'; ?>
     <?php include __DIR__ . '/components/data-upload/settlement-detail/end-month/settlementendmonth-section.php'; ?>
+    <?php include __DIR__ . '/components/data-entry/settlement-detail/data-entry-settlement-detail-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
@@ -437,6 +453,7 @@ if ($currentUserId !== '') {
                 kpxwebdataver2: 'kpxWebDataVer2Section',
                 settlementdaily: 'settlementDailySection',
                 settlementendmonth: 'settlementEndMonthSection',
+                dataentrysettlementdetail: 'dataEntrySettlementDetailSection',
                 partnerdata: 'partnerdataSection',
                 partnerdatareportdaily: 'reportsPartnerDataSection',
                 partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
@@ -467,10 +484,11 @@ if ($currentUserId !== '') {
     const underMaintenanceNavIds = [
         // 'navUploadedFileLogs',
         'navWebDataCancellation',
+        // 'navDataEntrySettlementDetail',
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){

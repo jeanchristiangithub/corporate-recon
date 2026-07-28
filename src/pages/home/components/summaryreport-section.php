@@ -392,6 +392,19 @@ $partnerInputChars = min($partnerInputChars, 90);
             text-align: right;
         }
 
+        .summary-report-content .mg-cover.is-moneygram-settlement .mg-cover__status {
+            text-align: center;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .summary-report-content .mg-cover .mg-cover__status {
+            text-align: center;
+            font-weight: 800;
+            color: #111827;
+            background: #fff !important;
+        }
+
         .summary-report-content .mg-cover__message {
             display: none;
             margin-top: .75rem;
@@ -810,6 +823,12 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function payoutRow(row) {
+        if (row && row.status_message) {
+            return '<tr>'
+                + td(fmtDate(row.date))
+                + tdSpan(row.status_message, 24, 'mg-cover__status')
+                + '</tr>';
+        }
         const partner = amountGroup(row, 'partner');
         const cancelled = amountGroup(row, 'partner_cancelled');
         const netPartner = amountGroup(row, 'net_partner');
@@ -846,6 +865,12 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function sendoutRow(row) {
+        if (row && row.status_message) {
+            return '<tr>'
+                + td(fmtDate(row.date))
+                + tdSpan(row.status_message, 25, 'mg-cover__status')
+                + '</tr>';
+        }
         const partner = amountGroup(row, 'partner');
         const refund = amountGroup(row, 'partner_cancelled');
         const netPartner = row && row.net_partner ? row.net_partner : partner;
@@ -886,6 +911,12 @@ $partnerInputChars = min($partnerInputChars, 90);
     }
 
     function settlementReportRow(row) {
+        if (row && row.status_message) {
+            return '<tr>'
+                + td(fmtDate(row.date))
+                + tdSpan(row.status_message, 12, 'mg-cover__status')
+                + '</tr>';
+        }
         const payout = amountGroup(row, 'payout');
         const sendout = amountGroup(row, 'sendout');
         return '<tr>'
@@ -934,7 +965,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         settlementCurrencyRadios.forEach(radio => { radio.checked = radio.value === selectedCurrency; });
         showMoneygramTabs(true);
         placeExportButton(moneygramCoverTabs);
-        setExportReady(true);
+        setMoneygramExportAvailability(rows);
         setActiveMoneygramTab('settlement', selectedCurrency);
         currentReportTitle = `MoneyGram Settlement ${selectedCurrency.toUpperCase()}`;
         moneygramCoverMessage.classList.remove('is-visible');
@@ -1044,7 +1075,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         moneygramCover.classList.add('is-visible');
         placeExportButton(moneygramCoverTabs);
-        setExportReady(true);
+        setMoneygramExportAvailability(rows);
         showMoneygramTabs(true);
         setActiveMoneygramTab(selectedCover, selectedCurrency);
         currentReportTitle = `${selectedCover === 'sendout' ? 'MoneyGram Sendout' : 'MoneyGram Payout'} ${selectedCurrency.toUpperCase()}`;
@@ -1146,6 +1177,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         moneygramCover.classList.add('is-visible');
         placeExportButton(exportHostEl);
+        setExportVisible(true);
         setExportReady(true);
         currentReportTitle = 'Metrobank Head Office';
         moneygramCoverMessage.classList.remove('is-visible');
@@ -1234,6 +1266,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         moneygramCover.classList.add('is-visible');
         placeExportButton(wicCoverTabs);
+        setExportVisible(true);
         setExportReady(true);
         showMoneygramTabs(false);
         showWicTabs(true);
@@ -1331,6 +1364,20 @@ $partnerInputChars = min($partnerInputChars, 90);
         }
     }
 
+    function setExportVisible(isVisible) {
+        if (exportExcelEl) {
+            exportExcelEl.hidden = !isVisible;
+        }
+    }
+
+    function setMoneygramExportAvailability(rows) {
+        const hasLockedRow = Array.isArray(rows) && rows.some(row =>
+            row && row.readiness && Boolean(row.readiness.is_locked)
+        );
+        setExportVisible(hasLockedRow);
+        setExportReady(hasLockedRow);
+    }
+
     function placeExportButton(container) {
         if (exportHostEl) {
             exportHostEl.classList.toggle('is-visible', container === exportHostEl);
@@ -1338,6 +1385,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         if (!exportExcelEl) return;
         if (!container) {
             exportExcelEl.disabled = true;
+            exportExcelEl.hidden = true;
             return;
         }
         if (container === moneygramCoverTabs || container === wicCoverTabs) {

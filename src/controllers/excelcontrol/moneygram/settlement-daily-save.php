@@ -240,7 +240,18 @@ try {
             'exists' => !empty($row['exists']),
             'db_tran_date' => settlementSaveDate($row['db_tran_date'] ?? null),
         ];
-        if ($item['reference_id'] === null || $item['tran_date'] === null) throw new RuntimeException('Reference ID and Tran Date are required for every row.');
+        $item['is_summary_row'] =
+            $item['account_number'] === null
+            && $item['agent_name'] === null
+            && $item['legacy_id'] === null
+            && $item['transaction_id'] === null
+            && $item['total_tran_amt'] !== null
+            && $item['settlement_currency'] !== null;
+        if (($item['reference_id'] === null || $item['tran_date'] === null) && !$item['is_summary_row']) {
+            throw new RuntimeException(
+                'Reference ID and Tran Date are required unless Account Number, Agent Name, Legacy ID, and Transaction ID are blank while Total Tran Amt and Settlement Currency contain data.'
+            );
+        }
         $prepared[] = $item;
     }
 
@@ -286,10 +297,12 @@ try {
                         ? $settlementPatch[$amountField]
                         : ($settlementRow[$amountField] ?? null);
                 }
-                $settlementPatch['total_tran_amt'] = array_sum(array_map(
-                    static fn(mixed $value): float => $value === null ? 0.0 : (float)$value,
-                    $finalSettlementAmounts
-                ));
+                $settlementPatch['total_tran_amt'] = $item['is_summary_row']
+                    ? $item['total_tran_amt']
+                    : array_sum(array_map(
+                        static fn(mixed $value): float => $value === null ? 0.0 : (float)$value,
+                        $finalSettlementAmounts
+                    ));
                 $rowWasAmended = settlementPatchMissingFields(
                     $pdo,
                     'partner_settlement_data',
@@ -306,10 +319,12 @@ try {
                 }
                 if ($rowWasAmended) $settlementAmended++;
             } else {
-                $merged['total_tran_amt'] = (float)($merged['base_tran_amt'] ?? 0)
-                    + (float)($merged['fee_tran_amt'] ?? 0)
-                    + (float)($merged['fx_rev_share_tran_amt'] ?? 0)
-                    + (float)($merged['comm_tran_amt'] ?? 0);
+                $merged['total_tran_amt'] = $item['is_summary_row']
+                    ? $item['total_tran_amt']
+                    : (float)($merged['base_tran_amt'] ?? 0)
+                        + (float)($merged['fee_tran_amt'] ?? 0)
+                        + (float)($merged['fx_rev_share_tran_amt'] ?? 0)
+                        + (float)($merged['comm_tran_amt'] ?? 0);
                 $insertSettlement->execute([$partnerId, $partnerName, $merged['account_number'], $merged['agent_name'], $merged['legacy_id'], $merged['tran_date'], null, $merged['transaction_id'], $merged['reference_id'], $merged['product'], $merged['tran_type'], $merged['orig_cntry'], $merged['rcv_cntry'], $merged['fx_rate_trn'], $merged['fx_date_trn'], $merged['margin'], $merged['base_tran_amt'], $merged['fee_tran_amt'], $merged['fx_rev_share_tran_amt'], $merged['comm_tran_amt'], $merged['total_tran_amt'], $merged['settlement_currency'], $merged['transaction_currency'], $fileLogId, $userId]);
                 $settlementInserted++;
                 $settlementCandidates[$merged['reference_id']][] = array_merge($merged, ['id' => (int)$pdo->lastInsertId(), 'partner_id' => $partnerId, 'ufl_file_log_id' => $fileLogId]);
