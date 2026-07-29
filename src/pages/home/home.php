@@ -234,6 +234,19 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">upload_file</span>
                             <span class="label">Uploaded File Logs</span>
                         </a></li>
+                        <li class="nav-subgroup">
+                            <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="originDataLogsMenu">
+                                <span class="icon material-icons" aria-hidden="true">source</span>
+                                <span class="label">Origin Data Logs</span>
+                                <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                            </button>
+                            <ul id="originDataLogsMenu" class="nav-subgroup-menu" style="display:none;">
+                                <li><a href="#" id="navOriginDataLogsPartner" data-show="originDataLogsPartnerSection">
+                                    <span class="icon material-icons" aria-hidden="true">groups</span>
+                                    <span class="label">Partner</span>
+                                </a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </li>
             <?php if (isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0): ?>
@@ -305,6 +318,7 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/data-entry/settlement-detail/data-entry-settlement-detail-section.php'; ?>
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
+    <?php include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
 </main>
 
@@ -454,6 +468,7 @@ if ($currentUserId !== '') {
                 settlementdaily: 'settlementDailySection',
                 settlementendmonth: 'settlementEndMonthSection',
                 dataentrysettlementdetail: 'dataEntrySettlementDetailSection',
+                origindatalogspartner: 'originDataLogsPartnerSection',
                 partnerdata: 'partnerdataSection',
                 partnerdatareportdaily: 'reportsPartnerDataSection',
                 partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
@@ -488,7 +503,7 @@ if ($currentUserId !== '') {
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
