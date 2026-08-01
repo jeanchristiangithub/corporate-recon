@@ -330,11 +330,29 @@
 
 .cash-flow-report-table th {
     background: #f7f9fc;
+    border: 1px solid #d5deeb;
     color: #17213c;
     font-size: 13px;
     font-weight: 700;
     text-align: center;
     text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.cash-flow-report-table thead tr:first-child th {
+    border-top: 0;
+}
+
+.cash-flow-report-table thead th:first-child {
+    border-left: 0;
+}
+
+.cash-flow-report-table thead th:last-child {
+    border-right: 0;
+}
+
+.cash-flow-report-table thead tr + tr th {
+    border-top: 0;
 }
 
 .cash-flow-report-table td:not(:first-child) {

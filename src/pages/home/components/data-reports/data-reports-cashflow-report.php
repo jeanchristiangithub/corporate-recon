@@ -144,17 +144,21 @@ try {
                         <table class="cash-flow-report-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">Date</th>
+                                    <th scope="col" rowspan="2">Date</th>
+                                    <th scope="colgroup" colspan="3">Partner Settlement Data</th>
+                                    <th scope="col" rowspan="2">Bank Deposit (BPI)</th>
+                                    <th scope="col" rowspan="2">Running Balance</th>
+                                    <th scope="col" rowspan="2">Remarks</th>
+                                </tr>
+                                <tr>
                                     <th scope="col">Volume</th>
                                     <th scope="col">Principal</th>
                                     <th scope="col">Adjustment / Refund</th>
-                                    <th scope="col">Bank Deposit (BPI)</th>
-                                    <th scope="col">Running Balance</th>
                                 </tr>
                             </thead>
                             <tbody id="cashFlowReport<?= $currency ?>TableBody">
                                 <tr class="cash-flow-report-empty-row">
-                                    <td colspan="6">Select a corporate partner and month, then click Generate.</td>
+                                    <td colspan="7">Select a corporate partner and month, then click Generate.</td>
                                 </tr>
                             </tbody>
                         </table>
