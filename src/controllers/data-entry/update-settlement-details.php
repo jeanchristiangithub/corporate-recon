@@ -166,13 +166,42 @@ try {
         $feeCents = settlementUpdateCents($values['fee_tran_amt'] ?? null, 'Fee Tran Amt', true);
         $fxShareCents = settlementUpdateCents($values['fx_rev_share_tran_amt'] ?? null, 'Fx Rev Share Tran Amt', true);
         $commissionCents = settlementUpdateCents($values['comm_tran_amt'] ?? null, 'Comm Tran Amt', true);
-        if ($tranType === 'RSN') {
-            $baseCents = -abs((int)$baseCents);
-            $feeCents = -abs((int)$feeCents);
-        } elseif ($tranType === 'REF') {
+        $forcedNegativeFields = match ($tranType) {
+            'REC' => ['base', 'fx_share', 'commission'],
+            'SEN' => ['fx_share', 'commission'],
+            'RSN' => ['base', 'fee'],
+            'REF' => ['base'],
+            default => [],
+        };
+        if (in_array('base', $forcedNegativeFields, true)) {
             $baseCents = -abs((int)$baseCents);
         }
+        if (in_array('fee', $forcedNegativeFields, true)) {
+            $feeCents = -abs((int)$feeCents);
+        }
+        if (in_array('fx_share', $forcedNegativeFields, true)) {
+            $fxShareCents = -abs((int)$fxShareCents);
+        }
+        if (in_array('commission', $forcedNegativeFields, true)) {
+            $commissionCents = -abs((int)$commissionCents);
+        }
         $totalCents = (int)$baseCents + (int)$feeCents + (int)$fxShareCents + (int)$commissionCents;
+        $settlementCurrency = strtoupper((string)settlementUpdateText(
+            $values['settlement_currency'] ?? null,
+            'Settlement Currency',
+            true,
+            45
+        ));
+        $transactionCurrency = strtoupper((string)settlementUpdateText(
+            $values['transaction_currency'] ?? null,
+            'Transaction Currency',
+            true,
+            45
+        ));
+        if (!in_array($settlementCurrency, ['PHP', 'USD'], true)
+            || !in_array($transactionCurrency, ['PHP', 'USD'], true)) {
+            throw new InvalidArgumentException('Settlement Currency and Transaction Currency must be PHP or USD.');
+        }
 
         $parameters = [
             settlementUpdateText($values['account_number'] ?? null, 'Account Number', false, 100),
@@ -193,8 +222,8 @@ try {
             settlementUpdateDecimal($fxShareCents),
             settlementUpdateDecimal($commissionCents),
             settlementUpdateDecimal($totalCents),
-            settlementUpdateText($values['settlement_currency'] ?? null, 'Settlement Currency', true, 45),
-            settlementUpdateText($values['transaction_currency'] ?? null, 'Transaction Currency', true, 45),
+            $settlementCurrency,
+            $transactionCurrency,
             $userId,
             $id,
             $partner,

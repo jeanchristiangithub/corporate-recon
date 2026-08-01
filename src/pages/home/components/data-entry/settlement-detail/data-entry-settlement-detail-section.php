@@ -134,7 +134,7 @@ try {
 
                 <div class="data-entry-settlement-edit-divider"></div>
 
-                <form id="dataEntrySettlementEditForm" class="data-entry-settlement-edit-form">
+                <form id="dataEntrySettlementEditForm" class="data-entry-settlement-edit-form" autocomplete="off">
                     <label>
                         <span>Account Number</span>
                         <input id="dataEntryEditAccountNumber" name="account_number" type="text">
@@ -220,11 +220,19 @@ try {
                     </label>
                     <label>
                         <span>Settlement Currency <em>*</em></span>
-                        <input id="dataEntryEditSettlementCurrency" name="settlement_currency" type="text" required>
+                        <select id="dataEntryEditSettlementCurrency" name="settlement_currency" required>
+                            <option value="">Select currency</option>
+                            <option value="PHP">PHP</option>
+                            <option value="USD">USD</option>
+                        </select>
                     </label>
                     <label>
                         <span>Transaction Currency <em>*</em></span>
-                        <input id="dataEntryEditTransactionCurrency" name="transaction_currency" type="text" required>
+                        <select id="dataEntryEditTransactionCurrency" name="transaction_currency" required>
+                            <option value="">Select currency</option>
+                            <option value="PHP">PHP</option>
+                            <option value="USD">USD</option>
+                        </select>
                     </label>
 
                     <div class="data-entry-settlement-edit-actions">
@@ -294,6 +302,12 @@ try {
         const amountFieldNames = [
             'base_tran_amt', 'fee_tran_amt', 'fx_rev_share_tran_amt', 'comm_tran_amt'
         ];
+        Object.values(editFields).forEach(field => {
+            field.setAttribute('autocomplete', 'off');
+            field.setAttribute('autocorrect', 'off');
+            field.setAttribute('autocapitalize', 'off');
+            field.spellcheck = false;
+        });
         const partners = <?= json_encode($dataEntrySettlementPartners, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const csrfToken = <?= json_encode(csrfToken(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
         const columns = [
@@ -422,15 +436,20 @@ try {
             editFields.total_tran_amt.value = total.toFixed(2);
         }
 
-        function applyTranTypeSigns() {
-            const tranType = editFields.tran_type.value;
-            const forcedNegativeFields = new Set(
-                tranType === 'RSN'
-                    ? ['base_tran_amt', 'fee_tran_amt']
-                    : (tranType === 'REF' ? ['base_tran_amt'] : [])
-            );
+        function forcedNegativeAmountFields(tranType) {
+            const fieldsByTranType = {
+                REC: ['base_tran_amt', 'fx_rev_share_tran_amt', 'comm_tran_amt'],
+                SEN: ['fx_rev_share_tran_amt', 'comm_tran_amt'],
+                RSN: ['base_tran_amt', 'fee_tran_amt'],
+                REF: ['base_tran_amt']
+            };
+            return new Set(fieldsByTranType[tranType] || []);
+        }
 
-            ['base_tran_amt', 'fee_tran_amt'].forEach(fieldName => {
+        function applyTranTypeSigns() {
+            const forcedNegativeFields = forcedNegativeAmountFields(editFields.tran_type.value);
+
+            amountFieldNames.forEach(fieldName => {
                 const input = editFields[fieldName];
                 const unsignedValue = input.value.replace(/^-/, '');
                 input.value = forcedNegativeFields.has(fieldName)
@@ -453,7 +472,7 @@ try {
                     input.value = dateInputValue(value);
                 } else if (decimalFieldNames.includes(fieldName)) {
                     input.value = decimalInputValue(value);
-                } else if (fieldName === 'tran_type') {
+                } else if (fieldName === 'tran_type' || fieldName === 'settlement_currency' || fieldName === 'transaction_currency') {
                     input.value = isEmptyCell(value) ? '' : String(value).trim().toUpperCase();
                 } else {
                     input.value = isEmptyCell(value) ? '' : String(value);
@@ -663,10 +682,7 @@ try {
             if (input.disabled) return;
             input.addEventListener('input', () => {
                 const original = input.value;
-                const tranType = editFields.tran_type.value;
-                const forceNegative =
-                    (tranType === 'RSN' && ['base_tran_amt', 'fee_tran_amt'].includes(fieldName))
-                    || (tranType === 'REF' && fieldName === 'base_tran_amt');
+                const forceNegative = forcedNegativeAmountFields(editFields.tran_type.value).has(fieldName);
                 const isNegative = forceNegative || original.trim().startsWith('-');
                 const cleaned = original.replace(/[^\d.]/g, '');
                 const parts = cleaned.split('.');

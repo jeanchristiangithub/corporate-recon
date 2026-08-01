@@ -381,173 +381,7 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
     ]];
 }
 
-function summary_moneygram_settlement_readiness(PDO $pdo, string $startDate, string $endDate, string $partner): array
-{
-    $partnerDates = [];
-    $stmt = $pdo->prepare(
-        'SELECT DISTINCT DATE(tran_date) AS report_date'
-        . ' FROM moneygram_partner_data'
-        . ' WHERE tran_date BETWEEN ? AND ?'
-    );
-    $stmt->execute([$startDate, $endDate]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $partnerDates[(string) $date] = true;
-    }
-
-    $settlementDates = [];
-    $stmt = $pdo->prepare(
-        'SELECT DISTINCT DATE(tran_date) AS report_date'
-        . ' FROM partner_settlement_data'
-        . ' WHERE tran_date BETWEEN ? AND ?'
-        . ' AND UPPER(TRIM(partner_name)) = ?'
-    );
-    $stmt->execute([$startDate, $endDate, strtoupper(trim($partner))]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $settlementDates[(string) $date] = true;
-    }
-
-    $lockedDates = [];
-    $stmt = $pdo->prepare(
-        'SELECT DISTINCT transaction_date'
-        . ' FROM locked_reconciliation_dates'
-        . ' WHERE transaction_date BETWEEN ? AND ?'
-        . ' AND UPPER(TRIM(corporate_partner)) = ?'
-    );
-    $stmt->execute([$startDate, $endDate, strtoupper(trim($partner))]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $lockedDates[(string) $date] = true;
-    }
-
-    $readiness = [];
-    $cursor = DateTime::createFromFormat('!Y-m-d', $startDate);
-    $lastDate = DateTime::createFromFormat('!Y-m-d', $endDate);
-    if (!$cursor || !$lastDate) {
-        throw new RuntimeException('Invalid Settlement readiness date range.');
-    }
-    while ($cursor <= $lastDate) {
-        $date = $cursor->format('Y-m-d');
-        $hasPartnerData = isset($partnerDates[$date]);
-        $hasSettlementData = isset($settlementDates[$date]);
-        $isLocked = isset($lockedDates[$date]);
-        $message = '';
-        if (!$isLocked && !$hasPartnerData && !$hasSettlementData) {
-            $message = 'Need to Upload Partner Data and Settlement Data and Lock Data first to see result.';
-        } elseif (!$isLocked && !$hasPartnerData) {
-            $message = 'Need to Upload Partner Data and Lock Data first to see result.';
-        } elseif (!$isLocked && !$hasSettlementData) {
-            $message = 'Need to Upload Settlement Data and Lock Data first to see result.';
-        } elseif (!$isLocked) {
-            $message = 'Need to Lock Data first to see result.';
-        } elseif (!$hasSettlementData) {
-            $message = 'Need to Upload Settlement Data first to see result.';
-        }
-        $readiness[$date] = [
-            'has_partner_data' => $hasPartnerData,
-            'has_settlement_data' => $hasSettlementData,
-            'is_locked' => $isLocked,
-            'message' => $message,
-        ];
-        $cursor->modify('+1 day');
-    }
-
-    return $readiness;
-}
-
-function summary_moneygram_cover_readiness(PDO $pdo, string $startDate, string $endDate, string $partner, string $cover): array
-{
-    $partnerDates = [];
-    $stmt = $pdo->prepare(
-        'SELECT DISTINCT DATE(tran_date) AS report_date'
-        . ' FROM moneygram_partner_data'
-        . ' WHERE tran_date BETWEEN ? AND ?'
-    );
-    $stmt->execute([$startDate, $endDate]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $partnerDates[(string) $date] = true;
-    }
-
-    $isSendout = strtolower($cover) === 'sendout';
-    $primaryDateColumn = $isSendout ? 'date_send' : 'date_claimed';
-    $additionalCondition = $isSendout
-        ? 'date_send IS NOT NULL'
-        : '(date_send IS NULL OR TRIM(CAST(date_send AS CHAR)) = "") AND date_claimed IS NOT NULL';
-    $webDates = [];
-    $sql = 'SELECT DISTINCT report_date FROM ('
-        . ' SELECT DATE(' . summary_quote_identifier($primaryDateColumn) . ') AS report_date'
-        . ' FROM ml_web_data'
-        . ' WHERE ' . summary_quote_identifier($primaryDateColumn) . ' BETWEEN ? AND ?'
-        . ' AND UPPER(TRIM(partnerName)) = ?'
-        . ' UNION'
-        . ' SELECT DATE(date_cancelled) AS report_date'
-        . ' FROM ml_web_data'
-        . ' WHERE date_cancelled BETWEEN ? AND ?'
-        . ' AND ' . $additionalCondition
-        . ' AND UPPER(TRIM(partnerName)) = ?'
-        . ') web_dates WHERE report_date IS NOT NULL';
-    $stmt = $pdo->prepare($sql);
-    $normalizedPartner = strtoupper(trim($partner));
-    $stmt->execute([
-        $startDate,
-        $endDate,
-        $normalizedPartner,
-        $startDate,
-        $endDate,
-        $normalizedPartner,
-    ]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $webDates[(string) $date] = true;
-    }
-
-    $lockedDates = [];
-    $stmt = $pdo->prepare(
-        'SELECT DISTINCT transaction_date'
-        . ' FROM locked_reconciliation_dates'
-        . ' WHERE transaction_date BETWEEN ? AND ?'
-        . ' AND UPPER(TRIM(corporate_partner)) = ?'
-    );
-    $stmt->execute([$startDate, $endDate, $normalizedPartner]);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $date) {
-        $lockedDates[(string) $date] = true;
-    }
-
-    $readiness = [];
-    $cursor = DateTime::createFromFormat('!Y-m-d', $startDate);
-    $lastDate = DateTime::createFromFormat('!Y-m-d', $endDate);
-    if (!$cursor || !$lastDate) {
-        throw new RuntimeException('Invalid MoneyGram cover readiness date range.');
-    }
-    while ($cursor <= $lastDate) {
-        $date = $cursor->format('Y-m-d');
-        $hasPartnerData = isset($partnerDates[$date]);
-        $hasWebData = isset($webDates[$date]);
-        $isLocked = isset($lockedDates[$date]);
-        $message = '';
-        if (!$isLocked && !$hasPartnerData && !$hasWebData) {
-            $message = 'Need to Upload Partner Data, KPX Web Data and Lock Data first to see result.';
-        } elseif (!$isLocked && !$hasPartnerData) {
-            $message = 'Need to Upload Partner Data and Lock Data first to see result.';
-        } elseif (!$isLocked && !$hasWebData) {
-            $message = 'Need to Upload KPX Web Data and Lock Data first to see result.';
-        } elseif (!$isLocked) {
-            $message = 'Need to Lock Data first to see result.';
-        } elseif (!$hasPartnerData) {
-            $message = 'Need to Upload Partner Data first to see result.';
-        } elseif (!$hasWebData) {
-            $message = 'Need to Upload KPX Web Data first to see result.';
-        }
-        $readiness[$date] = [
-            'has_partner_data' => $hasPartnerData,
-            'has_kpx_web_data' => $hasWebData,
-            'is_locked' => $isLocked,
-            'message' => $message,
-        ];
-        $cursor->modify('+1 day');
-    }
-
-    return $readiness;
-}
-
-function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, string $endDate, string $currency, array $readiness = []): array
+function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, string $endDate, string $currency): array
 {
     $amountFields = [
         'principal' => 'base_tran_amt',
@@ -640,24 +474,10 @@ function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, 
             'settlement_volume' => 0,
             'settlement_amount' => 0.0,
         ];
-        $row['readiness'] = $readiness[$date] ?? [
-            'has_partner_data' => false,
-            'has_settlement_data' => false,
-            'is_locked' => false,
-            'message' => '',
-        ];
-        $row['status_message'] = (string) ($row['readiness']['message'] ?? '');
-        if ($row['status_message'] !== '') {
-            $row['payout'] = summary_empty_amounts();
-            $row['sendout'] = summary_empty_amounts();
-            $row['settlement_volume'] = 0;
-            $row['settlement_amount'] = 0.0;
-        } else {
-            $totals['payout'] = summary_add_amounts($totals['payout'], $row['payout']);
-            $totals['sendout'] = summary_add_amounts($totals['sendout'], $row['sendout']);
-            $totals['settlement_volume'] += (int) $row['settlement_volume'];
-            $totals['settlement_amount'] += (float) $row['settlement_amount'];
-        }
+        $totals['payout'] = summary_add_amounts($totals['payout'], $row['payout']);
+        $totals['sendout'] = summary_add_amounts($totals['sendout'], $row['sendout']);
+        $totals['settlement_volume'] += (int) $row['settlement_volume'];
+        $totals['settlement_amount'] += (float) $row['settlement_amount'];
         $rows[] = $row;
         $cursor->modify('+1 day');
     }
@@ -736,7 +556,7 @@ function summary_merge_where(array ...$groups): array
     return $merged;
 }
 
-function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily, array $partnerCancelledDaily = [], array $webCancelledDaily = [], bool $varianceFromNetPartnerAndWeb = false, array $readiness = []): array
+function summary_build_rows_and_totals(DateTime $startObj, string $endDate, array $partnerDaily, array $webDaily, array $duplicateDaily, array $partnerCancelledDaily = [], array $webCancelledDaily = [], bool $varianceFromNetPartnerAndWeb = false): array
 {
     $rows = [];
     $totals = [
@@ -782,17 +602,6 @@ function summary_build_rows_and_totals(DateTime $startObj, string $endDate, arra
             'variance' => $variance,
             'deposit' => ['debit' => 0.0, 'credit' => 0.0, 'variance' => $depositVariance],
         ];
-        if (isset($readiness[$date])) {
-            $row['readiness'] = $readiness[$date];
-            $row['status_message'] = (string) ($readiness[$date]['message'] ?? '');
-        }
-        if (!empty($row['status_message'])) {
-            foreach (['partner', 'partner_cancelled', 'refund', 'net_partner', 'web', 'cancelled', 'duplicates', 'net_web', 'variance'] as $key) {
-                $row[$key] = summary_empty_amounts();
-            }
-            $row['deposit'] = ['debit' => 0.0, 'credit' => 0.0, 'variance' => 0.0];
-        }
-
         foreach (['partner', 'partner_cancelled', 'net_partner', 'web', 'cancelled', 'duplicates', 'net_web', 'variance'] as $key) {
             $totals[$key] = summary_add_amounts($totals[$key], $row[$key]);
         }
@@ -853,9 +662,6 @@ try {
         $webCancellationWhere = summary_column_is_not_nullish_where($webColumns, ['date_cancelled', 'date_cancellation']);
         $kpxCancellationCandidates = ['date_cancelled', 'date_cancellation'];
         $webNotCancelledWhere = summary_column_is_nullish_where($webColumns, $kpxCancellationCandidates);
-        $settlementReadiness = summary_moneygram_settlement_readiness($pdo, $startDate, $endDate, 'MONEYGRAM');
-        $payoutReadiness = summary_moneygram_cover_readiness($pdo, $startDate, $endDate, 'MONEYGRAM', 'payout');
-        $sendoutReadiness = summary_moneygram_cover_readiness($pdo, $startDate, $endDate, 'MONEYGRAM', 'sendout');
 
         foreach (['PHP', 'USD'] as $currencyCode) {
             $payoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
@@ -895,8 +701,7 @@ try {
                 $payoutDuplicateDaily,
                 $payoutCancelledPartnerDaily,
                 $payoutWebCancelledDaily,
-                true,
-                $payoutReadiness
+                true
             );
             $currencyReports[strtolower($currencyCode)]['currency'] = $currencyCode;
 
@@ -933,16 +738,14 @@ try {
                 $sendoutDuplicateDaily,
                 $sendoutCancelledPartnerDaily,
                 $sendoutWebCancelledDaily,
-                true,
-                $sendoutReadiness
+                true
             );
             $sendoutReports[strtolower($currencyCode)]['currency'] = $currencyCode;
             $settlementReports[strtolower($currencyCode)] = summary_fetch_moneygram_settlement_report(
                 $pdo,
                 $startDate,
                 $endDate,
-                $currencyCode,
-                $settlementReadiness
+                $currencyCode
             );
         }
 

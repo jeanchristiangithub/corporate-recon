@@ -34,17 +34,6 @@ function moneygram_summary_count(array $group): int
     return (int) ($group['volume'] ?? 0);
 }
 
-function moneygram_summary_locked_rows(array $report): array
-{
-    $rows = isset($report['rows']) && is_array($report['rows']) ? $report['rows'] : [];
-    return array_values(array_filter($rows, static function ($row): bool {
-        return is_array($row)
-            && isset($row['readiness'])
-            && is_array($row['readiness'])
-            && !empty($row['readiness']['is_locked']);
-    }));
-}
-
 function moneygram_summary_generated_by(): string
 {
     bootSecureSession();
@@ -228,7 +217,7 @@ function moneygram_summary_create_payout_sheet(Spreadsheet $spreadsheet, string 
     ], 2);
 
     $rowNumber = MONEYGRAM_SUMMARY_FIRST_DATA_ROW;
-    foreach (moneygram_summary_locked_rows($report) as $row) {
+    foreach (($report['rows'] ?? []) as $row) {
         $partner = moneygram_summary_amount($row, 'partner');
         $cancelled = moneygram_summary_amount($row, 'partner_cancelled');
         $netPartner = moneygram_summary_amount($row, 'net_partner');
@@ -282,7 +271,7 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
     ], 2);
 
     $rowNumber = MONEYGRAM_SUMMARY_FIRST_DATA_ROW;
-    foreach (moneygram_summary_locked_rows($report) as $row) {
+    foreach (($report['rows'] ?? []) as $row) {
         $date = (string) ($row['date'] ?? '');
         $partner = moneygram_summary_amount($row, 'partner');
         $refund = moneygram_summary_amount($row, 'partner_cancelled');
@@ -329,7 +318,7 @@ function moneygram_summary_create_settlement_sheet(Spreadsheet $spreadsheet, str
     ], 2);
 
     $rowNumber = MONEYGRAM_SUMMARY_FIRST_DATA_ROW;
-    foreach (moneygram_summary_locked_rows($report) as $row) {
+    foreach (($report['rows'] ?? []) as $row) {
         $payout = moneygram_summary_amount($row, 'payout');
         $sendout = moneygram_summary_amount($row, 'sendout');
         moneygram_summary_write_values($sheet, $rowNumber, [

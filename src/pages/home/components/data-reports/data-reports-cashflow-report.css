@@ -1,0 +1,368 @@
+.cash-flow-report-section {
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+.cash-flow-report-title {
+    margin: 0 0 1rem;
+    color: #17213c;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.cash-flow-report-filters {
+    display: grid;
+    grid-template-columns: minmax(280px, 560px) 176px max-content;
+    align-items: end;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.cash-flow-report-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 7px;
+    color: #17213c;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cash-flow-report-field input {
+    width: 100%;
+    height: 41px;
+    padding: 0 12px;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    outline: none;
+    background: #fff;
+    color: #263047;
+    font: 400 13px "Poppins", sans-serif;
+    box-sizing: border-box;
+}
+
+.cash-flow-report-field input:focus {
+    border-color: #9eb4d2;
+    box-shadow: 0 0 0 3px rgba(75, 112, 160, 0.1);
+}
+
+.cash-flow-report-field input:invalid {
+    border-color: #d5deeb;
+    box-shadow: none;
+}
+
+.cash-flow-report-autocomplete {
+    position: relative;
+}
+
+.cash-flow-report-autocomplete input,
+.cash-flow-report-autocomplete input:focus,
+.cash-flow-report-autocomplete input:invalid {
+    border-color: #ef2949;
+}
+
+.cash-flow-report-autocomplete input:focus {
+    box-shadow: 0 0 0 3px rgba(239, 41, 73, 0.12);
+}
+
+.cash-flow-report-field--month input,
+.cash-flow-report-field--month input:focus,
+.cash-flow-report-field--month input:invalid {
+    border-color: #ef2949;
+}
+
+.cash-flow-report-field--month input:focus {
+    box-shadow: 0 0 0 3px rgba(239, 41, 73, 0.12);
+}
+
+.cash-flow-report-autocomplete ul {
+    position: absolute;
+    z-index: 100;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    max-height: 250px;
+    margin: 0;
+    padding: 5px 0;
+    overflow-y: auto;
+    border: 1px solid #d5deeb;
+    border-radius: 7px;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(23, 33, 60, 0.14);
+    list-style: none;
+}
+
+.cash-flow-report-autocomplete ul[hidden] {
+    display: none;
+}
+
+.cash-flow-report-autocomplete li {
+    padding: 10px 12px;
+    color: #17213c;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.cash-flow-report-autocomplete li:hover,
+.cash-flow-report-autocomplete li.is-active {
+    background: #f1f5fa;
+}
+
+.cash-flow-report-generate {
+    min-width: 90px;
+    height: 41px;
+    padding: 0 17px;
+    border: 0;
+    border-radius: 8px;
+    background: #ed2947;
+    color: #fff;
+    font: 600 13px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.cash-flow-report-generate:hover {
+    background: #d91f3d;
+}
+
+.cash-flow-report-generate:focus-visible {
+    outline: 3px solid rgba(239, 41, 73, 0.25);
+    outline-offset: 2px;
+}
+
+.cash-flow-report-results-layout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+    margin-top: 16px;
+}
+
+.cash-flow-report-results-filter {
+    width: max-content;
+    min-width: 220px;
+    max-width: 360px;
+    min-height: 190px;
+    padding: 16px 8px;
+    overflow-x: auto;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.cash-flow-report-results-filter h3 {
+    margin: 0 0 26px;
+    color: #ed2947;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.cash-flow-report-results-filter dl,
+.cash-flow-report-results-filter dl div {
+    margin: 0;
+}
+
+.cash-flow-report-results-filter dl {
+    display: grid;
+    gap: 24px;
+}
+
+.cash-flow-report-results-filter dt {
+    margin: 0 0 5px;
+    color: #ed2947;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cash-flow-report-results-filter dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary {
+    gap: 12px;
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid #e3e8f0;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary dt {
+    margin: 0;
+    color: #ed2947;
+    font-size: 12px;
+    text-transform: none;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary dt i {
+    color: #f28c28;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary dt i span {
+    display: block;
+    margin-top: 2px;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary dd {
+    font-size: 12px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.cash-flow-report-currency-value {
+    display: inline-flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child {
+    padding-top: 10px;
+    border-top: 1px solid #d5deeb;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child dt {
+    color: #ed2947;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary .cash-flow-report-running-balance-label {
+    color: #ed2947 !important;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child dd {
+    color: #111827;
+}
+
+.cash-flow-report-results-content {
+    min-width: 0;
+}
+
+.cash-flow-report-currency-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #d5deeb;
+}
+
+.cash-flow-report-currency-tab {
+    min-width: 90px;
+    padding: 11px 22px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #667085;
+    font: 600 13px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.cash-flow-report-currency-tab:hover {
+    color: #ed2947;
+}
+
+.cash-flow-report-currency-tab.is-active {
+    border-bottom-color: #ed2947;
+    color: #ed2947;
+}
+
+.cash-flow-report-currency-tab:focus-visible {
+    border-radius: 4px 4px 0 0;
+    outline: 3px solid rgba(239, 41, 73, 0.2);
+    outline-offset: -3px;
+}
+
+.cash-flow-report-tab-panel {
+    padding-top: 16px;
+}
+
+.cash-flow-report-tab-panel[hidden] {
+    display: none;
+}
+
+.cash-flow-report-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.cash-flow-report-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    color: #17213c;
+    font-size: 13px;
+}
+
+.cash-flow-report-table th,
+.cash-flow-report-table td {
+    padding: 11px 12px;
+    border-right: 1px solid #d5deeb;
+    border-bottom: 1px solid #d5deeb;
+    white-space: nowrap;
+}
+
+.cash-flow-report-table th:last-child,
+.cash-flow-report-table td:last-child {
+    border-right: 0;
+}
+
+.cash-flow-report-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.cash-flow-report-table th {
+    background: #f7f9fc;
+    color: #17213c;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.cash-flow-report-table td:not(:first-child) {
+    text-align: right;
+}
+
+.cash-flow-report-table .cash-flow-report-empty-row td {
+    padding: 24px 12px;
+    color: #667085;
+    text-align: center;
+}
+
+@media (max-width: 760px) {
+    .cash-flow-report-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .cash-flow-report-generate {
+        width: 100%;
+    }
+
+    .cash-flow-report-results-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .cash-flow-report-results-filter {
+        width: 100%;
+        max-width: none;
+        min-height: auto;
+    }
+}

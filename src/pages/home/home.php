@@ -59,6 +59,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/profile-settings/user-profile-settings.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-reports/data-reports-cashflow-report.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/debug/error-debug-modal.css">
         <link rel="icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
@@ -207,6 +208,14 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">receipt_long</span>
                             <span class="label">Recon Report</span>
                         </a></li>
+                        <li><a href="#" id="navCashFlowReport" data-show="cashFlowReportSection">
+                            <span class="icon material-icons" aria-hidden="true">account_balance_wallet</span>
+                            <span class="label">Cash Flow Report</span>
+                        </a></li>
+                        <li><a href="#" id="navEdiReport" data-show="ediReportSection">
+                            <span class="icon material-icons" aria-hidden="true">description</span>
+                            <span class="label">EDI Report</span>
+                        </a></li>
                     </ul>
                 </li>
 
@@ -319,6 +328,8 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
+    <?php include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
+    <?php include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
     <?php include __DIR__ . '/components/maintenance-section.php'; ?>
 </main>
 
@@ -472,6 +483,8 @@ if ($currentUserId !== '') {
                 partnerdata: 'partnerdataSection',
                 partnerdatareportdaily: 'reportsPartnerDataSection',
                 partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
+                cashflowreport: 'cashFlowReportSection',
+                edireport: 'ediReportSection',
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
                 profilesettings: 'profileSettingsSection',
@@ -503,7 +516,7 @@ if ($currentUserId !== '') {
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navReconTool','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
