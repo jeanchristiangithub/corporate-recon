@@ -12,7 +12,7 @@
 
 .cash-flow-report-filters {
     display: grid;
-    grid-template-columns: minmax(280px, 560px) 176px max-content;
+    grid-template-columns: minmax(280px, 560px) 176px max-content max-content;
     align-items: end;
     gap: 12px;
     padding: 16px;
@@ -129,9 +129,43 @@
     background: #d91f3d;
 }
 
+.cash-flow-report-generate:disabled,
+.cash-flow-report-generate[aria-busy="true"] {
+    cursor: wait;
+    opacity: 0.8;
+}
+
 .cash-flow-report-generate:focus-visible {
     outline: 3px solid rgba(239, 41, 73, 0.25);
     outline-offset: 2px;
+}
+
+.cash-flow-report-submit-changes {
+    min-width: 132px;
+    height: 41px;
+    padding: 0 17px;
+    border: 1px solid #17803d;
+    border-radius: 8px;
+    background: #fff;
+    color: #17803d;
+    font: 600 13px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.cash-flow-report-submit-changes:hover:not(:disabled) {
+    background: #ecfdf3;
+}
+
+.cash-flow-report-submit-changes:focus-visible {
+    outline: 3px solid rgba(23, 128, 61, 0.2);
+    outline-offset: 2px;
+}
+
+.cash-flow-report-submit-changes:disabled {
+    border-color: #d5deeb;
+    background: #f3f5f8;
+    color: #98a2b3;
+    cursor: not-allowed;
 }
 
 .cash-flow-report-results-layout {
@@ -140,6 +174,28 @@
     gap: 16px;
     align-items: stretch;
     margin-top: 16px;
+}
+
+.cash-flow-report-results-layout[hidden],
+.cash-flow-report-submit-changes[hidden],
+.cash-flow-report-status[hidden] {
+    display: none !important;
+}
+
+.cash-flow-report-status {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+    color: #667085;
+    font-size: 13px;
+}
+
+.cash-flow-report-status.is-error {
+    border-color: #f4b4bf;
+    background: #fff5f6;
+    color: #c81e3a;
 }
 
 .cash-flow-report-results-filter {
@@ -287,6 +343,28 @@
     outline-offset: -3px;
 }
 
+.cash-flow-report-export-excel {
+    align-self: center;
+    margin: 0 0 7px auto;
+    padding: 8px 14px;
+    border: 1px solid #ed2947;
+    border-radius: 7px;
+    background: #ed2947;
+    color: #fff;
+    font: 600 12px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.cash-flow-report-export-excel:hover {
+    border-color: #d61f3b;
+    background: #d61f3b;
+}
+
+.cash-flow-report-export-excel:focus-visible {
+    outline: 3px solid rgba(237, 41, 71, 0.2);
+    outline-offset: 2px;
+}
+
 .cash-flow-report-tab-panel {
     padding-top: 16px;
 }
@@ -328,6 +406,14 @@
     border-bottom: 0;
 }
 
+.cash-flow-report-table tbody tr:not(.cash-flow-report-empty-row) td {
+    transition: background-color 0.15s ease;
+}
+
+.cash-flow-report-table tbody tr:not(.cash-flow-report-empty-row):hover td {
+    background-color: #f3f7fd;
+}
+
 .cash-flow-report-table th {
     background: #f7f9fc;
     border: 1px solid #d5deeb;
@@ -337,6 +423,11 @@
     text-align: center;
     text-transform: uppercase;
     vertical-align: middle;
+}
+
+.cash-flow-report-bank-deposit-header span {
+    display: block;
+    margin-top: 3px;
 }
 
 .cash-flow-report-table thead tr:first-child th {
@@ -365,12 +456,68 @@
     text-align: center;
 }
 
+.cash-flow-report-table .cash-flow-report-commission-row td {
+    background: #fffaf2;
+}
+
+.cash-flow-report-table .cash-flow-report-commission-row:hover td {
+    background: #fff3dc;
+}
+
+.cash-flow-report-table .cash-flow-report-commission-row td:first-child {
+    color: #f28c28;
+    font-style: italic;
+    font-weight: 600;
+    text-align: left;
+}
+
+.cash-flow-report-table td.cash-flow-report-negative-balance {
+    color: #ed2947;
+    font-weight: 600;
+}
+
+.cash-flow-report-remarks {
+    min-width: 105px;
+    padding: 5px 24px 5px 10px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    outline: none;
+    font: 600 11px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.cash-flow-report-table tbody td:last-child {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.cash-flow-report-remarks.is-not-valid {
+    background: #fff1f3;
+    color: #ed2947;
+}
+
+.cash-flow-report-remarks.is-valid {
+    background: #ecfdf3;
+    color: #17803d;
+}
+
+.cash-flow-report-remarks option {
+    background: #fff;
+    color: #17213c;
+    font-weight: 400;
+}
+
+.cash-flow-report-remarks:focus-visible {
+    box-shadow: 0 0 0 3px rgba(75, 112, 160, 0.18);
+}
+
 @media (max-width: 760px) {
     .cash-flow-report-filters {
         grid-template-columns: 1fr;
     }
 
-    .cash-flow-report-generate {
+    .cash-flow-report-generate,
+    .cash-flow-report-submit-changes {
         width: 100%;
     }
 

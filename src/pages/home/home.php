@@ -513,6 +513,7 @@ if ($currentUserId !== '') {
         // 'navUploadedFileLogs',
         'navWebDataCancellation',
         // 'navDataEntrySettlementDetail',
+        'navEdiReport',
     ];
 
     // wire nav links
