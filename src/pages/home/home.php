@@ -10,6 +10,12 @@ bootSecureSession();
 requireAuth();
 requireAdminRoleOrShowConstruction();
 
+$currentRole = (string) ($_SESSION['user']['role'] ?? '');
+$showMaintenanceMenu = strcasecmp($currentRole, 'Admin') === 0
+    || strcasecmp($currentRole, 'Public') === 0;
+$isPrimaryAdmin = isPrimaryAdminUser();
+$canManageUsers = $isPrimaryAdmin;
+
 $appBasePath = autoreconBasePath();
 $appBaseUrl = $appBasePath === '' ? '' : $appBasePath;
 
@@ -60,6 +66,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/profile-settings/user-profile-settings.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-reports/data-reports-cashflow-report.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-reports/data-reports-edi-report.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/comparisonresult/view-result-modal.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/modals/debug/error-debug-modal.css">
         <link rel="icon" type="image/png" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/assets/12.png">
@@ -258,7 +265,7 @@ if ($currentUserId !== '') {
                         </li>
                     </ul>
                 </li>
-            <?php if (isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0): ?>
+            <?php if ($showMaintenanceMenu): ?>
                 <li class="nav-group">
                     <button class="nav-group-toggle" aria-expanded="false" aria-controls="maintenanceMenu">
                         <span class="icon material-icons" aria-hidden="true">build</span>
@@ -266,14 +273,22 @@ if ($currentUserId !== '') {
                         <span class="chev material-icons" aria-hidden="true">expand_more</span>
                     </button>
                     <ul id="maintenanceMenu" class="nav-group-menu" style="display:none;">
-                        <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
-                            <span class="icon material-icons" aria-hidden="true">handshake</span>
-                            <span class="label">Partner Legacy ID</span>
+                        <li><a href="#" id="navDataUnlock" data-show="maintenanceDataUnlockSection">
+                            <span class="icon material-icons" aria-hidden="true">lock_open</span>
+                            <span class="label">Transaction Lock</span>
                         </a></li>
-                        <li><a href="#" id="navUsers" data-show="usersSection">
-                            <span class="icon material-icons" aria-hidden="true">manage_accounts</span>
-                            <span class="label">Users</span>
-                        </a></li>
+                        <?php if ($isPrimaryAdmin): ?>
+                            <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
+                                <span class="icon material-icons" aria-hidden="true">handshake</span>
+                                <span class="label">Partner Legacy ID</span>
+                            </a></li>
+                        <?php endif; ?>
+                        <?php if ($canManageUsers): ?>
+                            <li><a href="#" id="navUsers" data-show="usersSection">
+                                <span class="icon material-icons" aria-hidden="true">manage_accounts</span>
+                                <span class="label">Users</span>
+                            </a></li>
+                        <?php endif; ?>
                     </ul>
                 </li>
             <?php endif; ?>
@@ -291,9 +306,11 @@ if ($currentUserId !== '') {
         <?php include __DIR__ . '/components/dashboard.php'; ?>
     </section>
 
-    <section id="usersSection" class="users-section" aria-label="Users" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/all-users.php'; ?>
-    </section>
+    <?php if ($canManageUsers): ?>
+        <section id="usersSection" class="users-section" aria-label="Users" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/all-users.php'; ?>
+        </section>
+    <?php endif; ?>
 
     <section id="reportsWebDataSection" class="reports-webdata-section" aria-label="ML Web Data Report" style="display:none; padding:1rem">
         <?php include __DIR__ . '/components/reportswebdata-section.php'; ?>
@@ -330,7 +347,10 @@ if ($currentUserId !== '') {
     <?php include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
     <?php include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
     <?php include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
-    <?php include __DIR__ . '/components/maintenance-section.php'; ?>
+    <?php include __DIR__ . '/components/maintenance/maintenance-transaction-lock.php'; ?>
+    <?php if ($isPrimaryAdmin): ?>
+        <?php include __DIR__ . '/components/maintenance-section.php'; ?>
+    <?php endif; ?>
 </main>
 
     <?php include __DIR__ . '/../../modals/comparisonresult/view-result-modal.php'; ?>
@@ -472,7 +492,9 @@ if ($currentUserId !== '') {
             const allowed = {
                 dashboard: 'dashboardSection',
                 workspace: 'homeSection',
+                <?php if ($canManageUsers): ?>
                 users: 'usersSection',
+                <?php endif; ?>
                 webdata: 'webdataSection',
                 webdatacancellation: 'webdataCancellationSection',
                 kpxwebdataver2: 'kpxWebDataVer2Section',
@@ -488,7 +510,10 @@ if ($currentUserId !== '') {
                 summaryreport: 'summaryReportSection',
                 reconreport: 'reconReportSection',
                 profilesettings: 'profileSettingsSection',
+                maintenancedataunlock: 'maintenanceDataUnlockSection',
+                <?php if ($isPrimaryAdmin): ?>
                 maintenance: 'maintenanceSection',
+                <?php endif; ?>
                 uploadedfilelogs: 'uploadedFileLogsSection',
                 recon: 'homeSection'
             };
@@ -517,7 +542,7 @@ if ($currentUserId !== '') {
     ];
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){

@@ -19,9 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/middleware.php';
 requireAuth();
 
-$role = $_SESSION['user']['role'] ?? '';
-if (strcasecmp((string) $role, 'Admin') !== 0) {
-    $_SESSION['user_status_error'] = 'Only Admin can change user status.';
+if (!isPrimaryAdminUser()) {
+    $_SESSION['user_status_error'] = 'Only the primary Admin can change user status.';
     header('Location: ' . $redirectToUsers);
     exit;
 }

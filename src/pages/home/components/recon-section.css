@@ -279,6 +279,18 @@
     border-bottom: 0;
 }
 
+.locked-dates-modal__footer [data-action="close-locked-dates"] {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.locked-dates-modal__footer [data-action="close-locked-dates"]:hover {
+    background: #bb2d3b;
+    border-color: #b02a37;
+    color: #fff;
+}
+
 .locked-dates-modal__header h3 {
     margin: 0;
     color: #0f172a;
@@ -288,26 +300,47 @@
 
 .locked-dates-modal__body {
     padding: 16px 18px;
-    overflow: auto;
+    overflow: visible;
 }
 
 .locked-dates-toolbar {
-    display: flex;
-    justify-content: flex-end;
+    position: relative;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 165px 210px;
+    align-items: flex-end;
+    gap: 12px;
     margin-bottom: 12px;
+}
+
+.locked-dates-partner-filter,
+.locked-dates-partner-filter .autocomplete-field {
+    position: relative;
+    z-index: 21;
+}
+
+.locked-dates-partner-filter .autocomplete-list {
+    z-index: 10000;
 }
 
 .locked-dates-search {
     display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 6px;
     color: #475569;
     font-size: 0.86rem;
     font-weight: 700;
 }
 
+.locked-dates-search .autocomplete-field {
+    width: 100%;
+}
+
 .locked-dates-search input {
-    width: min(260px, 52vw);
+    width: 100%;
+    box-sizing: border-box;
     height: 34px;
     padding: 7px 10px;
     border: 1px solid rgba(15,23,42,0.14);
@@ -319,6 +352,18 @@
 .locked-dates-search input:focus {
     border-color: #dc3545;
     box-shadow: 0 0 0 3px rgba(220,53,69,0.10);
+}
+
+.locked-dates-search input:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: wait;
+    opacity: 0.8;
+}
+
+.locked-dates-modal.is-loading,
+.locked-dates-modal.is-loading * {
+    cursor: wait !important;
 }
 
 .locked-dates-modal__message {
@@ -385,6 +430,10 @@
     justify-content: center;
     gap: 10px;
     margin-top: 12px;
+}
+
+.locked-dates-pagination[hidden] {
+    display: none !important;
 }
 
 .locked-dates-page-info {
@@ -647,6 +696,18 @@
     .filters-actions { margin-left: 0; margin-top: 8px; }
     .summary         { flex-wrap: wrap; }
     .summary-card    { flex: 1 1 calc(50% - 6px); }
+}
+
+@media (max-width: 620px) {
+    .locked-dates-toolbar {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .locked-dates-search {
+        width: 100%;
+    }
+
 }
 
 @media (max-width: 480px) {

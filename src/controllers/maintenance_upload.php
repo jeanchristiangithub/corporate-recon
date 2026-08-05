@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/middleware.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -19,7 +20,7 @@ if (empty($_SESSION['user'])) {
     exit;
 }
 
-if (!empty($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') !== 0) {
+if (!isPrimaryAdminUser()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;

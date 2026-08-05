@@ -255,6 +255,7 @@
             const json = await res.json();
             lockBtn.disabled = false;
             lockBtn.textContent = json && json.has_active_locks ? UNLOCK_LABEL : LOCK_LABEL;
+            lockBtn.style.display = json && json.has_active_locks && modal.dataset.maintenanceUnlockOnly !== 'true' ? 'none' : '';
         }catch(e){ console.warn('Failed to fetch MBTC lock status', e); }
     }
 
@@ -304,6 +305,7 @@
                 markRowsLocked(refs, mode === 'lock');
                 lockBtn.disabled = false;
                 lockBtn.textContent = mode === 'lock' ? UNLOCK_LABEL : LOCK_LABEL;
+                lockBtn.style.display = mode === 'lock' ? 'none' : '';
                 if(window.showSuccessToast){
                     showSuccessToast(mode === 'lock' ? 'Matched transactions locked successfully.' : 'Matched transactions unlocked successfully.');
                 }
@@ -384,6 +386,7 @@
     if(closeBtn){
         closeBtn.addEventListener('click', function(event){
             if(modal._mbtcForceClosing) return;
+            if(modal.dataset.maintenanceUnlockOnly === 'true') return;
             const unlockedMatched = getUnlockedMatchedRows();
             if(unlockedMatched.length === 0) return;
             event.preventDefault();

@@ -72,6 +72,10 @@ try {
         exit;
     }
 
+    // The details payload is read-only because its active lock was verified above.
+    // Expose that server decision explicitly so the client never offers row unlocking here.
+    header('X-Reconciliation-Locked-View: 1');
+
     if ($partner === 'MONEYGRAM') {
         $_GET = [
             'start_date' => $transactionDate,

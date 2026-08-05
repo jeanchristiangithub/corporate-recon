@@ -19,9 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/middleware.php';
 requireAuth();
 
-$role = $_SESSION['user']['role'] ?? '';
-if (strcasecmp((string) $role, 'Admin') !== 0) {
-    $_SESSION['user_delete_error'] = 'Only Admin can delete users.';
+if (!isPrimaryAdminUser()) {
+    $_SESSION['user_delete_error'] = 'Only the primary Admin can delete users.';
     header('Location: ' . $redirectToUsers);
     exit;
 }

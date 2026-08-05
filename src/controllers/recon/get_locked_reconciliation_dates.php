@@ -14,6 +14,7 @@ if (empty($_SESSION['user'])) {
 }
 
 $partner = reconDaycardLocksNormalizePartner((string) ($_GET['partnername'] ?? ($_GET['partner'] ?? '')));
+$lockedDatesOnly = strtolower(trim((string) ($_GET['source'] ?? ''))) === 'locked_reconciliation_dates';
 
 try {
     $pdo = reconDaycardLocksDb();
@@ -49,29 +50,31 @@ try {
         }
     }
 
-    $sqlDaycard = 'SELECT corporate_partner AS partnername, recon_date AS transaction_date, :status AS status
+    if (!$lockedDatesOnly) {
+        $sqlDaycard = 'SELECT corporate_partner AS partnername, recon_date AS transaction_date, :status AS status
                    FROM recon_daycard_locks
                    WHERE is_locked = 1';
-    $paramsDaycard = [':status' => 'locked'];
-    if ($partner !== '') {
-        $sqlDaycard .= ' AND corporate_partner = :partner';
-        $paramsDaycard[':partner'] = $partner;
-    }
-    $sqlDaycard .= ' ORDER BY corporate_partner ASC, recon_date ASC';
-
-    $stmtDaycard = $pdo->prepare($sqlDaycard);
-    $stmtDaycard->execute($paramsDaycard);
-    foreach ($stmtDaycard->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $partnerName = reconDaycardLocksNormalizePartner((string) ($row['partnername'] ?? ''));
-        $date = reconDaycardLocksNormalizeDate((string) ($row['transaction_date'] ?? ''));
-        if ($partnerName === '' || $date === '') {
-            continue;
+        $paramsDaycard = [':status' => 'locked'];
+        if ($partner !== '') {
+            $sqlDaycard .= ' AND corporate_partner = :partner';
+            $paramsDaycard[':partner'] = $partner;
         }
-        $locked[$partnerName . '|' . $date] = [
-            'partnername' => $partnerName,
-            'transaction_date' => $date,
-            'status' => 'locked',
-        ];
+        $sqlDaycard .= ' ORDER BY corporate_partner ASC, recon_date ASC';
+
+        $stmtDaycard = $pdo->prepare($sqlDaycard);
+        $stmtDaycard->execute($paramsDaycard);
+        foreach ($stmtDaycard->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $partnerName = reconDaycardLocksNormalizePartner((string) ($row['partnername'] ?? ''));
+            $date = reconDaycardLocksNormalizeDate((string) ($row['transaction_date'] ?? ''));
+            if ($partnerName === '' || $date === '') {
+                continue;
+            }
+            $locked[$partnerName . '|' . $date] = [
+                'partnername' => $partnerName,
+                'transaction_date' => $date,
+                'status' => 'locked',
+            ];
+        }
     }
 
     $lockedDates = array_values($locked);

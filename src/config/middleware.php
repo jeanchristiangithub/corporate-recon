@@ -29,6 +29,17 @@ function requireAuth(): void
     }
 }
 
+function isPrimaryAdminUser(): bool
+{
+    bootSecureSession();
+
+    $user = $_SESSION['user'] ?? [];
+
+    return is_array($user)
+        && trim((string) ($user['id_number'] ?? '')) === '1'
+        && strcasecmp(trim((string) ($user['role'] ?? '')), 'Admin') === 0;
+}
+
 function requireAdminRoleOrShowConstruction(): void
 {
     bootSecureSession();

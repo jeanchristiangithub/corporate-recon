@@ -11,9 +11,8 @@ bootSecureSession();
 verifyCsrfOrFail();
 requireAuth();
 // Only Admin should be able to add users
-$role = $_SESSION['user']['role'] ?? '';
-if (strcasecmp((string) $role, 'Admin') !== 0) {
-    $_SESSION['user_create_error'] = 'Only Admin users can add accounts.';
+if (!isPrimaryAdminUser()) {
+    $_SESSION['user_create_error'] = 'Only the primary Admin can add accounts.';
     header('Location: ../pages/home/home.php?section=users');
     exit;
 }

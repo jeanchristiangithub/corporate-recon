@@ -4,6 +4,7 @@
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/session.php';
+require_once __DIR__ . '/../../config/middleware.php';
 
 header('Content-Type: application/json; charset=utf-8');
 bootSecureSession();
@@ -14,9 +15,8 @@ if(empty($_SESSION['user'])){
     exit;
 }
 
-// Restrict to Admin users only for safety
-$role = trim((string)($_SESSION['user']['role'] ?? ''));
-if(strcasecmp($role, 'Admin') !== 0){
+// Restrict this maintenance action to the primary Admin account.
+if(!isPrimaryAdminUser()){
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Forbidden']);
     exit;

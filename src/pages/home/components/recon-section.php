@@ -55,14 +55,14 @@ try {
                         <input id="hsEndDate" type="date" value="<?= date('Y-m-d') ?>">
                     </label>
                     <div style="display:inline-flex;align-items:flex-end;gap:8px">
-                        <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Start Reconcile</button>
-                        <button id="hsViewLockedDates" class="material-btn locked-dates-btn" type="button">View Locked Dates</button>
+                        <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Process</button>
+                        <!-- <button id="hsViewLockedDates" class="material-btn locked-dates-btn" type="button">View Locked Dates</button> -->
                     </div>
                 </div>
                 <div class="filters-actions">
                         <!--button id="hsViewCoverPH" class="material-btn">View Cover PHP</button>
-                        <!--button id="hsViewUsd" class="material-btn" style="display:none;margin-left:8px">View USD</button>
-                        <!--<button id="hsExport" class="material-btn material-btn--primary">Export</button>-->
+                        <button id="hsViewUsd" class="material-btn" style="display:none;margin-left:8px">View USD</button>
+                        <<button id="hsExport" class="material-btn material-btn--primary">Export</button>-->
                 </div>
             </div>
 
@@ -77,9 +77,20 @@ try {
                 <div id="lockedReconDatesMessage" class="locked-dates-modal__message" hidden></div>
                 <div class="locked-dates-modal__body">
                     <div class="locked-dates-toolbar">
+                        <label class="locked-dates-search locked-dates-partner-filter">
+                            <span>Corporate Partner</span>
+                            <div class="autocomplete-field">
+                                <input id="lockedReconDatesPartner" type="text" placeholder="Select corporate partner" autocomplete="off">
+                                <ul class="autocomplete-list" id="lockedReconDatesPartnerSuggestions" role="listbox" hidden></ul>
+                            </div>
+                        </label>
+                        <label class="locked-dates-search locked-dates-date-filter">
+                            <span>Transaction Date</span>
+                            <input id="lockedReconDatesDate" type="date">
+                        </label>
                         <label class="locked-dates-search">
                             <span>Search</span>
-                            <input id="lockedReconDatesSearch" type="search" placeholder="Search locked dates" autocomplete="off">
+                            <input id="lockedReconDatesSearch" type="search" placeholder="Search partner or date" autocomplete="off">
                         </label>
                     </div>
                     <div class="locked-dates-table-wrap">
@@ -90,7 +101,6 @@ try {
                                     <th>Transaction Date</th>
                                     <th>Details</th>
                                     <th>Status</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="lockedReconDatesBody"></tbody>
@@ -520,6 +530,8 @@ try {
         const lockedDatesModal = document.getElementById('lockedReconDatesModal');
         const lockedDatesBody = document.getElementById('lockedReconDatesBody');
         const lockedDatesMessage = document.getElementById('lockedReconDatesMessage');
+        const lockedDatesPartner = document.getElementById('lockedReconDatesPartner');
+        const lockedDatesDate = document.getElementById('lockedReconDatesDate');
         const lockedDatesSearch = document.getElementById('lockedReconDatesSearch');
         const lockedDatesPagination = document.getElementById('lockedReconDatesPagination');
         const lockedDatesPageInfo = document.getElementById('lockedReconDatesPageInfo');
@@ -562,6 +574,8 @@ try {
             lockedDatesModal.classList.add('is-open');
             lockedDatesModal.setAttribute('aria-hidden', 'false');
             try{ document.body.style.overflow = 'hidden'; }catch(e){}
+            if(lockedDatesPartner) lockedDatesPartner.value = '';
+            if(lockedDatesDate) lockedDatesDate.value = '';
             if(lockedDatesSearch) lockedDatesSearch.value = '';
             lockedDatesPage = 1;
             loadLockedDates();
@@ -576,13 +590,16 @@ try {
 
         function getLockedDatesFilteredRows(){
             const query = lockedDatesSearch ? String(lockedDatesSearch.value || '').trim().toLowerCase() : '';
+            const partnerQuery = lockedDatesPartner ? String(lockedDatesPartner.value || '').trim().toLowerCase() : '';
+            const dateQuery = lockedDatesDate ? normalizeIsoDate(lockedDatesDate.value || '') : '';
             const list = Array.isArray(lockedDatesRows) ? lockedDatesRows : [];
-            if(!query) return list;
             return list.filter((row) => {
                 const partner = String(row.partnername || row.corporate_partner || '').trim();
+                if(partnerQuery && partner.toLowerCase() !== partnerQuery) return false;
                 const transactionDate = normalizeIsoDate(row.transaction_date || row.recon_date || row.date || '');
-                const status = String(row.status || 'locked').trim() || 'locked';
-                const searchable = [partner, transactionDate, formatDateMMDDYYYY(transactionDate), status].join(' ').toLowerCase();
+                if(dateQuery && transactionDate !== dateQuery) return false;
+                if(!query) return true;
+                const searchable = [partner, transactionDate, formatDateMMDDYYYY(transactionDate)].join(' ').toLowerCase();
                 return searchable.indexOf(query) !== -1;
             });
         }
@@ -598,10 +615,12 @@ try {
                 const raw = String(dateString || '').trim();
                 const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
                 if(!match) return raw;
-                return match[2] + '-' + match[3] + '-' + match[1];
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthName = monthNames[Number(match[2]) - 1];
+                return monthName ? monthName + ' ' + match[3] + ', ' + match[1] : raw;
             };
             if(list.length === 0){
-                lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
+                lockedDatesBody.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
                 if(lockedDatesPagination) lockedDatesPagination.hidden = true;
                 return;
             }
@@ -620,10 +639,7 @@ try {
                     '<td><div class="locked-dates-actions">' +
                         '<button type="button" class="material-btn locked-dates-action-btn locked-dates-view" data-action="view-locked-date-details">View</button>' +
                     '</div></td>' +
-                    '<td><span class="locked-dates-status">' + escapeHtml(status) + '</span></td>' +
-                    '<td><div class="locked-dates-actions">' +
-                        '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="unlock-locked-date">Unlock</button>' +
-                    '</div></td>';
+                    '<td><span class="locked-dates-status">' + escapeHtml(status) + '</span></td>';
                 lockedDatesBody.appendChild(tr);
             });
 
@@ -641,11 +657,13 @@ try {
 
         async function loadLockedDates(){
             if(!lockedDatesBody) return;
+            const filterFields = [lockedDatesPartner, lockedDatesDate, lockedDatesSearch].filter(Boolean);
+            filterFields.forEach((field) => { field.disabled = true; });
+            if(lockedDatesModal) lockedDatesModal.classList.add('is-loading');
             setLockedDatesMessage('', '');
-            lockedDatesBody.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
+            lockedDatesBody.innerHTML = '<tr><td colspan="4" class="locked-dates-loading">Loading locked dates...</td></tr>';
             if(lockedDatesPagination) lockedDatesPagination.hidden = true;
-            const selectedPartner = (company && company.value) ? String(company.value).trim() : '';
-            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_locked_reconciliation_dates.php' + (selectedPartner ? ('?partnername=' + encodeURIComponent(selectedPartner)) : '');
+            const url = window.autoreconBaseUrl + '/src/controllers/recon/get_locked_reconciliation_dates.php';
             try{
                 const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
                 const json = await res.json();
@@ -665,6 +683,9 @@ try {
                 lockedDatesPage = 1;
                 renderLockedDates();
                 setLockedDatesMessage('Failed to load locked reconciliation dates.', 'error');
+            }finally{
+                filterFields.forEach((field) => { field.disabled = false; });
+                if(lockedDatesModal) lockedDatesModal.classList.remove('is-loading');
             }
         }
 
@@ -759,8 +780,87 @@ try {
             return result;
         }
 
-        async function viewLockedDateDetails(rowEl){
+        function showMaintenanceMatchedButton(modal, buttonSelector, mode){
+            if(!modal) return;
+            const matchedButton = modal.querySelector(buttonSelector);
+            if(!matchedButton) return;
+            if(mode === 'hidden'){
+                modal.dataset.maintenanceUnlockOnly = 'false';
+                modal.dataset.maintenanceMatchedMode = 'hidden';
+                matchedButton.style.display = 'none';
+                if(matchedButton.dataset.maintenanceHiddenWatcherBound !== 'true'){
+                    matchedButton.dataset.maintenanceHiddenWatcherBound = 'true';
+                    new MutationObserver(function(){
+                        if(modal.dataset.maintenanceMatchedMode === 'hidden' && matchedButton.style.display !== 'none'){
+                            matchedButton.style.display = 'none';
+                        }
+                    }).observe(matchedButton, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+                }
+                return;
+            }
+            const unlockMode = mode === 'unlock';
+            modal.dataset.maintenanceUnlockOnly = unlockMode ? 'true' : 'false';
+            modal.dataset.maintenanceMatchedMode = unlockMode ? 'unlock' : 'lock';
+            matchedButton.dataset.hideAfterMaintenanceUnlock = 'false';
+            matchedButton.dataset.hideAfterMaintenanceLock = 'false';
+            matchedButton.style.display = '';
+            matchedButton.disabled = false;
+            matchedButton.textContent = unlockMode ? 'UNLOCK MATCHED TRANSACTIONS' : 'LOCK MATCHED TRANSACTIONS';
+
+            if(matchedButton.dataset.maintenanceUnlockWatcherBound !== 'true'){
+                matchedButton.dataset.maintenanceUnlockWatcherBound = 'true';
+                new MutationObserver(function(){
+                    if(modal.dataset.maintenanceMatchedMode === 'hidden'){
+                        if(matchedButton.style.display !== 'none') matchedButton.style.display = 'none';
+                        return;
+                    }
+                    const label = String(matchedButton.textContent || '').trim().toUpperCase();
+                    if(modal.dataset.maintenanceMatchedMode === 'lock'){
+                        if(label.indexOf('LOCKING') === 0){
+                            matchedButton.dataset.hideAfterMaintenanceLock = 'true';
+                            return;
+                        }
+                        if(label === 'LOCK MATCHED TRANSACTIONS'){
+                            matchedButton.dataset.hideAfterMaintenanceLock = 'false';
+                            return;
+                        }
+                        if(label === 'UNLOCK MATCHED TRANSACTIONS'){
+                            if(matchedButton.dataset.hideAfterMaintenanceLock === 'true'){
+                                matchedButton.dataset.hideAfterMaintenanceLock = 'false';
+                                matchedButton.style.display = 'none';
+                            } else {
+                                matchedButton.textContent = 'LOCK MATCHED TRANSACTIONS';
+                            }
+                        }
+                        return;
+                    }
+                    if(modal.dataset.maintenanceUnlockOnly !== 'true') return;
+                    if(label.indexOf('UNLOCKING') === 0){
+                        matchedButton.dataset.hideAfterMaintenanceUnlock = 'true';
+                        return;
+                    }
+                    if(label === 'UNLOCK MATCHED TRANSACTIONS'){
+                        matchedButton.dataset.hideAfterMaintenanceUnlock = 'false';
+                        return;
+                    }
+                    if(label === 'LOCK MATCHED TRANSACTIONS'){
+                        if(matchedButton.dataset.hideAfterMaintenanceUnlock === 'true'){
+                            matchedButton.dataset.hideAfterMaintenanceUnlock = 'false';
+                            matchedButton.style.display = 'none';
+                        } else {
+                            matchedButton.textContent = 'UNLOCK MATCHED TRANSACTIONS';
+                        }
+                    }
+                }).observe(matchedButton, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+            }
+        }
+
+        async function viewLockedDateDetails(rowEl, options){
             if(!rowEl) return;
+            const maintenanceUnlockOnly = !!(options && options.maintenanceUnlockOnly);
+            const maintenanceButtonMode = options && options.maintenanceButtonMode
+                ? String(options.maintenanceButtonMode).toLowerCase()
+                : (maintenanceUnlockOnly ? 'unlock' : '');
             const partner = rowEl.dataset.partnername || '';
             const transactionDate = rowEl.dataset.transactionDate || '';
             if(!partner || !transactionDate){
@@ -780,22 +880,30 @@ try {
                     await showAlertModal((json && (json.error || json.message)) || 'Failed to load locked reconciliation details.');
                     return;
                 }
+                const serverLockedView = res.headers.get('X-Reconciliation-Locked-View') === '1';
+                if(!serverLockedView){
+                    await showAlertModal('The server could not verify this locked reconciliation view.');
+                    return;
+                }
 
                 closeLockedDatesModal();
                 if(isWorldInternationalCommunications(partner)){
                     const aggregate = buildLockedWicAggregate(json, partner, transactionDate);
-                    openWicRangeModal(aggregate, partner);
+                    openWicRangeModal(aggregate, partner, { serverLockedView: serverLockedView, lockedDates: [transactionDate] });
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('wicReconViewModal'), '#wicLockAllMatchedBtn', maintenanceButtonMode);
                     return;
                 }
 
                 if(isMetrobankHeadOffice(partner)){
                     const dayObj = buildLockedMbtcDay(json, partner, transactionDate);
-                    openMbtcReconModal(dayObj, { lockedDates: [transactionDate], partnerName: partner });
+                    openMbtcReconModal(dayObj, { serverLockedView: serverLockedView, lockedDates: [transactionDate], partnerName: partner });
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('mbtcReconViewModal'), '#mbtcLockAllMatchedBtn', maintenanceButtonMode);
                     return;
                 }
 
                 const aggregate = buildLockedMoneygramAggregate(json, partner, transactionDate);
-                openMoneygramRangeModal(aggregate, partner, { lockedDates: [transactionDate] });
+                openMoneygramRangeModal(aggregate, partner, { serverLockedView: serverLockedView, lockedDates: [transactionDate] });
+                if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('moneygramReconViewModal'), '#moneygramLockAllMatchedBtn', maintenanceButtonMode);
             }catch(e){
                 console.warn('Failed to load locked reconciliation details', e);
                 await showAlertModal('Failed to load locked reconciliation details.');
@@ -803,52 +911,50 @@ try {
                 if(btn){ btn.disabled = false; btn.textContent = 'View'; }
             }
         }
+        // Allow maintenance tools to open the same partner-specific reconciliation details.
+        window.openLockedReconciliationDetails = viewLockedDateDetails;
 
-        async function unlockLockedDate(rowEl){
+        async function openTransactionLockReconciliationDetails(rowEl, options){
             if(!rowEl) return;
-            const partner = rowEl.dataset.partnername || '';
-            const transactionDate = rowEl.dataset.transactionDate || '';
+            const maintenanceButtonMode = options && String(options.maintenanceButtonMode || '').toLowerCase();
+            const partner = rowEl.dataset.partnername || rowEl.dataset.partner || '';
+            const transactionDate = rowEl.dataset.transactionDate || rowEl.dataset.date || '';
+            const btn = rowEl.querySelector('[data-action="maintenance-lock-view"]');
             if(!partner || !transactionDate){
-                await showAlertModal('Missing locked date details.');
+                await showAlertModal('Missing reconciliation details.');
                 return;
             }
-            const confirmed = await showConfirmModal('Continue Unlock?', { confirmText: 'Yes', cancelText: 'No', confirmFirst: true });
-            if(!confirmed) return;
-            const btn = rowEl.querySelector('[data-action="unlock-locked-date"]');
-            if(btn){ btn.disabled = true; btn.textContent = 'Unlocking...'; }
+            if(btn){ btn.disabled = true; btn.textContent = 'Loading...'; }
             try{
-                const res = await fetch(window.autoreconBaseUrl + '/src/controllers/recon/unlock_reconciliation_date.php', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ partnername: partner, transaction_date: transactionDate })
-                });
+                const url = window.autoreconBaseUrl + '/src/controllers/recon/get_reconciliation_details.php'
+                    + '?partnername=' + encodeURIComponent(partner)
+                    + '&transaction_date=' + encodeURIComponent(transactionDate);
+                const res = await fetch(url, { method: 'GET', credentials: 'same-origin', cache: 'no-store' });
                 const json = await res.json();
                 if(!res.ok || !(json && json.success)){
-                    if(btn){ btn.disabled = false; btn.textContent = 'Unlock'; }
-                    setLockedDatesMessage((json && (json.error || json.message)) || 'Failed to unlock reconciliation date.', 'error');
+                    await showAlertModal((json && (json.error || json.message)) || 'Failed to load reconciliation details.');
                     return;
                 }
-                lockedDatesRows = (Array.isArray(lockedDatesRows) ? lockedDatesRows : []).filter((item) => {
-                    const itemPartner = String(item.partnername || item.corporate_partner || '').trim().toUpperCase();
-                    const itemDate = normalizeIsoDate(item.transaction_date || item.recon_date || item.date || '');
-                    return !(itemPartner === String(partner).trim().toUpperCase() && itemDate === transactionDate);
-                });
-                renderLockedDates();
-                setLockedDatesMessage('Reconciliation date unlocked successfully.', 'success');
-                daysContainer.querySelectorAll('.day-card[data-date]').forEach((card) => {
-                    const cardDate = normalizeIsoDate(card.getAttribute('data-date') || '');
-                    const cardPartner = String(card.getAttribute('data-partner') || getSelectedPartnerLockKey() || '').trim().toUpperCase();
-                    if(cardDate === transactionDate && cardPartner === String(partner).trim().toUpperCase()){
-                        setDayCardLockState(card, false);
-                    }
-                });
+                if(isWorldInternationalCommunications(partner)){
+                    openWicRangeModal(buildLockedWicAggregate(json, partner, transactionDate), partner, { serverLockedView: false, lockedDates: [] });
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('wicReconViewModal'), '#wicLockAllMatchedBtn', maintenanceButtonMode);
+                    return;
+                }
+                if(isMetrobankHeadOffice(partner)){
+                    openMbtcReconModal(buildLockedMbtcDay(json, partner, transactionDate), { serverLockedView: false, lockedDates: [], partnerName: partner });
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('mbtcReconViewModal'), '#mbtcLockAllMatchedBtn', maintenanceButtonMode);
+                    return;
+                }
+                openMoneygramRangeModal(buildLockedMoneygramAggregate(json, partner, transactionDate), partner, { serverLockedView: false, lockedDates: [] });
+                if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('moneygramReconViewModal'), '#moneygramLockAllMatchedBtn', maintenanceButtonMode);
             }catch(e){
-                console.warn('Failed to unlock reconciliation date', e);
-                if(btn){ btn.disabled = false; btn.textContent = 'Unlock'; }
-                setLockedDatesMessage('Failed to unlock reconciliation date.', 'error');
+                console.warn('Failed to load transaction-lock reconciliation details', e);
+                await showAlertModal('Failed to load reconciliation details.');
+            }finally{
+                if(btn){ btn.disabled = false; btn.textContent = 'View'; }
             }
         }
+        window.openTransactionLockReconciliationDetails = openTransactionLockReconciliationDetails;
 
         function toUpperKey(value){
             return String(value || '').trim().toUpperCase();
@@ -1174,6 +1280,8 @@ try {
         function openMoneygramRangeModal(aggregate, partnerName, options){
             const modal = document.getElementById('moneygramReconViewModal');
             if(!modal) throw new Error('moneygram_modal_not_found');
+            modal.dataset.maintenanceUnlockOnly = 'false';
+            modal.dataset.maintenanceMatchedMode = '';
 
             const loadingEl = modal.querySelector('.moneygram-recon-modal__loading');
             if(loadingEl) loadingEl.style.display = 'flex';
@@ -1183,6 +1291,7 @@ try {
             const lockedDates = Array.isArray(options && options.lockedDates) ? options.lockedDates.map((date) => normalizeIsoDate(date)).filter(Boolean) : [];
             const lockedDateSet = new Set(lockedDates);
             modal.dataset.lockedView = lockedDates.length > 0 ? 'true' : 'false';
+            modal.dataset.serverLockedView = options && options.serverLockedView === true ? 'true' : 'false';
             modal.dataset.lockedDates = lockedDates.join(',');
             modal.dataset.partnerName = String(partnerName || '');
             modal.dataset.reconDate = String(aggregate && aggregate.startDate || '');
@@ -1852,8 +1961,9 @@ try {
             if(typeof modal._moneygramRefreshDetectedCount === 'function'){
                 modal._moneygramRefreshDetectedCount();
             }
+            const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
+            if(lockBtn) lockBtn.style.display = modal.dataset.serverLockedView === 'true' ? 'none' : '';
             if(lockedDates.length){
-                const lockBtn = modal.querySelector('#moneygramLockAllMatchedBtn');
                 if(lockBtn){
                     lockBtn.disabled = false;
                     lockBtn.textContent = 'UNLOCK MATCHED TRANSACTIONS';
@@ -1950,9 +2060,17 @@ try {
             if(loadingEl) loadingEl.style.display = 'none';
         }
 
-        function openWicRangeModal(aggregate, partnerName){
+        function openWicRangeModal(aggregate, partnerName, options){
             const modal = document.getElementById('wicReconViewModal');
             if(!modal) throw new Error('wic_modal_not_found');
+            modal.dataset.maintenanceUnlockOnly = 'false';
+            modal.dataset.maintenanceMatchedMode = '';
+            const serverLockedView = options && options.serverLockedView === true;
+            modal.dataset.serverLockedView = serverLockedView ? 'true' : 'false';
+            modal.dataset.lockedView = serverLockedView ? 'true' : 'false';
+            modal.dataset.lockedDates = serverLockedView && Array.isArray(options.lockedDates) ? options.lockedDates.join(',') : '';
+            const lockBtn = modal.querySelector('#wicLockAllMatchedBtn');
+            if(lockBtn) lockBtn.style.display = serverLockedView ? 'none' : '';
 
             const loadingEl = modal.querySelector('.wic-recon-modal__loading');
             if(loadingEl) loadingEl.style.display = 'flex';
@@ -2350,6 +2468,16 @@ try {
             const container = input ? input.closest('.autocomplete-field') : null;
             const list = container ? container.querySelector('.autocomplete-list') : null;
             if(!input || !container || !list) return;
+            const useFloatingOverlay = input.id === 'lockedReconDatesPartner';
+
+            if(useFloatingOverlay){
+                document.body.appendChild(list);
+                Object.assign(list.style, {
+                    position: 'fixed',
+                    zIndex: '200010',
+                    right: 'auto'
+                });
+            }
 
             let activeIndex = -1;
             let suppressNextRender = false;
@@ -2378,6 +2506,16 @@ try {
                 list.hidden = true;
                 list.innerHTML = '';
                 activeIndex = -1;
+            }
+
+            function positionFloatingList(){
+                if(!useFloatingOverlay) return;
+                const rect = input.getBoundingClientRect();
+                const availableHeight = Math.max(120, window.innerHeight - rect.bottom - 12);
+                list.style.left = rect.left + 'px';
+                list.style.top = (rect.bottom + 6) + 'px';
+                list.style.width = rect.width + 'px';
+                list.style.maxHeight = Math.min(280, availableHeight) + 'px';
             }
 
             function applyActiveItem(items){
@@ -2422,6 +2560,7 @@ try {
                     list.appendChild(item);
                 });
                 activeIndex = -1;
+                positionFloatingList();
                 list.hidden = false;
             }
 
@@ -2450,8 +2589,16 @@ try {
             });
 
             document.addEventListener('click', function(event){
-                if(!container.contains(event.target)) closeSuggestions();
+                if(!container.contains(event.target) && !list.contains(event.target)) closeSuggestions();
             });
+            if(useFloatingOverlay){
+                window.addEventListener('resize', function(){
+                    if(!list.hidden) positionFloatingList();
+                });
+                window.addEventListener('scroll', function(){
+                    if(!list.hidden) positionFloatingList();
+                }, true);
+            }
         }
 
         function isMetrobankHeadOffice(name){
@@ -2480,6 +2627,7 @@ try {
         }
 
         attachPartnerAutocomplete(company, partners);
+        attachPartnerAutocomplete(lockedDatesPartner, partners);
 
         // Partner selection is now an input with a datalist (`hsCompany`)
 
@@ -3316,6 +3464,7 @@ try {
             if(lockBtn){
                 lockBtn.disabled = false;
                 lockBtn.textContent = 'LOCK MATCHED TRANSACTIONS';
+                lockBtn.style.display = '';
                 lockBtn.onclick = async function(){
                     if(typeof IS_ADMIN !== 'undefined' && !IS_ADMIN){
                         await showAlertModal('You are not authorized to lock transactions.');
@@ -3353,6 +3502,7 @@ try {
                             tr.classList.toggle('is-locked-row', mode === 'lock');
                         });
                         lockBtn.textContent = mode === 'lock' ? 'UNLOCK MATCHED TRANSACTIONS' : 'LOCK MATCHED TRANSACTIONS';
+                        lockBtn.style.display = mode === 'lock' ? 'none' : '';
                         window.showSuccessToast && showSuccessToast(mode === 'lock' ? 'Matched transactions locked successfully.' : 'Matched transactions unlocked successfully.');
                     }catch(e){
                         console.warn('Skybridge lock/unlock failed', e);
@@ -3392,6 +3542,7 @@ try {
                         if(activeRes && activeRes.ok){
                             const activeJson = await activeRes.json();
                             lockBtn.textContent = activeJson && activeJson.has_active_locks ? 'UNLOCK MATCHED TRANSACTIONS' : 'LOCK MATCHED TRANSACTIONS';
+                            lockBtn.style.display = activeJson && activeJson.has_active_locks ? 'none' : '';
                         }
                     }catch(e){
                         console.warn('Failed to hydrate Skybridge lock state', e);
@@ -4488,6 +4639,8 @@ try {
             else if(isRcbc(companyName) || (dayObj && String(dayObj.partner||'').toUpperCase() === 'RCBC')) modal = document.getElementById('rcbcReconViewModal');
             else modal = document.getElementById('mbtcReconViewModal');
             if(!modal) return;
+            modal.dataset.maintenanceUnlockOnly = 'false';
+            modal.dataset.maintenanceMatchedMode = '';
             const loadingEl = modal.querySelector('.mbtc-recon-modal__loading, .wic-recon-modal__loading, .moneygram-recon-modal__loading, .rcbc-recon-modal__loading');
             if(loadingEl) loadingEl.style.display = 'flex';
             // show modal immediately with overlay so users see progress
@@ -4498,8 +4651,11 @@ try {
                 modal.dataset.reconDate = String(dayObj.date || '');
                 modal.dataset.partnerName = modalPartnerName;
                 modal.dataset.lockedView = lockedDates.length > 0 ? 'true' : 'false';
+                modal.dataset.serverLockedView = options && options.serverLockedView === true ? 'true' : 'false';
                 modal.dataset.lockedDates = lockedDates.join(',');
             }catch(_e){}
+            const matchedLockBtn = modal.querySelector('#mbtcLockAllMatchedBtn, #wicLockAllMatchedBtn, #moneygramLockAllMatchedBtn');
+            if(matchedLockBtn) matchedLockBtn.style.display = modal.dataset.serverLockedView === 'true' ? 'none' : '';
 
             try{
             // populate header metrics
@@ -4861,6 +5017,7 @@ try {
                 if(lockBtn){
                     lockBtn.disabled = false;
                     lockBtn.textContent = 'UNLOCK MATCHED TRANSACTIONS';
+                    lockBtn.style.display = modal.dataset.maintenanceUnlockOnly === 'true' ? '' : 'none';
                 }
             }
 
@@ -5318,10 +5475,26 @@ try {
             });
         }
 
+        if(lockedDatesPartner){
+            const filterLockedDatesByPartner = function(){
+                lockedDatesPage = 1;
+                renderLockedDates();
+            };
+            lockedDatesPartner.addEventListener('input', filterLockedDatesByPartner);
+            lockedDatesPartner.addEventListener('change', filterLockedDatesByPartner);
+        }
+
+        if(lockedDatesDate){
+            lockedDatesDate.addEventListener('change', function(){
+                lockedDatesPage = 1;
+                renderLockedDates();
+            });
+        }
+
         if(lockedDatesModal){
             lockedDatesModal.addEventListener('click', function(e){
                 const closeTarget = e.target.closest && e.target.closest('[data-action="close-locked-dates"]');
-                if(closeTarget || e.target === lockedDatesModal){
+                if(closeTarget){
                     closeLockedDatesModal();
                     return;
                 }
@@ -5345,17 +5518,14 @@ try {
                     viewLockedDateDetails(viewTarget.closest('tr'));
                     return;
                 }
-                const unlockTarget = e.target.closest && e.target.closest('[data-action="unlock-locked-date"]');
-                if(unlockTarget){
-                    e.preventDefault();
-                    unlockLockedDate(unlockTarget.closest('tr'));
-                }
             });
             document.addEventListener('keydown', function(e){
-                if(e.key === 'Escape' && lockedDatesModal.classList.contains('is-open')){
-                    closeLockedDatesModal();
+                if(!lockedDatesModal.classList.contains('is-open')) return;
+                if(e.key === 'Escape' || e.key === 'Enter'){
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                 }
-            });
+            }, true);
         }
 
         // View Cover PH button: opens modal and populates Partner/Web tables (frontend-only)

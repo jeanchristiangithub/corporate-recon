@@ -18,9 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$currentRole = $_SESSION['user']['role'] ?? '';
-if (strcasecmp((string) $currentRole, 'Admin') !== 0) {
-    $_SESSION['user_update_error'] = 'Only Admin can update users.';
+if (!isPrimaryAdminUser()) {
+    $_SESSION['user_update_error'] = 'Only the primary Admin can update users.';
     header('Location: ' . $redirectToUsers);
     exit;
 }

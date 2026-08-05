@@ -12,9 +12,8 @@ verifyCsrfOrFail();
 requireAuth();
 
 // Only Admin can reset other users' passwords
-$role = $_SESSION['user']['role'] ?? '';
-if (strcasecmp((string)$role, 'Admin') !== 0) {
-    $_SESSION['user_reset_error'] = 'Only Admin users can reset passwords.';
+if (!isPrimaryAdminUser()) {
+    $_SESSION['user_reset_error'] = 'Only the primary Admin can reset passwords.';
     header('Location: ../pages/home/home.php');
     exit;
 }

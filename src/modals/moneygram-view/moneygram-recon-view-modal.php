@@ -671,6 +671,7 @@ window.showSuccessToast = function(message, timeout){
             if(lockBtn){
                 lockBtn.disabled = false;
                 lockBtn.textContent = UNLOCK_LABEL;
+                lockBtn.style.display = modal.dataset.maintenanceUnlockOnly === 'true' ? '' : 'none';
                 updateLockColumn(true);
             }
             return;
@@ -692,6 +693,7 @@ window.showSuccessToast = function(message, timeout){
             if(lockBtn){
                 lockBtn.disabled = false;
                 lockBtn.textContent = hasActiveLocks ? UNLOCK_LABEL : LOCK_LABEL;
+                lockBtn.style.display = hasActiveLocks && modal.dataset.maintenanceUnlockOnly !== 'true' ? 'none' : '';
                 updateLockColumn(!!hasActiveLocks);
             }
         }catch(e){ console.warn('Failed to fetch active lock status', e); }
@@ -705,6 +707,7 @@ window.showSuccessToast = function(message, timeout){
                     if(lockBtn){
                         lockBtn.disabled = false;
                         lockBtn.textContent = UNLOCK_LABEL;
+                        lockBtn.style.display = modal.dataset.maintenanceUnlockOnly === 'true' ? '' : 'none';
                         updateLockColumn(true);
                     }
                     continue;
@@ -765,6 +768,7 @@ window.showSuccessToast = function(message, timeout){
                         });
                         lockBtn.textContent = UNLOCK_LABEL;
                         lockBtn.disabled = false;
+                        lockBtn.style.display = 'none';
                         updateLockColumn(true);
                         window.showSuccessToast && showSuccessToast('Matched transactions locked successfully.');
                     } else {
@@ -812,6 +816,7 @@ window.showSuccessToast = function(message, timeout){
         const originalOnclick = closeBtn.onclick;
         
         closeBtn.addEventListener('click', function(e){
+            if(modal.dataset.maintenanceUnlockOnly === 'true') return;
             // Collect matched rows that are NOT locked
             const unlockedMatched = modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)
                 ? modal._moneygramVirtual.pairs.filter(pair => !pair.isMismatch && !pair.isDuplicate && !pair.locked)
