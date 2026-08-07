@@ -100,7 +100,7 @@ function vbReconDbConnection(): PDO
 
     $host = env('VBRECON_DB_HOST', 'localhost');
     $dbName = env('VBRECON_DB_NAME', 'vbrecon');
-    $username = env('VBRECON_DB_USERNAME', 'mlcad');
+    $username = env('VBRECON_DB_USERNAME', 'root');
     $password = env('VBRECON_DB_PASSWORD', '');
 
     $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $host, $dbName);

@@ -19,6 +19,35 @@
                 </div>
             </fieldset>
 
+            <div class="uploaded-file-logs-process-card" aria-label="Uploaded file log processing filters">
+                <label class="uploaded-file-logs-process-field uploaded-file-logs-process-field--partner">
+                    <span>Corporate Partner</span>
+                    <div class="uploaded-file-logs-partner-autocomplete">
+                        <input type="text"
+                               id="uploadedFileLogsPartner"
+                               role="combobox"
+                               aria-autocomplete="list"
+                               aria-controls="uploadedFileLogsPartnerList"
+                               aria-expanded="false"
+                               placeholder="Select corporate partner"
+                               autocomplete="off">
+                        <ul id="uploadedFileLogsPartnerList"
+                            class="uploaded-file-logs-partner-list"
+                            role="listbox"
+                            hidden></ul>
+                    </div>
+                </label>
+                <label class="uploaded-file-logs-process-field">
+                    <span>Start Date</span>
+                    <input type="date" id="uploadedFileLogsStartDate" value="<?= date('Y-m-d') ?>">
+                </label>
+                <label class="uploaded-file-logs-process-field">
+                    <span>End Date</span>
+                    <input type="date" id="uploadedFileLogsEndDate" value="<?= date('Y-m-d') ?>">
+                </label>
+                <button type="button" id="uploadedFileLogsProcessBtn" class="uploaded-file-logs-process-btn">Process</button>
+            </div>
+
             <div class="uploaded-file-logs-state-card" data-log-source-card="kpx_web_data">
                 <fieldset class="uploaded-file-logs-group uploaded-file-logs-group--state">
                     <!-- <legend>KPX Web Data State</legend> -->
@@ -48,15 +77,10 @@
                             </label>
                         </div>
                         <div class="uploaded-file-logs-filter-tools">
-                            <label class="uploaded-file-logs-field">
-                                <span>Date:</span>
-                                <input type="month" id="uploadedFileLogsMonth" name="uploaded_file_log_month">
-                            </label>
                             <label class="uploaded-file-logs-field uploaded-file-logs-field--search">
                                 <span>Search:</span>
                                 <input type="search" id="uploadedFileLogsSearch" name="uploaded_file_log_search" placeholder="Search files">
                             </label>
-                            <button type="button" id="uploadedFileLogsClearBtn" class="uploaded-file-logs-clear-btn">Clear</button>
                         </div>
                     </div>
                 </fieldset>
@@ -85,6 +109,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="uploadedFileLogsPagination" class="uploaded-file-logs-pagination" hidden></div>
                 </div>
             </div>
 
@@ -108,15 +133,10 @@
                             </label>
                         </div>
                         <div class="uploaded-file-logs-filter-tools">
-                            <label class="uploaded-file-logs-field">
-                                <span>Date:</span>
-                                <input type="month" id="partnerUploadedFileLogsMonth" name="partner_uploaded_file_log_month">
-                            </label>
                             <label class="uploaded-file-logs-field uploaded-file-logs-field--search">
                                 <span>Search:</span>
                                 <input type="search" id="partnerUploadedFileLogsSearch" name="partner_uploaded_file_log_search" placeholder="Search files">
                             </label>
-                            <button type="button" id="partnerUploadedFileLogsClearBtn" class="uploaded-file-logs-clear-btn">Clear</button>
                         </div>
                     </div>
                 </fieldset>
@@ -145,6 +165,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="partnerUploadedFileLogsPagination" class="uploaded-file-logs-pagination" hidden></div>
                 </div>
             </div>
         </form>
@@ -229,12 +250,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const tableTitle = document.getElementById('uploadedFileLogsTableTitle');
     const tableBody = document.getElementById('uploadedFileLogsTableBody');
     const partnerTableBody = document.getElementById('partnerUploadedFileLogsTableBody');
-    const monthField = document.getElementById('uploadedFileLogsMonth');
+    const pagination = document.getElementById('uploadedFileLogsPagination');
+    const partnerPagination = document.getElementById('partnerUploadedFileLogsPagination');
     const searchField = document.getElementById('uploadedFileLogsSearch');
-    const clearButton = document.getElementById('uploadedFileLogsClearBtn');
-    const partnerMonthField = document.getElementById('partnerUploadedFileLogsMonth');
     const partnerSearchField = document.getElementById('partnerUploadedFileLogsSearch');
-    const partnerClearButton = document.getElementById('partnerUploadedFileLogsClearBtn');
+    const processPartnerField = document.getElementById('uploadedFileLogsPartner');
+    const processPartnerList = document.getElementById('uploadedFileLogsPartnerList');
+    const processStartDate = document.getElementById('uploadedFileLogsStartDate');
+    const processEndDate = document.getElementById('uploadedFileLogsEndDate');
+    const processButton = document.getElementById('uploadedFileLogsProcessBtn');
     const viewModal = document.getElementById('uploadedFileLogsViewModal');
     const viewModalClose = document.getElementById('uploadedFileLogsViewModalClose');
     const detailPartner = document.getElementById('uploadedFileLogsDetailPartner');
@@ -247,11 +271,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const recordsSearch = document.getElementById('uploadedFileLogsRecordsSearch');
     let activeRequest = null;
     let activeDetailRequest = null;
+    let activePartnerRequest = null;
     let searchTimer = null;
     let recordsSearchTimer = null;
+    let partnerLookupTimer = null;
     let viewModalTrigger = null;
     let loadedRecordColumns = [];
     let loadedRecordRows = [];
+    let corporatePartnerOptions = [];
+    let activePartnerIndex = -1;
+    let appliedProcessFilters = {
+        partner: '',
+        startDate: '',
+        endDate: ''
+    };
 
     const stateLabels = {
         all: 'ALL',
@@ -571,7 +604,84 @@ document.addEventListener('DOMContentLoaded', function () {
         targetBody.replaceChildren(row);
     }
 
-    async function loadUploadedFileLogs() {
+    function paginationPageList(currentPage, totalPages) {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, function (_, index) { return index + 1; });
+        }
+
+        const pages = [1];
+        const rangeStart = Math.max(2, currentPage - 1);
+        const rangeEnd = Math.min(totalPages - 1, currentPage + 1);
+        if (rangeStart > 2) {
+            pages.push('ellipsis-start');
+        }
+        for (let page = rangeStart; page <= rangeEnd; page += 1) {
+            pages.push(page);
+        }
+        if (rangeEnd < totalPages - 1) {
+            pages.push('ellipsis-end');
+        }
+        pages.push(totalPages);
+        return pages;
+    }
+
+    function renderLogPagination(target, metadata) {
+        if (!target) {
+            return;
+        }
+
+        const total = Number(metadata.total || 0);
+        const currentPage = Number(metadata.page || 1);
+        const pageSize = Number(metadata.page_size || 10);
+        const totalPages = Number(metadata.total_pages || 1);
+        target.replaceChildren();
+
+        if (total === 0) {
+            target.hidden = true;
+            return;
+        }
+
+        const start = ((currentPage - 1) * pageSize) + 1;
+        const end = Math.min(currentPage * pageSize, total);
+        const summary = document.createElement('span');
+        summary.className = 'uploaded-file-logs-pagination-summary';
+        summary.textContent = 'Showing ' + start.toLocaleString() + '–' + end.toLocaleString() +
+            ' of ' + total.toLocaleString();
+
+        const controls = document.createElement('div');
+        controls.className = 'uploaded-file-logs-pagination-controls';
+
+        function addButton(label, page, disabled, isCurrent) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'uploaded-file-logs-page-btn' + (isCurrent ? ' is-current' : '');
+            button.textContent = label;
+            button.dataset.page = String(page);
+            button.disabled = disabled;
+            if (isCurrent) {
+                button.setAttribute('aria-current', 'page');
+            }
+            controls.appendChild(button);
+        }
+
+        addButton('Previous', currentPage - 1, currentPage <= 1, false);
+        paginationPageList(currentPage, totalPages).forEach(function (page) {
+            if (typeof page !== 'number') {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'uploaded-file-logs-pagination-ellipsis';
+                ellipsis.textContent = '…';
+                controls.appendChild(ellipsis);
+                return;
+            }
+            addButton(String(page), page, false, page === currentPage);
+        });
+        addButton('Next', currentPage + 1, currentPage >= totalPages, false);
+
+        target.append(summary, controls);
+        target.hidden = false;
+    }
+
+    async function loadUploadedFileLogs(requestedPage) {
         const selectedSource = document.querySelector('input[name="uploaded_file_log_source"]:checked');
         const source = selectedSource ? selectedSource.value : 'kpx_web_data';
         const isPartner = source === 'partner_data';
@@ -581,8 +691,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const state = isPartner
             ? (selectedPartnerState ? selectedPartnerState.value : 'all')
             : (selectedState ? selectedState.value : 'all');
-        const month = isPartner ? partnerMonthField : monthField;
         const search = isPartner ? partnerSearchField : searchField;
+        const targetPagination = isPartner ? partnerPagination : pagination;
+        const page = Number.isInteger(Number(requestedPage)) && Number(requestedPage) > 0
+            ? Number(requestedPage)
+            : 1;
 
         if (!targetBody) {
             return;
@@ -593,12 +706,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         activeRequest = new AbortController();
         renderMessage(targetBody, 'Loading uploaded files…', false);
+        if (targetPagination) {
+            targetPagination.hidden = true;
+        }
 
         const params = new URLSearchParams({
             source: source,
             state: state,
-            month: month ? month.value : '',
-            search: search ? search.value.trim() : ''
+            search: search ? search.value.trim() : '',
+            partner: appliedProcessFilters.partner,
+            start_date: appliedProcessFilters.startDate,
+            end_date: appliedProcessFilters.endDate,
+            page: String(page),
+            page_size: '10'
         });
 
         try {
@@ -620,6 +740,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? getSelectedStateLabel('partner_uploaded_file_log_state')
                 : getSelectedStateLabel('uploaded_file_log_state');
             renderRows(targetBody, Array.isArray(result.rows) ? result.rows : [], emptyLabel);
+            renderLogPagination(targetPagination, result.pagination || {});
         } catch (error) {
             if (error.name !== 'AbortError') {
                 renderMessage(targetBody, error.message || 'Unable to load uploaded file logs.', true);
@@ -638,9 +759,222 @@ document.addEventListener('DOMContentLoaded', function () {
         loadUploadedFileLogs();
     }
 
+    async function loadCorporatePartners(query) {
+        if (!processPartnerList) {
+            return;
+        }
+
+        if (activePartnerRequest) {
+            activePartnerRequest.abort();
+        }
+        activePartnerRequest = new AbortController();
+
+        try {
+            const params = new URLSearchParams();
+            if (query) {
+                params.set('q', query);
+            }
+            const queryString = params.toString();
+            const response = await fetch(
+                window.autoreconUrl('src/controllers/masterdata/corpo-partner-values.php') +
+                    (queryString ? '?' + queryString : ''),
+                {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                    signal: activePartnerRequest.signal
+                }
+            );
+            const result = await response.json();
+            if (!response.ok || !result.success || !Array.isArray(result.values)) {
+                return;
+            }
+
+            corporatePartnerOptions = result.values.map(function (partner) {
+                return String(partner || '').trim();
+            }).filter(Boolean);
+            renderCorporatePartnerSuggestions();
+        } catch (error) {
+            // The filter remains usable as a text field if suggestions cannot be loaded.
+        }
+    }
+
+    function renderCorporatePartnerSuggestions() {
+        if (!processPartnerList || !processPartnerField) {
+            return;
+        }
+
+        activePartnerIndex = -1;
+        processPartnerList.replaceChildren();
+        const fragment = document.createDocumentFragment();
+
+        if (!corporatePartnerOptions.length) {
+            const empty = document.createElement('li');
+            empty.className = 'uploaded-file-logs-partner-empty';
+            empty.textContent = 'No corporate partner found';
+            fragment.appendChild(empty);
+        } else {
+            corporatePartnerOptions.forEach(function (partner, index) {
+                const option = document.createElement('li');
+                option.id = 'uploadedFileLogsPartnerOption' + index;
+                option.dataset.partner = partner;
+                option.setAttribute('role', 'option');
+                option.setAttribute('aria-selected', 'false');
+                option.textContent = partner;
+                fragment.appendChild(option);
+            });
+        }
+
+        processPartnerList.appendChild(fragment);
+        if (document.activeElement === processPartnerField) {
+            processPartnerList.hidden = false;
+            processPartnerField.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function closeCorporatePartnerSuggestions() {
+        if (!processPartnerList || !processPartnerField) {
+            return;
+        }
+        processPartnerList.hidden = true;
+        processPartnerField.setAttribute('aria-expanded', 'false');
+        processPartnerField.removeAttribute('aria-activedescendant');
+        activePartnerIndex = -1;
+    }
+
+    function moveCorporatePartnerSuggestion(direction) {
+        const options = Array.from(processPartnerList.querySelectorAll('[data-partner]'));
+        if (!options.length) {
+            return;
+        }
+
+        activePartnerIndex = (activePartnerIndex + direction + options.length) % options.length;
+        options.forEach(function (option, index) {
+            const isActive = index === activePartnerIndex;
+            option.classList.toggle('is-active', isActive);
+            option.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        const activeOption = options[activePartnerIndex];
+        processPartnerField.setAttribute('aria-activedescendant', activeOption.id);
+        activeOption.scrollIntoView({ block: 'nearest' });
+    }
+
+    function selectCorporatePartnerSuggestion(option) {
+        if (!option || !processPartnerField) {
+            return;
+        }
+        processPartnerField.value = option.dataset.partner || '';
+        closeCorporatePartnerSuggestions();
+    }
+
+    function processUploadedFileLogFilters() {
+        const startDate = processStartDate ? processStartDate.value : '';
+        const endDate = processEndDate ? processEndDate.value : '';
+
+        if (startDate && endDate && startDate > endDate) {
+            processEndDate.setCustomValidity('End Date must be on or after Start Date.');
+            processEndDate.reportValidity();
+            return;
+        }
+
+        if (processEndDate) {
+            processEndDate.setCustomValidity('');
+        }
+        appliedProcessFilters = {
+            partner: processPartnerField ? processPartnerField.value.trim() : '',
+            startDate: startDate,
+            endDate: endDate
+        };
+        loadUploadedFileLogs();
+    }
+
     sourceRadios.forEach(function (radio) {
         radio.addEventListener('change', updateSourceVisibility);
     });
+
+    if (processButton) {
+        processButton.addEventListener('click', processUploadedFileLogFilters);
+    }
+
+    [processStartDate, processEndDate].forEach(function (field) {
+        if (field) {
+            field.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    processUploadedFileLogFilters();
+                }
+            });
+        }
+    });
+
+    if (processPartnerField) {
+        processPartnerField.addEventListener('input', function () {
+            window.clearTimeout(partnerLookupTimer);
+            partnerLookupTimer = window.setTimeout(function () {
+                loadCorporatePartners(processPartnerField.value.trim());
+            }, 150);
+        });
+        processPartnerField.addEventListener('focus', function () {
+            if (corporatePartnerOptions.length) {
+                renderCorporatePartnerSuggestions();
+            } else {
+                loadCorporatePartners(processPartnerField.value.trim());
+            }
+        });
+        processPartnerField.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (processPartnerList.hidden) {
+                    renderCorporatePartnerSuggestions();
+                }
+                moveCorporatePartnerSuggestion(event.key === 'ArrowDown' ? 1 : -1);
+                return;
+            }
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const options = processPartnerList.querySelectorAll('[data-partner]');
+                if (!processPartnerList.hidden && activePartnerIndex >= 0 && options[activePartnerIndex]) {
+                    selectCorporatePartnerSuggestion(options[activePartnerIndex]);
+                } else {
+                    closeCorporatePartnerSuggestions();
+                    processUploadedFileLogFilters();
+                }
+                return;
+            }
+            if (event.key === 'Escape') {
+                closeCorporatePartnerSuggestions();
+            }
+        });
+    }
+
+    if (processPartnerList) {
+        processPartnerList.addEventListener('mousedown', function (event) {
+            event.preventDefault();
+        });
+        processPartnerList.addEventListener('click', function (event) {
+            selectCorporatePartnerSuggestion(event.target.closest('[data-partner]'));
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        if (processPartnerField && processPartnerList &&
+            !event.target.closest('.uploaded-file-logs-partner-autocomplete')) {
+            closeCorporatePartnerSuggestions();
+        }
+    });
+
+    if (processStartDate && processEndDate) {
+        processEndDate.min = processStartDate.value;
+        processStartDate.addEventListener('change', function () {
+            processEndDate.min = processStartDate.value;
+            if (processStartDate.value) {
+                processEndDate.value = processStartDate.value;
+            }
+            processEndDate.setCustomValidity('');
+        });
+        processEndDate.addEventListener('change', function () {
+            processEndDate.setCustomValidity('');
+        });
+    }
 
     stateRadios.forEach(function (radio) {
         radio.addEventListener('change', function () {
@@ -661,12 +995,6 @@ document.addEventListener('DOMContentLoaded', function () {
         searchTimer = window.setTimeout(loadUploadedFileLogs, 250);
     }
 
-    [monthField, partnerMonthField].forEach(function (field) {
-        if (field) {
-            field.addEventListener('change', loadUploadedFileLogs);
-        }
-    });
-
     [searchField, partnerSearchField].forEach(function (field) {
         if (field) {
             field.addEventListener('input', queueSearch);
@@ -680,6 +1008,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (button) {
                     openViewModal(button);
                 }
+            });
+        }
+    });
+
+    [pagination, partnerPagination].forEach(function (paginationElement) {
+        if (paginationElement) {
+            paginationElement.addEventListener('click', function (event) {
+                const button = event.target.closest('[data-page]');
+                if (!button || button.disabled) {
+                    return;
+                }
+                loadUploadedFileLogs(Number(button.dataset.page));
             });
         }
     });
@@ -709,33 +1049,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    if (clearButton) {
-        clearButton.addEventListener('click', function () {
-            if (monthField) {
-                monthField.value = '';
-            }
-
-            if (searchField) {
-                searchField.value = '';
-            }
-            loadUploadedFileLogs();
-        });
-    }
-
-    if (partnerClearButton) {
-        partnerClearButton.addEventListener('click', function () {
-            if (partnerMonthField) {
-                partnerMonthField.value = '';
-            }
-
-            if (partnerSearchField) {
-                partnerSearchField.value = '';
-            }
-            loadUploadedFileLogs();
-        });
-    }
-
     updateTableState('uploaded_file_log_state', tableTitle);
+    loadCorporatePartners('');
     updateSourceVisibility();
 });
 </script>

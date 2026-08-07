@@ -284,6 +284,29 @@
     white-space: nowrap;
 }
 
+.cash-flow-report-results-filter .cash-flow-report-forwarded-row {
+    align-items: start;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-forwarded-label,
+.cash-flow-report-results-filter .cash-flow-report-forwarded-row > dd {
+    min-height: 18px;
+    line-height: 18px;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-forwarded-label {
+    display: inline;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-forwarded-row > dd {
+    align-items: center;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-forwarded-row dt i span {
+    display: inline;
+    margin: 0 0 0 4px;
+}
+
 .cash-flow-report-currency-value {
     display: inline-flex;
     justify-content: flex-end;
@@ -430,6 +453,11 @@
     margin-top: 3px;
 }
 
+.cash-flow-report-bank-deposit-header .cash-flow-report-bank-account {
+    font-size: 11px;
+    font-weight: 600;
+}
+
 .cash-flow-report-table thead tr:first-child th {
     border-top: 0;
 }
@@ -456,6 +484,28 @@
     text-align: center;
 }
 
+.cash-flow-report-table .cash-flow-report-forwarded-table-row td {
+    background: #fffaf2;
+    font-weight: 700;
+    text-align: right;
+}
+
+.cash-flow-report-table .cash-flow-report-forwarded-table-row td:first-child {
+    color: #ed2947;
+    text-align: right;
+}
+
+.cash-flow-report-table .cash-flow-report-forwarded-table-row td:first-child i {
+    margin-left: 3px;
+    color: #f28c28;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.cash-flow-report-table .cash-flow-report-forwarded-table-row:hover td {
+    background: #fff3dc;
+}
+
 .cash-flow-report-table .cash-flow-report-commission-row td {
     background: #fffaf2;
 }
@@ -477,7 +527,7 @@
 }
 
 .cash-flow-report-remarks {
-    min-width: 105px;
+    min-width: 155px;
     padding: 5px 24px 5px 10px;
     border: 1px solid currentColor;
     border-radius: 999px;

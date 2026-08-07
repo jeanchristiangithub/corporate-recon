@@ -139,9 +139,10 @@ function settlementPrefetchRows(PDO $pdo, string $table, array $items, ?string $
 /** @return array<string,mixed>|null */
 function settlementMatchPrefetchedRow(array $rowsByReference, array $item): ?array
 {
+    $referenceWasResolved = !empty($item['reference_id_resolved_from_blank']);
     $candidates = array_values(array_filter(
         $rowsByReference[(string)$item['reference_id']] ?? [],
-        static fn(array $candidate): bool => settlementTranTypesMatch($item['tran_type'] ?? null, $candidate['tran_type'] ?? null)
+        static fn(array $candidate): bool => $referenceWasResolved || settlementTranTypesMatch($item['tran_type'] ?? null, $candidate['tran_type'] ?? null)
     ));
     foreach ($candidates as $candidate) {
         if ((string)($candidate['tran_date'] ?? '') === (string)$item['tran_date']) return $candidate;
@@ -213,6 +214,7 @@ try {
     );
 
     $prepared = [];
+    $skippedMissingReference = 0;
     foreach ($rows as $row) {
         if (!is_array($row)) continue;
         $item = [
@@ -223,6 +225,7 @@ try {
             'settled_date' => $uploadMode === 'daily' ? settlementSaveDate($row['settled_date'] ?? null) : null,
             'transaction_id' => settlementSaveText($row['transaction_id'] ?? null),
             'reference_id' => settlementSaveText($row['reference_id'] ?? null),
+            'reference_id_resolved_from_blank' => $uploadMode === 'endMonth' && !empty($row['reference_id_resolved_from_blank']),
             'product' => settlementSaveText($row['product'] ?? null),
             'tran_type' => settlementSaveText($row['tran_type'] ?? null),
             'orig_cntry' => settlementSaveText($row['orig_cntry'] ?? null),
@@ -247,6 +250,10 @@ try {
             && $item['transaction_id'] === null
             && $item['total_tran_amt'] !== null
             && $item['settlement_currency'] !== null;
+        if ($uploadMode === 'endMonth' && $item['reference_id'] === null && $item['tran_date'] !== null && !$item['is_summary_row']) {
+            $skippedMissingReference++;
+            continue;
+        }
         if (($item['reference_id'] === null || $item['tran_date'] === null) && !$item['is_summary_row']) {
             throw new RuntimeException(
                 'Reference ID and Tran Date are required unless Account Number, Agent Name, Legacy ID, and Transaction ID are blank while Total Tran Amt and Settlement Currency contain data.'
@@ -338,6 +345,7 @@ try {
             'settlement_inserted' => $settlementInserted,
             'settlement_updated' => $settlementAmended,
             'settlement_amended' => $settlementAmended,
+            'skipped_missing_reference' => $skippedMissingReference,
         ]);
         exit;
     }

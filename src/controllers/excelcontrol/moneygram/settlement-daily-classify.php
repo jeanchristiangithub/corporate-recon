@@ -29,6 +29,7 @@ if ($storedToken === '' || !hash_equals($storedToken, $sentToken)) {
 
 $payload = json_decode((string)($_POST['payload'] ?? ''), true);
 $pairs = is_array($payload) && isset($payload['pairs']) && is_array($payload['pairs']) ? $payload['pairs'] : [];
+$uploadMode = is_array($payload) ? (string)($payload['upload_mode'] ?? 'daily') : 'daily';
 
 function settlementDailyAmount(mixed $value): ?float
 {
@@ -93,7 +94,7 @@ function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column,
     if ($selectedIds !== []) {
         $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
         $dataStatement = $pdo->prepare(
-            'SELECT id, tran_date, fx_rate_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt
+            'SELECT id, reference_id, tran_date, fx_rate_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt
              FROM moneygram_partner_data WHERE id IN (' . $placeholders . ')'
         );
         $dataStatement->execute($selectedIds);
@@ -112,6 +113,65 @@ function settlementDailyBatchLookup(PDO $pdo, array $candidates, string $column,
                 'database' => $database,
                 'matched_by' => $column,
             ];
+        }
+    }
+    return $results;
+}
+
+function settlementEndMonthDateAmountKey(string $tranDate, mixed $value): string
+{
+    return $tranDate . "\0" . number_format(abs((float)$value), 6, '.', '');
+}
+
+/** @return array<int,array{exists:bool,database:?array,matched_by:string}> */
+function settlementEndMonthDateAmountLookup(PDO $pdo, array $candidates, string $column): array
+{
+    if ($candidates === [] || !in_array($column, ['base_tran_amt', 'fx_rev_share_tran_amt', 'comm_tran_amt'], true)) return [];
+    $unique = [];
+    foreach ($candidates as $index => $candidate) {
+        $key = settlementEndMonthDateAmountKey($candidate['tran_date'], $candidate['value']);
+        $unique[$key]['tran_date'] = $candidate['tran_date'];
+        $unique[$key]['value'] = abs((float)$candidate['value']);
+        $unique[$key]['indexes'][] = (int)$index;
+    }
+    $clauses = [];
+    $parameters = [];
+    foreach ($unique as $candidate) {
+        $clauses[] = '(reference_id IS NOT NULL AND TRIM(reference_id) <> \'\' AND tran_date = ? AND ABS(`' . $column . '`) = ?)';
+        $parameters[] = $candidate['tran_date'];
+        $parameters[] = $candidate['value'];
+    }
+    $statement = $pdo->prepare(
+        'SELECT tran_date, ABS(`' . $column . '`) AS match_value, COUNT(DISTINCT reference_id) AS reference_count, MAX(id) AS selected_id
+         FROM moneygram_partner_data WHERE ' . implode(' OR ', $clauses) . '
+         GROUP BY tran_date, ABS(`' . $column . '`)'
+    );
+    $statement->execute($parameters);
+    $summaries = $statement->fetchAll(PDO::FETCH_ASSOC);
+    $selectedIds = [];
+    foreach ($summaries as $summary) {
+        if ((int)$summary['reference_count'] === 1) $selectedIds[] = (int)$summary['selected_id'];
+    }
+    $dataById = [];
+    if ($selectedIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
+        $dataStatement = $pdo->prepare(
+            'SELECT id, reference_id, tran_date, fx_rate_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt
+             FROM moneygram_partner_data WHERE id IN (' . $placeholders . ')'
+        );
+        $dataStatement->execute($selectedIds);
+        foreach ($dataStatement->fetchAll(PDO::FETCH_ASSOC) as $row) $dataById[(int)$row['id']] = $row;
+    }
+    $results = [];
+    foreach ($summaries as $summary) {
+        if ((int)$summary['reference_count'] !== 1) continue;
+        $key = settlementEndMonthDateAmountKey((string)$summary['tran_date'], $summary['match_value']);
+        if (!isset($unique[$key])) continue;
+        $database = $dataById[(int)$summary['selected_id']] ?? null;
+        if (!is_array($database)) continue;
+        unset($database['id']);
+        foreach ($unique[$key]['indexes'] as $index) {
+            $results[$index] = ['exists' => true, 'database' => $database, 'matched_by' => 'tran_date+' . $column];
         }
     }
     return $results;
@@ -156,6 +216,22 @@ try {
         }
         foreach (settlementDailyBatchLookup($pdo, $candidates, $stage['column'], $stage['date']) as $index => $match) {
             $results[$index] = $match;
+        }
+    }
+
+    if ($uploadMode === 'endMonth') {
+        foreach (['base_tran_amt', 'fx_rev_share_tran_amt', 'comm_tran_amt'] as $column) {
+            $candidates = [];
+            foreach ($inputRows as $index => $row) {
+                if ($results[$index]['exists'] || $row['reference_id'] !== '') continue;
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['tran_date'])) continue;
+                $value = $row[$column];
+                if ($value === null || abs((float)$value) < 0.0000001) continue;
+                $candidates[$index] = ['tran_date' => $row['tran_date'], 'value' => $value];
+            }
+            foreach (settlementEndMonthDateAmountLookup($pdo, $candidates, $column) as $index => $match) {
+                $results[$index] = $match;
+            }
         }
     }
 

@@ -49,6 +49,128 @@
     flex-wrap: wrap;
 }
 
+.uploaded-file-logs-process-card {
+    display: grid;
+    grid-template-columns: minmax(260px, 325px) 156px 156px auto;
+    gap: 0.75rem;
+    align-items: end;
+    justify-content: start;
+    width: 100%;
+    padding: 0.85rem;
+    background: #f8fafc;
+    border: 1px solid #e6eef6;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.uploaded-file-logs-process-field {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.uploaded-file-logs-process-field > span {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.uploaded-file-logs-process-field input {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 0.45rem 0.65rem;
+    color: #1f2937;
+    font-family: inherit;
+    font-size: 0.88rem;
+    background: #fff;
+    border: 1px solid #d7e0ea;
+    border-radius: 7px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uploaded-file-logs-process-field input:focus {
+    border-color: rgba(220, 53, 69, 0.45);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+.uploaded-file-logs-partner-autocomplete {
+    position: relative;
+    min-width: 0;
+}
+
+.uploaded-file-logs-partner-list {
+    position: absolute;
+    z-index: 100;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    max-height: 260px;
+    margin: 0;
+    padding: 0.35rem 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    color: #1f2937;
+    background: #fff;
+    border: 1px solid #dce5ef;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    list-style: none;
+}
+
+.uploaded-file-logs-partner-list[hidden] {
+    display: none;
+}
+
+.uploaded-file-logs-partner-list [data-partner],
+.uploaded-file-logs-partner-empty {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.84rem;
+    font-weight: 500;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.uploaded-file-logs-partner-list [data-partner] {
+    cursor: pointer;
+}
+
+.uploaded-file-logs-partner-list [data-partner]:hover,
+.uploaded-file-logs-partner-list [data-partner].is-active {
+    color: #dc3545;
+    background: #fff5f5;
+}
+
+.uploaded-file-logs-partner-empty {
+    color: #94a3b8;
+}
+
+.uploaded-file-logs-process-btn {
+    height: 38px;
+    padding: 0.45rem 1.2rem;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: #dc3545;
+    border: 1px solid #dc3545;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uploaded-file-logs-process-btn:hover,
+.uploaded-file-logs-process-btn:focus-visible {
+    background: #c82333;
+    border-color: #bd2130;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.14);
+    outline: none;
+}
+
 .uploaded-file-logs-state-toolbar {
     display: flex;
     align-items: center;
@@ -181,6 +303,71 @@
 .uploaded-file-logs-table-wrap {
     width: 100%;
     overflow-x: auto;
+}
+
+.uploaded-file-logs-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0.75rem;
+    border-top: 1px solid #e6eef6;
+}
+
+.uploaded-file-logs-pagination[hidden] {
+    display: none;
+}
+
+.uploaded-file-logs-pagination-summary {
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.uploaded-file-logs-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.uploaded-file-logs-page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 0.65rem;
+    color: #475569;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #fff;
+    border: 1px solid #dce5ef;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.uploaded-file-logs-page-btn:hover:not(:disabled),
+.uploaded-file-logs-page-btn:focus-visible {
+    color: #dc3545;
+    border-color: rgba(220, 53, 69, 0.4);
+    background: #fff5f5;
+    outline: none;
+}
+
+.uploaded-file-logs-page-btn.is-current {
+    color: #fff;
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.uploaded-file-logs-page-btn:disabled {
+    color: #a8b1bd;
+    background: #f8fafc;
+    cursor: not-allowed;
+}
+
+.uploaded-file-logs-pagination-ellipsis {
+    min-width: 24px;
+    color: #94a3b8;
+    text-align: center;
 }
 
 .uploaded-file-logs-table {
@@ -588,27 +775,6 @@ body.uploaded-file-logs-modal-open {
     width: 220px;
 }
 
-.uploaded-file-logs-clear-btn {
-    min-height: 36px;
-    padding: 0.45rem 0.85rem;
-    color: #374151;
-    font-size: 0.84rem;
-    font-weight: 800;
-    background: #fff;
-    border: 1px solid #e6eef6;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.uploaded-file-logs-clear-btn:hover,
-.uploaded-file-logs-clear-btn:focus-visible {
-    color: #dc3545;
-    border-color: rgba(220, 53, 69, 0.4);
-    background: #fff5f5;
-    outline: none;
-}
-
 @media (max-width: 720px) {
     .uploaded-file-logs-filters {
         flex-direction: column;
@@ -617,6 +783,14 @@ body.uploaded-file-logs-modal-open {
     .uploaded-file-logs-group {
         width: 100%;
         min-width: 0;
+    }
+
+    .uploaded-file-logs-process-card {
+        grid-template-columns: 1fr;
+    }
+
+    .uploaded-file-logs-process-btn {
+        width: 100%;
     }
 
     .uploaded-file-logs-state-card {
@@ -655,8 +829,7 @@ body.uploaded-file-logs-modal-open {
         margin-left: 0;
     }
 
-    .uploaded-file-logs-field,
-    .uploaded-file-logs-clear-btn {
+    .uploaded-file-logs-field {
         width: 100%;
     }
 
@@ -667,6 +840,16 @@ body.uploaded-file-logs-modal-open {
 
     .uploaded-file-logs-table-header {
         padding: 0.75rem;
+    }
+
+    .uploaded-file-logs-pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .uploaded-file-logs-pagination-controls {
+        max-width: 100%;
+        overflow-x: auto;
     }
 
     .uploaded-file-logs-table th,

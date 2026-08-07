@@ -78,44 +78,44 @@ $missingMoneygramLegacyTransactionCount = array_sum(array_map(static function (a
 
 	<div class="dashboard-page-label">Dashboard</div>
 
-	<div class="dashboard-grid dashboard-grid--legacy-only">
-		<?php if ($isDashboardAdmin): ?>
-		<div class="card legacy-ids-card<?= $missingMoneygramLegacyCount > 0 ? ' has-missing-legacy' : '' ?>">
+	<!-- <div class="dashboard-grid dashboard-grid--legacy-only">
+		<?php //if ($isDashboardAdmin): ?>
+		<div class="card legacy-ids-card<?//= $missingMoneygramLegacyCount > 0 ? ' has-missing-legacy' : '' ?>">
 			<h3>Legacy IDs</h3>
 			<div class="card-body new-branches-summary">
-				<?php if (!$missingLegacyLookupAvailable): ?>
+				<?php //if (!$missingLegacyLookupAvailable): ?>
 					<div class="new-branches-state is-unavailable">
 						<span class="material-icons" aria-hidden="true">cloud_off</span>
 						<span>Legacy ID information is currently unavailable.</span>
 					</div>
-				<?php elseif ($missingMoneygramLegacyCount === 0): ?>
+				<?php //lseif ($missingMoneygramLegacyCount === 0): ?>
 					<div class="new-branches-state is-clear">
 						<span class="material-icons" aria-hidden="true">verified</span>
 						<span>All detected partner branches have registered Legacy IDs.</span>
 					</div>
-				<?php else: ?>
+				<?php //else: ?>
 					<div class="new-branches-metric legacy-ids-metric">
-						<strong><?= number_format($missingMoneygramLegacyCount) ?></strong>
-						<span>missing Legacy <?= $missingMoneygramLegacyCount === 1 ? 'ID' : 'IDs' ?></span>
+						<strong><?//= number_format($missingMoneygramLegacyCount) ?></strong>
+						<span>missing Legacy <?//= $missingMoneygramLegacyCount === 1 ? 'ID' : 'IDs' ?></span>
 					</div>
-					<p><?= number_format($missingMoneygramLegacyTransactionCount) ?> affected <?= $missingMoneygramLegacyTransactionCount === 1 ? 'record' : 'records' ?></p>
+					<p><?//= number_format($missingMoneygramLegacyTransactionCount) ?> affected <?//= $missingMoneygramLegacyTransactionCount === 1 ? 'record' : 'records' ?></p>
 					<button id="openMissingLegacyModal" type="button" class="new-branches-view-btn legacy-ids-view-btn">
 						<span class="material-icons" aria-hidden="true">badge</span>
 						View Legacy IDs
 					</button>
-				<?php endif; ?>
+				<?php //endif; ?>
 			</div>
 		</div>
-		<?php endif; ?>
-	</div>
+		<?php //endif; ?>
+	</div> -->
 
-	<?php if ($isDashboardAdmin && $missingMoneygramLegacyCount > 0): ?>
+	<!-- <?php //if ($isDashboardAdmin && $missingMoneygramLegacyCount > 0): ?>
 		<div id="missingLegacyModal" class="unmapped-branches-modal" role="dialog" aria-modal="true" aria-labelledby="missingLegacyModalTitle" aria-hidden="true">
 			<div class="unmapped-branches-modal__card">
 				<div class="unmapped-branches-modal__head">
 					<div>
 						<h2 id="missingLegacyModalTitle">Missing Legacy IDs</h2>
-						<!-- <p>These branches exist in master data but the Legacy ID for the listed corporate partner is blank.</p> -->
+						<p>These branches exist in master data but the Legacy ID for the listed corporate partner is blank.</p>
 					</div>
 					<button type="button" class="unmapped-branches-modal__close" aria-label="Close"><span class="material-icons" aria-hidden="true">close</span></button>
 				</div>
@@ -130,17 +130,17 @@ $missingMoneygramLegacyTransactionCount = array_sum(array_map(static function (a
 						<table class="unmapped-branches-table legacy-ids-table">
 							<thead><tr><th>Branch ID</th><th>Branch Name</th><th>Corporate Partner</th><th>Detected Legacy ID</th><th>First Detected</th><th>Last Detected</th><th>Records</th></tr></thead>
 							<tbody>
-							<?php foreach ($missingMoneygramLegacyBranches as $branch): ?>
+							<?php// foreach ($missingMoneygramLegacyBranches as $branch): ?>
 								<tr>
-									<td><strong><?= htmlspecialchars((string) ($branch['branch_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong></td>
-									<td><?= htmlspecialchars((string) ($branch['branch_name'] ?: 'Unnamed branch'), ENT_QUOTES, 'UTF-8') ?></td>
-									<td><?= htmlspecialchars((string) ($branch['partner_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></td>
-									<td><?= trim((string) ($branch['detected_legacy_id'] ?? '')) !== '' ? htmlspecialchars((string) $branch['detected_legacy_id'], ENT_QUOTES, 'UTF-8') : '—' ?></td>
-									<td><?= !empty($branch['first_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['first_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
-									<td><?= !empty($branch['last_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['last_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
-									<td><?= number_format((int) ($branch['transaction_count'] ?? 0)) ?></td>
+									<td><strong><?//= htmlspecialchars((string) ($branch['branch_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></strong></td>
+									<td><?//= htmlspecialchars((string) ($branch['branch_name'] ?: 'Unnamed branch'), ENT_QUOTES, 'UTF-8') ?></td>
+									<td><?//= htmlspecialchars((string) ($branch['partner_name'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></td>
+									<td><?//= trim((string) ($branch['detected_legacy_id'] ?? '')) !== '' ? htmlspecialchars((string) $branch['detected_legacy_id'], ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?//= !empty($branch['first_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['first_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?//= !empty($branch['last_detected']) ? htmlspecialchars(date('M j, Y g:i A', strtotime((string) $branch['last_detected'])), ENT_QUOTES, 'UTF-8') : '—' ?></td>
+									<td><?//= number_format((int) ($branch['transaction_count'] ?? 0)) ?></td>
 								</tr>
-							<?php endforeach; ?>
+							<?php// endforeach; ?>
 							</tbody>
 						</table>
 					</div>
@@ -161,7 +161,7 @@ $missingMoneygramLegacyTransactionCount = array_sum(array_map(static function (a
 				</div>
 			</div>
 		</div>
-	<?php endif; ?>
+	<?php //endif; ?> -->
 
 </section>
 

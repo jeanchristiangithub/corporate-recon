@@ -19,6 +19,18 @@ try {
         background: #f1f5f9;
         opacity: .75;
     }
+    #maintenanceLockProcess:disabled {
+        opacity: .55;
+        pointer-events: none;
+        box-shadow: none;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table tbody tr {
+        transition: background-color .15s ease, box-shadow .15s ease;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table tbody tr:hover {
+        background: #f1f7ff;
+        box-shadow: inset 3px 0 0 #dc3545;
+    }
 </style>
 <section id="maintenanceDataUnlockSection" class="home-section" aria-label="Transaction Lock" aria-busy="false" style="display:none;">
     <div class="home-section__inner">
@@ -33,7 +45,7 @@ try {
                 <label class="filter" style="flex:0 1 325px;width:min(325px,100%);">
                     <span>Corporate Partner</span>
                     <div class="autocomplete-field" style="width:100%;">
-                        <input id="maintenanceUnlockPartner" type="text" placeholder="Select corporate partner" autocomplete="off" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
+                        <input id="maintenanceUnlockPartner" type="text" role="combobox" aria-autocomplete="list" aria-controls="maintenanceUnlockPartnerSuggestions" aria-expanded="false" placeholder="Select corporate partner" autocomplete="off" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
                         <ul id="maintenanceUnlockPartnerSuggestions" class="autocomplete-list" role="listbox" hidden></ul>
                     </div>
                 </label>
@@ -91,6 +103,7 @@ try {
     let rows = [];
     let page = 1;
     let loading = false;
+    let activePartnerIndex = -1;
     const isAdmin = <?= isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0 ? 'true' : 'false' ?>;
     const isPublic = <?= isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Public') === 0 ? 'true' : 'false' ?>;
     const partnerOptions = <?= json_encode(array_values($maintenanceUnlockPartners), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
@@ -132,9 +145,18 @@ try {
             control.disabled = isLoading;
             control.style.cursor = isLoading ? 'wait' : '';
         });
+        processButton.textContent = isLoading ? 'Loading...' : 'Process';
         section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         section.classList.toggle('maintenance-unlock-loading', isLoading);
         if (isLoading) closePartnerSuggestions();
+    }
+
+    function clearProcessedResults() {
+        rows = [];
+        page = 1;
+        body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Process.</td></tr>';
+        pagination.hidden = true;
+        setMessage('', '');
     }
 
     function filteredRows() {
@@ -153,8 +175,13 @@ try {
 
     function renderPartnerSuggestions() {
         const query = String(partnerFilter.value || '').trim().toLowerCase();
+        if (!query) {
+            closePartnerSuggestions();
+            return;
+        }
+        activePartnerIndex = -1;
         const matches = partnerOptions.filter(function (partner) {
-            return !query || String(partner).toLowerCase().indexOf(query) !== -1;
+            return String(partner).toLowerCase().indexOf(query) !== -1;
         });
         partnerSuggestions.innerHTML = matches.length
             ? matches.map(function (partner) {
@@ -162,10 +189,34 @@ try {
             }).join('')
             : '<li class="autocomplete-item autocomplete-empty" aria-disabled="true">No corporate partner found</li>';
         partnerSuggestions.hidden = false;
+        partnerFilter.setAttribute('aria-expanded', 'true');
     }
 
     function closePartnerSuggestions() {
         partnerSuggestions.hidden = true;
+        partnerFilter.setAttribute('aria-expanded', 'false');
+        activePartnerIndex = -1;
+        partnerFilter.removeAttribute('aria-activedescendant');
+    }
+
+    function movePartnerSuggestion(direction) {
+        const options = Array.from(partnerSuggestions.querySelectorAll('[data-partner]'));
+        if (!options.length) return;
+        activePartnerIndex = (activePartnerIndex + direction + options.length) % options.length;
+        options.forEach(function (option, index) {
+            option.classList.toggle('is-active', index === activePartnerIndex);
+            option.id = 'maintenanceLockPartnerOption' + index;
+        });
+        const activeOption = options[activePartnerIndex];
+        partnerFilter.setAttribute('aria-activedescendant', activeOption.id);
+        activeOption.scrollIntoView({block: 'nearest'});
+    }
+
+    function selectPartnerSuggestion(option) {
+        if (!option) return;
+        partnerFilter.value = option.getAttribute('data-partner') || '';
+        closePartnerSuggestions();
+        clearProcessedResults();
     }
 
     function render() {
@@ -381,16 +432,40 @@ try {
         }
     }
 
-    partnerFilter.addEventListener('focus', renderPartnerSuggestions);
     partnerFilter.addEventListener('input', function () {
+        clearProcessedResults();
         renderPartnerSuggestions();
+    });
+    partnerFilter.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closePartnerSuggestions();
+            return;
+        }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (partnerSuggestions.hidden) renderPartnerSuggestions();
+            movePartnerSuggestion(event.key === 'ArrowDown' ? 1 : -1);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (!partnerSuggestions.hidden) {
+                const options = Array.from(partnerSuggestions.querySelectorAll('[data-partner]'));
+                const typedValue = String(partnerFilter.value || '').trim().toUpperCase();
+                const exactMatch = options.find(function (option) {
+                    return String(option.getAttribute('data-partner') || '').trim().toUpperCase() === typedValue;
+                });
+                selectPartnerSuggestion(exactMatch || options[activePartnerIndex] || options[0]);
+                return;
+            }
+            load();
+        }
     });
     partnerSuggestions.addEventListener('mousedown', function (event) {
         const option = event.target.closest('[data-partner]');
         if (!option) return;
         event.preventDefault();
-        partnerFilter.value = option.getAttribute('data-partner') || '';
-        closePartnerSuggestions();
+        selectPartnerSuggestion(option);
     });
     document.addEventListener('mousedown', function (event) {
         if (!event.target.closest('#maintenanceUnlockPartner') && !event.target.closest('#maintenanceUnlockPartnerSuggestions')) closePartnerSuggestions();
@@ -399,6 +474,15 @@ try {
         const startDate = normalizeDate(startDateFilter.value || '');
         endDateFilter.min = startDate;
         endDateFilter.value = startDate;
+        clearProcessedResults();
+    });
+    endDateFilter.addEventListener('change', clearProcessedResults);
+    [startDateFilter, endDateFilter].forEach(function (dateInput) {
+        dateInput.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            load();
+        });
     });
     processButton.addEventListener('click', function () {
         load();

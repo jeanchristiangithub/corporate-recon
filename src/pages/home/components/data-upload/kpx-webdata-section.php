@@ -314,12 +314,13 @@ try {
             clear: clearPendingKpxWebUploads
         };
 
-        async function readWorkbookHeaderCells(file){
+        async function readWorkbookHeaderCells(file, checkDataLock){
             const formData = new FormData();
             formData.append('file', file);
             if(csrfToken) formData.append('csrf_token', csrfToken.value || '');
             formData.append('partnerName', company ? String(company.value || '').trim() : '');
             formData.append('partner_id', partnerId ? String(partnerId.value || '').trim() : '');
+            if(checkDataLock === true) formData.append('check_data_lock', '1');
 
             const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/kpx-webdata-preview.php', {
                 method: 'POST',
@@ -341,10 +342,17 @@ try {
         }
 
         async function detectFileRowCount(file){
-            const payload = await readWorkbookHeaderCells(file);
+            const payload = await readWorkbookHeaderCells(file, true);
             if(!payload.detectedKey || !Array.isArray(payload.headers) || payload.headers.length === 0){
                 const error = new Error('The required KPX Web Data header row was not found.');
                 error.invalidExcelFile = true;
+                throw error;
+            }
+            if(payload.locked){
+                const error = new Error('KPX Web data is already locked.');
+                error.lockedKpxWebFile = true;
+                error.lockedDate = String(payload.lockedDate || '');
+                error.lockedTransactionType = String(payload.detectedKey || '');
                 throw error;
             }
             return Array.isArray(payload.rows) ? payload.rows.length : 0;
@@ -452,6 +460,54 @@ try {
             }
             showFailureModal('Invalid File Format', '');
             return Promise.resolve();
+        }
+
+        function formatLockedDate(date){
+            const match = String(date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if(!match) return String(date || '');
+            return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).toLocaleDateString('en-US', {
+                month: 'long',
+                day: '2-digit',
+                year: 'numeric'
+            });
+        }
+
+        function lockedTransactionMessage(transactionType){
+            const messages = {
+                cancelledClaimed: 'Payout Cancelled Transaction already locked',
+                cancelledSend: 'Sendout Cancelled Transaction already locked',
+                claimed: 'Payout Transaction already locked',
+                send: 'Sendout Transaction already locked'
+            };
+            return messages[transactionType] || 'Transaction already locked';
+        }
+
+        function showLockedKpxWebAlert(date, transactionType){
+            const message = lockedTransactionMessage(transactionType) + ':\n' + formatLockedDate(date);
+            if(window.Swal && typeof window.Swal.fire === 'function'){
+                return window.Swal.fire({
+                    title: 'Notice',
+                    text: message,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        const messageElement = document.querySelector('.swal2-html-container');
+                        if(messageElement) messageElement.style.whiteSpace = 'pre-line';
+                    }
+                });
+            }
+            return new Promise(resolve => {
+                showUploadModal('Notice', message, 'ok', 100);
+                if(uploadModalMessage) uploadModalMessage.style.whiteSpace = 'pre-line';
+                if(uploadModalOk){
+                    uploadModalOk.onclick = () => {
+                        hideUploadModal();
+                        if(uploadModalMessage) uploadModalMessage.style.whiteSpace = '';
+                        resolve();
+                    };
+                }
+            });
         }
 
         function askOverwrite(message){
@@ -742,6 +798,7 @@ try {
             const queue = newFiles.slice();
             const workerCount = Math.min(4, Math.max(1, queue.length));
             const invalidFiles = [];
+            const lockedFiles = [];
             let checked = 0;
 
             async function countWorker(){
@@ -754,6 +811,12 @@ try {
                     }catch(error){
                         if(error && error.invalidExcelFile){
                             invalidFiles.push(file);
+                        }else if(error && error.lockedKpxWebFile){
+                            lockedFiles.push({
+                                file: file,
+                                date: error.lockedDate || '',
+                                transactionType: error.lockedTransactionType || ''
+                            });
                         }else{
                             console.warn('[kpx-webdata] failed to count rows', error);
                             if(files.includes(file)) fileRowCounts.set(file, 0);
@@ -766,16 +829,19 @@ try {
             }
 
             await Promise.all(Array.from({ length: workerCount }, countWorker));
-            if(invalidFiles.length > 0){
-                const invalidSet = new Set(invalidFiles);
-                files = files.filter(file => !invalidSet.has(file));
-                invalidFiles.forEach(file => fileRowCounts.delete(file));
+            if(invalidFiles.length > 0 || lockedFiles.length > 0){
+                const rejectedFiles = new Set(invalidFiles.concat(lockedFiles.map(item => item.file)));
+                files = files.filter(file => !rejectedFiles.has(file));
+                rejectedFiles.forEach(file => fileRowCounts.delete(file));
                 if(fileInput) fileInput.value = '';
             }
             renderFiles();
             hideUploadModal();
             if(invalidFiles.length > 0){
                 await showInvalidExcelFileAlert();
+            }
+            for(const lockedFile of lockedFiles){
+                await showLockedKpxWebAlert(lockedFile.date, lockedFile.transactionType);
             }
         }
 

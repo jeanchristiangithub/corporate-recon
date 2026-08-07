@@ -548,8 +548,12 @@ try {
             }
 
             function renderPartners() {
-                const query = partnerInput.value.trim().toLowerCase(),
-                    matches = partners.filter(value => !query || String(value).toLowerCase().includes(query)).slice(0, 100);
+                const query = partnerInput.value.trim().toLowerCase();
+                if (!query) {
+                    closePartners();
+                    return
+                }
+                const matches = partners.filter(value => String(value).toLowerCase().includes(query)).slice(0, 100);
                 partnerList.innerHTML = '';
                 if (!matches.length) {
                     closePartners();
@@ -571,7 +575,6 @@ try {
                 activePartner = -1
             }
             partnerInput.addEventListener('input', renderPartners);
-            partnerInput.addEventListener('focus', renderPartners);
             partnerInput.addEventListener('keydown', event => {
                 const items = [...partnerList.children];
                 if (event.key === 'Escape') {

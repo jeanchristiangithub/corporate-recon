@@ -106,10 +106,10 @@ try {
                     <dt>Volume</dt>
                     <dd id="cashFlowReportVolume">—</dd>
                 </div>
-                <div>
+                <div class="cash-flow-report-forwarded-row">
                     <dt>
-                        Beginning Balance
-                        <i>Forwarded <span id="cashFlowReportForwardedDate">—</span></i>
+                        <span class="cash-flow-report-forwarded-label">Forwarded Balance</span>
+                        <i><span id="cashFlowReportForwardedDate">—</span></i>
                     </dt>
                     <dd id="cashFlowReportBeginningBalance" class="cash-flow-report-currency-value"><span class="cash-flow-report-currency-sign">₱</span><span>—</span></dd>
                 </div>
@@ -174,9 +174,13 @@ try {
                                 <tr>
                                     <th scope="col" rowspan="2">Date</th>
                                     <th scope="colgroup" colspan="3">Partner Settlement Data</th>
-                                    <th class="cash-flow-report-bank-deposit-header" scope="col" rowspan="2">Bank Deposit <span>(—)</span></th>
+                                    <th class="cash-flow-report-bank-deposit-header" scope="col" rowspan="2">
+                                        Bank Deposit
+                                        <span class="cash-flow-report-bank-label">(—)</span>
+                                        <span class="cash-flow-report-bank-account" data-currency="<?= $currencyLower ?>">—</span>
+                                    </th>
                                     <th scope="col" rowspan="2">Running Balance</th>
-                                    <th scope="col" rowspan="2">Remarks</th>
+                                    <th scope="col" rowspan="2">Status</th>
                                 </tr>
                                 <tr>
                                     <th scope="col">Volume</th>
@@ -209,7 +213,10 @@ try {
         JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?>;
     const bankDepositHeaders = Array.from(
-        document.querySelectorAll('.cash-flow-report-bank-deposit-header span')
+        document.querySelectorAll('.cash-flow-report-bank-label')
+    );
+    const bankAccountHeaders = Array.from(
+        document.querySelectorAll('.cash-flow-report-bank-account')
     );
     let activeIndex = -1;
 
@@ -218,6 +225,14 @@ try {
         const bankLabel = partnerBankLabels[partnerKey] || '—';
         bankDepositHeaders.forEach((headerLabel) => {
             headerLabel.textContent = `(${bankLabel})`;
+        });
+        updateBankAccountHeaders({});
+    };
+
+    const updateBankAccountHeaders = (accounts = {}) => {
+        bankAccountHeaders.forEach((header) => {
+            const currency = header.dataset.currency || '';
+            header.textContent = String(accounts[currency] || '').trim() || '—';
         });
     };
 
@@ -467,11 +482,11 @@ try {
         const select = document.createElement('select');
         const initialValue = savedRemark === 'valid' ? 'VALID' : 'NOT VALID';
         select.className = `cash-flow-report-remarks ${initialValue === 'VALID' ? 'is-valid' : 'is-not-valid'}`;
-        select.setAttribute('aria-label', 'Remarks');
+        select.setAttribute('aria-label', 'Status');
         select.dataset.tranDate = transactionDate;
         select.dataset.currency = currency.toUpperCase();
 
-        [['NOT VALID', 'NOT VALID'], ['VALID', 'VALID']].forEach(([value, label]) => {
+        [['NOT VALID', 'NOT YET VALIDATED'], ['VALID', 'VALIDATED']].forEach(([value, label]) => {
             const option = document.createElement('option');
             option.value = value;
             option.textContent = label;
@@ -581,6 +596,7 @@ try {
         if (!body) return [];
         return Array.from(body.rows).filter(
             (row) => !row.classList.contains('cash-flow-report-empty-row')
+                && !row.classList.contains('cash-flow-report-forwarded-table-row')
         ).map((row) => {
             const cells = Array.from(row.cells);
             const commission = row.classList.contains('cash-flow-report-commission-row');
@@ -740,6 +756,22 @@ try {
         if (!rows.length) {
             replaceTableMessage(currency, 'No settlement data found for the selected filters.');
             return;
+        }
+
+        const forwardedRow = body.insertRow();
+        forwardedRow.className = 'cash-flow-report-forwarded-table-row';
+        const forwardedLabelCell = forwardedRow.insertCell();
+        forwardedLabelCell.colSpan = 5;
+        forwardedLabelCell.append(document.createTextNode('Forwarded Balance '));
+        const forwardedDateLabel = document.createElement('i');
+        forwardedDateLabel.textContent = forwardedDate?.textContent || '—';
+        forwardedLabelCell.appendChild(forwardedDateLabel);
+
+        const forwardedAmountCell = forwardedRow.insertCell();
+        forwardedAmountCell.colSpan = 2;
+        forwardedAmountCell.textContent = formatAmount(forwardedBeginningBalance);
+        if (forwardedBeginningBalance < 0) {
+            forwardedAmountCell.classList.add('cash-flow-report-negative-balance');
         }
 
         rows.forEach((item) => {
@@ -953,6 +985,7 @@ try {
                 throw new Error(cashFlowData?.error || 'Unable to load Cash Flow bank deposits.');
             }
             latestCashFlowAccounts = cashFlowData.accounts || { php: '', usd: '' };
+            updateBankAccountHeaders(latestCashFlowAccounts);
             if (!previousSettlementResponse.ok || !previousData?.success) {
                 throw new Error(previousData?.error || 'Unable to load previous-month settlement data.');
             }

@@ -224,7 +224,7 @@ try {
                     if (!chunk) return;
                     const formData = new FormData();
                     formData.append('csrf_token', csrfToken ? csrfToken.value : '');
-                    formData.append('payload', JSON.stringify({ pairs: chunk }));
+                    formData.append('payload', JSON.stringify({ upload_mode: uploaderMode, pairs: chunk }));
                     const response = await fetch(window.autoreconBaseUrl + '/src/controllers/excelcontrol/moneygram/settlement-daily-classify.php', { method: 'POST', body: formData });
                     const payload = await response.json().catch(() => null);
                     if (!response.ok || !payload || !payload.success) throw new Error((payload && payload.error) || 'Unable to classify settlement rows.');
@@ -626,11 +626,16 @@ try {
                 const value = key => indexes[key] >= 0 ? row[indexes[key]] ?? '' : '';
                 const result = classifications[String(index)] || { exists: false, database: null, matched_by: null };
                 const normalizedTranDate = normalizeLookupDate(value('tran_date'), XLSX);
+                const excelReferenceId = String(value('reference_id') ?? '').trim();
+                const resolvedReferenceId = uploaderMode === 'endMonth' && excelReferenceId === '' && result.exists && result.database
+                    ? String(result.database.reference_id || '').trim()
+                    : excelReferenceId;
                 return {
                     account_number: value('account_number'), agent_name: value('agent_name'), legacy_id: value('legacy_id'),
                     tran_date: normalizedTranDate,
                     settled_date: filenameSettlementDate && normalizedTranDate !== filenameSettlementDate ? filenameSettlementDate : '',
-                    transaction_id: value('transaction_id'), reference_id: value('reference_id'),
+                    transaction_id: value('transaction_id'), reference_id: resolvedReferenceId,
+                    reference_id_resolved_from_blank: uploaderMode === 'endMonth' && excelReferenceId === '' && resolvedReferenceId !== '',
                     product: value('product'), tran_type: value('tran_type'), orig_cntry: value('orig_cntry'), rcv_cntry: value('rcv_cntry'),
                     fx_rate_trn: value('fx_rate_trn'), fx_date_trn: normalizeLookupDate(value('fx_date_trn'), XLSX) || value('fx_date_trn'), margin: value('margin'),
                     base_tran_amt: value('base_tran_amt'), fee_tran_amt: value('fee_tran_amt'), fx_rev_share_tran_amt: value('fx_rev_share_tran_amt'),
@@ -680,7 +685,7 @@ try {
                 return;
             }
             upload.disabled = true;
-            const totals = { settlement_inserted: 0, settlement_updated: 0, settlement_amended: 0 };
+            const totals = { settlement_inserted: 0, settlement_updated: 0, settlement_amended: 0, skipped_missing_reference: 0 };
             const totalRows = files.reduce((sum, file) => sum + Number(fileRowCounts.get(file) || 0), 0);
             let processedRows = 0;
             try {
@@ -706,7 +711,10 @@ try {
                     icon: 'success', title: 'Upload Completed', confirmButtonColor: '#dc3545',
                     html: 'Settlement inserted: <b>' + totals.settlement_inserted.toLocaleString() + '</b><br>' +
                         (uploaderMode === 'endMonth'
-                            ? 'Settlement amended: <b>' + totals.settlement_amended.toLocaleString() + '</b>'
+                            ? 'Settlement amended: <b>' + totals.settlement_amended.toLocaleString() + '</b>' +
+                              (totals.skipped_missing_reference > 0
+                                  ? '<br>Unresolved blank Reference ID skipped: <b>' + totals.skipped_missing_reference.toLocaleString() + '</b>'
+                                  : '')
                             : 'Settlement updated: <b>' + totals.settlement_updated.toLocaleString() + '</b>')
                 });
             } catch (error) {

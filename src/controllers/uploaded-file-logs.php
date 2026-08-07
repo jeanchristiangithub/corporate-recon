@@ -17,6 +17,11 @@ $source = (string)($_GET['source'] ?? 'kpx_web_data');
 $state = (string)($_GET['state'] ?? 'all');
 $month = trim((string)($_GET['month'] ?? ''));
 $search = trim((string)($_GET['search'] ?? ''));
+$partner = trim((string)($_GET['partner'] ?? ''));
+$startDate = trim((string)($_GET['start_date'] ?? ''));
+$endDate = trim((string)($_GET['end_date'] ?? ''));
+$page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 1;
+$pageSize = filter_var($_GET['page_size'] ?? 10, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 100]]) ?: 10;
 
 $statusByState = [
     'all' => null,
@@ -44,6 +49,23 @@ if ($source === 'partner_data' && !in_array($state, $partnerStates, true)) {
 if ($month !== '' && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Invalid month filter.']);
+    exit;
+}
+
+foreach (['Start Date' => $startDate, 'End Date' => $endDate] as $label => $dateValue) {
+    if ($dateValue !== '') {
+        $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $dateValue);
+        if (!$parsedDate || $parsedDate->format('Y-m-d') !== $dateValue) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => "Invalid {$label} filter."]);
+            exit;
+        }
+    }
+}
+
+if ($startDate !== '' && $endDate !== '' && $startDate > $endDate) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'message' => 'End Date must be on or after Start Date.']);
     exit;
 }
 
@@ -85,6 +107,21 @@ try {
         $params[':month_end'] = $monthStart->modify('+1 month')->format('Y-m-d');
     }
 
+    if ($partner !== '') {
+        $where[] = 'TRIM(l.partner_name) = :partner';
+        $params[':partner'] = $partner;
+    }
+
+    if ($startDate !== '') {
+        $where[] = 'l.uploaded_date >= :start_date';
+        $params[':start_date'] = $startDate;
+    }
+
+    if ($endDate !== '') {
+        $where[] = 'l.uploaded_date < :end_date_exclusive';
+        $params[':end_date_exclusive'] = (new DateTimeImmutable($endDate))->modify('+1 day')->format('Y-m-d');
+    }
+
     if ($search !== '') {
         $where[] = "(
             l.filename LIKE :search_filename
@@ -105,39 +142,19 @@ try {
         $params[':search_uploader_name'] = $searchValue;
     }
 
-    if ($source === 'partner_data' && $state === 'transactional') {
-        $linkedDataExists = "EXISTS(
-            SELECT 1
-            FROM moneygram_partner_data linked_data
-            WHERE linked_data.ufl_file_log_id = l.id
-        )";
-    } elseif ($source === 'partner_data' && $state === 'settlement') {
-        $linkedDataExists = "EXISTS(
-            SELECT 1
-            FROM partner_settlement_data linked_data
-            WHERE linked_data.ufl_file_log_id = l.id
-        )";
-    } elseif ($source === 'partner_data' && $state === 'all') {
-        $linkedDataExists = "CASE
-            WHEN FIND_IN_SET('SD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0 THEN EXISTS(
-                SELECT 1
-                FROM partner_settlement_data linked_data
-                WHERE linked_data.ufl_file_log_id = l.id
-            )
-            WHEN FIND_IN_SET('TD', REPLACE(COALESCE(l.kpxweb_data_status, ''), ' ', '')) > 0 THEN EXISTS(
-                SELECT 1
-                FROM moneygram_partner_data linked_data
-                WHERE linked_data.ufl_file_log_id = l.id
-            )
-            ELSE 0
-        END";
-    } else {
-        $linkedDataExists = "EXISTS(
-            SELECT 1
-            FROM ml_web_data linked_data
-            WHERE linked_data.ufl_file_log_id = l.id
-        )";
-    }
+    $fromAndWhere = "
+        FROM uploaded_file_logs l
+        LEFT JOIN users u
+            ON u.id_number COLLATE utf8mb4_unicode_ci
+             = l.uploaded_by COLLATE utf8mb4_unicode_ci
+        WHERE " . implode(' AND ', $where);
+
+    $countStmt = $pdo->prepare("SELECT COUNT(*) {$fromAndWhere}");
+    $countStmt->execute($params);
+    $total = (int)$countStmt->fetchColumn();
+    $totalPages = max(1, (int)ceil($total / $pageSize));
+    $page = min($page, $totalPages);
+    $offset = ($page - 1) * $pageSize;
 
     $sql = "
         SELECT
@@ -148,7 +165,7 @@ try {
             l.partner_name,
             l.uploaded_by,
             l.has_overwrite,
-            {$linkedDataExists} AS has_linked_data,
+            l.kpxweb_data_status,
             COALESCE(
                 NULLIF(CONCAT_WS(' ',
                     NULLIF(TRIM(u.firstname), ''),
@@ -157,21 +174,64 @@ try {
                 ), ''),
                 l.uploaded_by
             ) AS uploader_name
-        FROM uploaded_file_logs l
-        LEFT JOIN users u
-            ON u.id_number COLLATE utf8mb4_unicode_ci
-             = l.uploaded_by COLLATE utf8mb4_unicode_ci
-        WHERE " . implode(' AND ', $where) . "
+        {$fromAndWhere}
         ORDER BY l.uploaded_date DESC, l.id DESC
-        LIMIT 500
+        LIMIT {$pageSize} OFFSET {$offset}
     ";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $idsByLinkedTable = [];
+    foreach ($rows as $row) {
+        $rowId = (int)($row['id'] ?? 0);
+        if ($rowId < 1) {
+            continue;
+        }
+
+        if ($source === 'kpx_web_data') {
+            $linkedTable = 'ml_web_data';
+        } else {
+            $statuses = array_map('trim', explode(',', strtoupper((string)($row['kpxweb_data_status'] ?? ''))));
+            $linkedTable = in_array('SD', $statuses, true)
+                ? 'partner_settlement_data'
+                : 'moneygram_partner_data';
+        }
+        $idsByLinkedTable[$linkedTable][] = $rowId;
+    }
+
+    $linkedIds = [];
+    foreach ($idsByLinkedTable as $linkedTable => $logIds) {
+        $logIds = array_values(array_unique(array_map('intval', $logIds)));
+        if (!$logIds) {
+            continue;
+        }
+        $placeholders = implode(',', array_fill(0, count($logIds), '?'));
+        $linkedStmt = $pdo->prepare(
+            "SELECT DISTINCT ufl_file_log_id FROM {$linkedTable} WHERE ufl_file_log_id IN ({$placeholders})"
+        );
+        $linkedStmt->execute($logIds);
+        foreach ($linkedStmt->fetchAll(PDO::FETCH_COLUMN) as $linkedId) {
+            $linkedIds[(int)$linkedId] = true;
+        }
+    }
+
+    foreach ($rows as &$row) {
+        $row['has_linked_data'] = isset($linkedIds[(int)($row['id'] ?? 0)]) ? 1 : 0;
+        unset($row['kpxweb_data_status']);
+    }
+    unset($row);
 
     echo json_encode([
         'success' => true,
-        'rows' => $stmt->fetchAll(PDO::FETCH_ASSOC),
+        'rows' => $rows,
+        'pagination' => [
+            'page' => $page,
+            'page_size' => $pageSize,
+            'total' => $total,
+            'total_pages' => $totalPages,
+        ],
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } catch (Throwable $exception) {
     error_log('[uploaded-file-logs] ' . $exception->getMessage());

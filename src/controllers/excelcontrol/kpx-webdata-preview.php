@@ -575,6 +575,42 @@ function kpxReadSpreadsheetHeaderCells(string $path, string $extension): array
     return $cells;
 }
 
+function kpxTransactionDateForLockCheck(array $headers, array $rows): array
+{
+    foreach (['DATE CANCELLED', 'DATE CLAIMED', 'DATE SEND'] as $header) {
+        if (!in_array($header, $headers, true)) continue;
+        foreach ($rows as $row) {
+            if (!is_array($row)) continue;
+            $value = trim((string)($row[$header] ?? ''));
+            if ($value === '') continue;
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $value, $matches)) {
+                return ['date' => $matches[1], 'source' => $header];
+            }
+            $timestamp = strtotime($value);
+            if ($timestamp !== false) {
+                return ['date' => date('Y-m-d', $timestamp), 'source' => $header];
+            }
+        }
+    }
+    return ['date' => '', 'source' => ''];
+}
+
+function kpxTransactionDateIsLocked(string $date, string $corporatePartner): bool
+{
+    $corporatePartner = trim($corporatePartner);
+    if ($date === '' || $corporatePartner === '') return false;
+    $stmt = fileRecDbConnection()->prepare(
+        'SELECT id FROM locked_reconciliation_dates '
+        . 'WHERE corporate_partner = ? '
+        . 'AND transaction_date = ? '
+        . 'AND locked_at IS NOT NULL '
+        . 'AND unlocked_at IS NULL '
+        . 'LIMIT 1'
+    );
+    $stmt->execute([$corporatePartner, $date]);
+    return $stmt->fetchColumn() !== false;
+}
+
 try {
     $partnerName = trim((string)($_POST['partnerName'] ?? ''));
     $postedPartnerId = trim((string)($_POST['partner_id'] ?? ''));
@@ -589,7 +625,14 @@ try {
         ? kpxMoneygramHeadersForCombination($columnC, $columnD)
         : kpxMoneygramHeadersForCombination('', '');
     $rows = $row4['rows'] ?? [];
-    $developerRows = kpxBuildDeveloperRows($rows, (string)$detected['key'], $partnerName, $partnerId);
+    $shouldCheckDataLock = (string)($_POST['check_data_lock'] ?? '') === '1';
+    $lockCheck = $shouldCheckDataLock
+        ? kpxTransactionDateForLockCheck($detected['headers'], $rows)
+        : ['date' => '', 'source' => ''];
+    $isLocked = $shouldCheckDataLock && kpxTransactionDateIsLocked($lockCheck['date'], $partnerName);
+    $developerRows = $isLocked
+        ? []
+        : kpxBuildDeveloperRows($rows, (string)$detected['key'], $partnerName, $partnerId);
     $developerHeaders = !empty($developerRows) ? array_keys($developerRows[0]) : [
         'partner_id', 'partnerName', 'control_series_no', 'date_cancelled', 'date_claimed', 'date_send',
         'kptn', 'ccref_no', 'currency', 'amount', 'ctc', 'ctp', 'charge', 'sender_name', 'sender_country',
@@ -607,6 +650,9 @@ try {
         'rows' => $rows,
         'developerHeaders' => $developerHeaders,
         'developerRows' => $developerRows,
+        'locked' => $isLocked,
+        'lockedDate' => $isLocked ? $lockCheck['date'] : '',
+        'lockedDateSource' => $isLocked ? $lockCheck['source'] : '',
         'row4' => [
             'C' => $columnC,
             'D' => $columnD,

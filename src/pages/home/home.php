@@ -278,10 +278,10 @@ if ($currentUserId !== '') {
                             <span class="label">Transaction Lock</span>
                         </a></li>
                         <?php if ($isPrimaryAdmin): ?>
-                            <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
+                            <!-- <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
                                 <span class="icon material-icons" aria-hidden="true">handshake</span>
                                 <span class="label">Partner Legacy ID</span>
-                            </a></li>
+                            </a></li> -->
                         <?php endif; ?>
                         <?php if ($canManageUsers): ?>
                             <li><a href="#" id="navUsers" data-show="usersSection">
@@ -539,6 +539,7 @@ if ($currentUserId !== '') {
         'navWebDataCancellation',
         // 'navDataEntrySettlementDetail',
         'navEdiReport',
+        'navMaintenance',
     ];
 
     // wire nav links
