@@ -214,7 +214,7 @@ try {
     );
 
     $prepared = [];
-    $skippedMissingReference = 0;
+    $writtenMissingReference = 0;
     foreach ($rows as $row) {
         if (!is_array($row)) continue;
         $item = [
@@ -251,10 +251,10 @@ try {
             && $item['total_tran_amt'] !== null
             && $item['settlement_currency'] !== null;
         if ($uploadMode === 'endMonth' && $item['reference_id'] === null && $item['tran_date'] !== null && !$item['is_summary_row']) {
-            $skippedMissingReference++;
-            continue;
+            $writtenMissingReference++;
         }
-        if (($item['reference_id'] === null || $item['tran_date'] === null) && !$item['is_summary_row']) {
+        if (($item['reference_id'] === null || $item['tran_date'] === null) && !$item['is_summary_row']
+            && !($uploadMode === 'endMonth' && $item['reference_id'] === null && $item['tran_date'] !== null)) {
             throw new RuntimeException(
                 'Reference ID and Tran Date are required unless Account Number, Agent Name, Legacy ID, and Transaction ID are blank while Total Tran Amt and Settlement Currency contain data.'
             );
@@ -334,7 +334,9 @@ try {
                         + (float)($merged['comm_tran_amt'] ?? 0);
                 $insertSettlement->execute([$partnerId, $partnerName, $merged['account_number'], $merged['agent_name'], $merged['legacy_id'], $merged['tran_date'], null, $merged['transaction_id'], $merged['reference_id'], $merged['product'], $merged['tran_type'], $merged['orig_cntry'], $merged['rcv_cntry'], $merged['fx_rate_trn'], $merged['fx_date_trn'], $merged['margin'], $merged['base_tran_amt'], $merged['fee_tran_amt'], $merged['fx_rev_share_tran_amt'], $merged['comm_tran_amt'], $merged['total_tran_amt'], $merged['settlement_currency'], $merged['transaction_currency'], $fileLogId, $userId]);
                 $settlementInserted++;
-                $settlementCandidates[$merged['reference_id']][] = array_merge($merged, ['id' => (int)$pdo->lastInsertId(), 'partner_id' => $partnerId, 'ufl_file_log_id' => $fileLogId]);
+                if ($merged['reference_id'] !== null) {
+                    $settlementCandidates[$merged['reference_id']][] = array_merge($merged, ['id' => (int)$pdo->lastInsertId(), 'partner_id' => $partnerId, 'ufl_file_log_id' => $fileLogId]);
+                }
             }
 
         }
@@ -345,7 +347,7 @@ try {
             'settlement_inserted' => $settlementInserted,
             'settlement_updated' => $settlementAmended,
             'settlement_amended' => $settlementAmended,
-            'skipped_missing_reference' => $skippedMissingReference,
+            'written_missing_reference' => $writtenMissingReference,
         ]);
         exit;
     }

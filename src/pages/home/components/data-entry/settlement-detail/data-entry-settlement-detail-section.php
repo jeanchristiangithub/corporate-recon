@@ -152,7 +152,7 @@ try {
                         <input id="dataEntryEditTranDate" name="tran_date" type="date" required>
                     </label>
                     <label>
-                        <span>Settled Date</span>
+                        <span>Settled Date <em id="dataEntryEditSettledDateRequired" hidden>*</em></span>
                         <input id="dataEntryEditSettledDate" name="settled_date" type="date" disabled>
                     </label>
                     <label>
@@ -272,6 +272,7 @@ try {
         const editUserLabel = document.getElementById('dataEntrySettlementEditUserLabel');
         const editUploadedBy = document.getElementById('dataEntrySettlementEditUploadedBy');
         const editForm = document.getElementById('dataEntrySettlementEditForm');
+        const settledDateRequiredMarker = document.getElementById('dataEntryEditSettledDateRequired');
         const editFields = {
             account_number: document.getElementById('dataEntryEditAccountNumber'),
             agent_name: document.getElementById('dataEntryEditAgentName'),
@@ -478,6 +479,13 @@ try {
                     input.value = isEmptyCell(value) ? '' : String(value);
                 }
             });
+            const hasSettledDate = !isEmptyCell(rowData.settled_date);
+            editFields.settled_date.disabled = hasSettledDate;
+            editFields.settled_date.required = !hasSettledDate;
+            settledDateRequiredMarker.hidden = hasSettledDate;
+            editFields.settled_date.title = hasSettledDate
+                ? 'Settled Date is locked because it already contains data.'
+                : 'Select a Settled Date.';
             applyTranTypeSigns();
             calculateTotal();
         }

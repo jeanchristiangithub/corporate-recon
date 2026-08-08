@@ -504,6 +504,10 @@ body.data-entry-settlement-modal-open {
     font-style: normal;
 }
 
+.data-entry-settlement-edit-form label em[hidden] {
+    display: none;
+}
+
 .data-entry-settlement-edit-form input,
 .data-entry-settlement-edit-form select {
     width: 100%;

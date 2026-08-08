@@ -104,10 +104,22 @@ try {
            ON CONVERT(u.id_number USING utf8mb4) COLLATE utf8mb4_unicode_ci
             = CONVERT(" . $activityUserExpression . " USING utf8mb4) COLLATE utf8mb4_unicode_ci
          WHERE psd.partner_name = :partner
-           AND psd.settled_date >= :start_date
-           AND psd.settled_date < :end_date
+           AND (
+                (psd.settled_date >= :start_date AND psd.settled_date < :end_date)
+                OR (
+                    psd.settled_date IS NULL
+                    AND (psd.reference_id IS NULL OR TRIM(psd.reference_id) = '')
+                    AND (psd.tran_type IS NULL OR TRIM(psd.tran_type) = '')
+                    AND psd.tran_date >= :fallback_start_date
+                    AND psd.tran_date < :fallback_end_date
+                )
+           )
            AND (
                 (%s)
+                OR (
+                    (psd.reference_id IS NULL OR TRIM(psd.reference_id) = '')
+                    AND (psd.tran_type IS NULL OR TRIM(psd.tran_type) = '')
+                )
                 OR (
                     psd.modified_at IS NOT NULL
                     AND TRIM(CAST(psd.modified_at AS CHAR)) <> ''
@@ -125,6 +137,8 @@ try {
         ':partner' => $partner,
         ':start_date' => $startDate->format('Y-m-d'),
         ':end_date' => $endDate->format('Y-m-d'),
+        ':fallback_start_date' => $startDate->format('Y-m-d'),
+        ':fallback_end_date' => $endDate->format('Y-m-d'),
     ]);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 

@@ -685,7 +685,7 @@ try {
                 return;
             }
             upload.disabled = true;
-            const totals = { settlement_inserted: 0, settlement_updated: 0, settlement_amended: 0, skipped_missing_reference: 0 };
+            const totals = { settlement_inserted: 0, settlement_updated: 0, settlement_amended: 0, written_missing_reference: 0 };
             const totalRows = files.reduce((sum, file) => sum + Number(fileRowCounts.get(file) || 0), 0);
             let processedRows = 0;
             try {
@@ -712,8 +712,8 @@ try {
                     html: 'Settlement inserted: <b>' + totals.settlement_inserted.toLocaleString() + '</b><br>' +
                         (uploaderMode === 'endMonth'
                             ? 'Settlement amended: <b>' + totals.settlement_amended.toLocaleString() + '</b>' +
-                              (totals.skipped_missing_reference > 0
-                                  ? '<br>Unresolved blank Reference ID skipped: <b>' + totals.skipped_missing_reference.toLocaleString() + '</b>'
+                              (totals.written_missing_reference > 0
+                                  ? '<br>Blank Reference ID inserted: <b>' + totals.written_missing_reference.toLocaleString() + '</b>'
                                   : '')
                             : 'Settlement updated: <b>' + totals.settlement_updated.toLocaleString() + '</b>')
                 });

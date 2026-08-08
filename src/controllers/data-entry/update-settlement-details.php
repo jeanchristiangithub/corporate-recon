@@ -131,7 +131,7 @@ try {
     );
     $updateRow = $pdo->prepare(
         'UPDATE partner_settlement_data
-         SET account_number = ?, agent_name = ?, legacy_id = ?, tran_date = ?, transaction_id = ?,
+         SET account_number = ?, agent_name = ?, legacy_id = ?, tran_date = ?, settled_date = ?, transaction_id = ?,
              reference_id = ?, product = ?, tran_type = ?, orig_cntry = ?, rcv_cntry = ?,
              fx_rate_trn = ?, fx_date_trn = ?, margin = ?, base_tran_amt = ?, fee_tran_amt = ?,
              fx_rev_share_tran_amt = ?, comm_tran_amt = ?, total_tran_amt = ?,
@@ -153,9 +153,15 @@ try {
         }
 
         $selectRow->execute([$id, $partner]);
-        if (!$selectRow->fetch(PDO::FETCH_ASSOC)) {
+        $existingRow = $selectRow->fetch(PDO::FETCH_ASSOC);
+        if (!$existingRow) {
             throw new RuntimeException('Settlement row ' . $id . ' was not found for the selected partner.');
         }
+
+        $existingSettledDate = trim((string)($existingRow['settled_date'] ?? ''));
+        $settledDate = $existingSettledDate !== ''
+            ? $existingSettledDate
+            : settlementUpdateDate($values['settled_date'] ?? null, 'Settled Date', true);
 
         $tranType = strtoupper((string)settlementUpdateText($values['tran_type'] ?? null, 'Tran Type', true, 100));
         if (!in_array($tranType, ['REC', 'RRC', 'SEN', 'RSN', 'REF'], true)) {
@@ -208,6 +214,7 @@ try {
             settlementUpdateText($values['agent_name'] ?? null, 'Agent Name', true, 255),
             settlementUpdateText($values['legacy_id'] ?? null, 'Legacy ID', false, 100),
             settlementUpdateDate($values['tran_date'] ?? null, 'Tran Date', true),
+            $settledDate,
             settlementUpdateText($values['transaction_id'] ?? null, 'Transaction ID', false, 100),
             settlementUpdateText($values['reference_id'] ?? null, 'Reference ID', true, 100),
             settlementUpdateText($values['product'] ?? null, 'Product', false, 45),
