@@ -632,6 +632,14 @@ window.showSuccessToast = function(message, timeout){
     }
 
     async function fetchRowLocks(){
+        if(modal.dataset.maintenanceAuthoritativeStatus === 'unlocked'){
+            if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)){
+                modal._moneygramVirtual.pairs.forEach(pair => { pair.locked = false; });
+                if(typeof modal._moneygramVirtual.render === 'function') modal._moneygramVirtual.render();
+            }
+            updateVisibleLockCells(false);
+            return;
+        }
         if(modal.dataset.lockedView === 'true') return;
         const partner = modal.dataset.partnerName || (document.getElementById('hsCompany') && document.getElementById('hsCompany').value) || '';
         const date = modal.dataset.reconDate || '';
@@ -641,6 +649,14 @@ window.showSuccessToast = function(message, timeout){
             const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
             if(!res || !res.ok) return;
             const json = await res.json();
+            if(modal.dataset.maintenanceAuthoritativeStatus === 'unlocked'){
+                if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)){
+                    modal._moneygramVirtual.pairs.forEach(pair => { pair.locked = false; });
+                    if(typeof modal._moneygramVirtual.render === 'function') modal._moneygramVirtual.render();
+                }
+                updateVisibleLockCells(false);
+                return;
+            }
             const locks = Array.isArray(json && json.locks) ? json.locks : [];
             const lockSet = new Set(locks.map(ref => String(ref || '').trim()).filter(Boolean));
             if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs) && lockSet.size){

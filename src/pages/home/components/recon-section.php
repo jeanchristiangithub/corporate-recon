@@ -855,6 +855,24 @@ try {
             }
         }
 
+        function applyMaintenanceAuthoritativeStatus(modal, status){
+            if(!modal) return;
+            const normalizedStatus = String(status || '').trim().toLowerCase();
+            modal.dataset.maintenanceAuthoritativeStatus = normalizedStatus;
+            if(normalizedStatus !== 'unlocked') return;
+            if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)){
+                modal._moneygramVirtual.pairs.forEach((pair) => { pair.locked = false; });
+                if(typeof modal._moneygramVirtual.render === 'function') modal._moneygramVirtual.render();
+            }
+            modal.querySelectorAll('tr.locked-row, tr.is-locked-row').forEach((tr) => {
+                tr.classList.remove('locked-row', 'is-locked-row');
+            });
+            modal.querySelectorAll('.moneygram-lock-cell').forEach((cell) => {
+                cell.innerHTML = renderMoneygramLockIcon(false);
+            });
+            updateMoneygramLockHeaders(modal, false);
+        }
+
         async function viewLockedDateDetails(rowEl, options){
             if(!rowEl) return;
             const maintenanceUnlockOnly = !!(options && options.maintenanceUnlockOnly);
@@ -917,6 +935,7 @@ try {
         async function openTransactionLockReconciliationDetails(rowEl, options){
             if(!rowEl) return;
             const maintenanceButtonMode = options && String(options.maintenanceButtonMode || '').toLowerCase();
+            const authoritativeStatus = options && String(options.authoritativeStatus || '').toLowerCase();
             const partner = rowEl.dataset.partnername || rowEl.dataset.partner || '';
             const transactionDate = rowEl.dataset.transactionDate || rowEl.dataset.date || '';
             const btn = rowEl.querySelector('[data-action="maintenance-lock-view"]');
@@ -937,16 +956,22 @@ try {
                 }
                 if(isWorldInternationalCommunications(partner)){
                     openWicRangeModal(buildLockedWicAggregate(json, partner, transactionDate), partner, { serverLockedView: false, lockedDates: [] });
-                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('wicReconViewModal'), '#wicLockAllMatchedBtn', maintenanceButtonMode);
+                    const modal = document.getElementById('wicReconViewModal');
+                    applyMaintenanceAuthoritativeStatus(modal, authoritativeStatus);
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(modal, '#wicLockAllMatchedBtn', maintenanceButtonMode);
                     return;
                 }
                 if(isMetrobankHeadOffice(partner)){
                     openMbtcReconModal(buildLockedMbtcDay(json, partner, transactionDate), { serverLockedView: false, lockedDates: [], partnerName: partner });
-                    if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('mbtcReconViewModal'), '#mbtcLockAllMatchedBtn', maintenanceButtonMode);
+                    const modal = document.getElementById('mbtcReconViewModal');
+                    applyMaintenanceAuthoritativeStatus(modal, authoritativeStatus);
+                    if(maintenanceButtonMode) showMaintenanceMatchedButton(modal, '#mbtcLockAllMatchedBtn', maintenanceButtonMode);
                     return;
                 }
                 openMoneygramRangeModal(buildLockedMoneygramAggregate(json, partner, transactionDate), partner, { serverLockedView: false, lockedDates: [] });
-                if(maintenanceButtonMode) showMaintenanceMatchedButton(document.getElementById('moneygramReconViewModal'), '#moneygramLockAllMatchedBtn', maintenanceButtonMode);
+                const modal = document.getElementById('moneygramReconViewModal');
+                applyMaintenanceAuthoritativeStatus(modal, authoritativeStatus);
+                if(maintenanceButtonMode) showMaintenanceMatchedButton(modal, '#moneygramLockAllMatchedBtn', maintenanceButtonMode);
             }catch(e){
                 console.warn('Failed to load transaction-lock reconciliation details', e);
                 await showAlertModal('Failed to load reconciliation details.');
@@ -1282,6 +1307,7 @@ try {
             if(!modal) throw new Error('moneygram_modal_not_found');
             modal.dataset.maintenanceUnlockOnly = 'false';
             modal.dataset.maintenanceMatchedMode = '';
+            modal.dataset.maintenanceAuthoritativeStatus = '';
 
             const loadingEl = modal.querySelector('.moneygram-recon-modal__loading');
             if(loadingEl) loadingEl.style.display = 'flex';
@@ -2065,6 +2091,7 @@ try {
             if(!modal) throw new Error('wic_modal_not_found');
             modal.dataset.maintenanceUnlockOnly = 'false';
             modal.dataset.maintenanceMatchedMode = '';
+            modal.dataset.maintenanceAuthoritativeStatus = '';
             const serverLockedView = options && options.serverLockedView === true;
             modal.dataset.serverLockedView = serverLockedView ? 'true' : 'false';
             modal.dataset.lockedView = serverLockedView ? 'true' : 'false';
@@ -4641,6 +4668,7 @@ try {
             if(!modal) return;
             modal.dataset.maintenanceUnlockOnly = 'false';
             modal.dataset.maintenanceMatchedMode = '';
+            modal.dataset.maintenanceAuthoritativeStatus = '';
             const loadingEl = modal.querySelector('.mbtc-recon-modal__loading, .wic-recon-modal__loading, .moneygram-recon-modal__loading, .rcbc-recon-modal__loading');
             if(loadingEl) loadingEl.style.display = 'flex';
             // show modal immediately with overlay so users see progress

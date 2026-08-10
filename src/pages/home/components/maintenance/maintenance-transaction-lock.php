@@ -19,10 +19,23 @@ try {
         background: #f1f5f9;
         opacity: .75;
     }
-    #maintenanceLockProcess:disabled {
+    #maintenanceLockProcess:disabled,
+    #maintenanceLockExportPdf:disabled {
         opacity: .55;
         pointer-events: none;
         box-shadow: none;
+    }
+    #maintenanceLockExportPdf {
+        color: #dc3545;
+        background: #fff;
+        border: 1px solid #dc3545;
+        border-radius: 999px;
+        box-shadow: none;
+    }
+    #maintenanceLockExportPdf:hover:not(:disabled) {
+        color: #b91c2c;
+        background: #fff1f2;
+        border-color: #b91c2c;
     }
     #maintenanceDataUnlockSection .locked-dates-table tbody tr {
         transition: background-color .15s ease, box-shadow .15s ease;
@@ -30,6 +43,17 @@ try {
     #maintenanceDataUnlockSection .locked-dates-table tbody tr:hover {
         background: #f1f7ff;
         box-shadow: inset 3px 0 0 #dc3545;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table-wrap {
+        max-height: min(62vh, 560px);
+        overflow: auto;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f8fafc;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, .10);
     }
 </style>
 <section id="maintenanceDataUnlockSection" class="home-section" aria-label="Transaction Lock" aria-busy="false" style="display:none;">
@@ -57,7 +81,17 @@ try {
                     <span>End Date</span>
                     <input id="maintenanceLockEndDate" type="date" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
                 </label>
+                <label class="filter" style="flex:0 0 140px;">
+                    <span>Status</span>
+                    <select id="maintenanceLockStatus" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;background:#fff;box-sizing:border-box;">
+                        <option value="all">All Status</option>
+                        <option value="locked">Locked</option>
+                        <option value="unlocked">Unlocked</option>
+                        <option value="no_data">No Data</option>
+                    </select>
+                </label>
                 <button id="maintenanceLockProcess" type="button" class="material-btn material-btn--primary" style="height:36px;padding:7px 18px;border-radius:999px;">Process</button>
+                <button id="maintenanceLockExportPdf" type="button" class="material-btn" disabled style="height:36px;padding:7px 18px;">Export to PDF</button>
             </div>
         </div>
 
@@ -95,11 +129,12 @@ try {
     const partnerSuggestions = document.getElementById('maintenanceUnlockPartnerSuggestions');
     const startDateFilter = document.getElementById('maintenanceLockStartDate');
     const endDateFilter = document.getElementById('maintenanceLockEndDate');
+    const statusFilter = document.getElementById('maintenanceLockStatus');
     const processButton = document.getElementById('maintenanceLockProcess');
+    const exportPdfButton = document.getElementById('maintenanceLockExportPdf');
     const message = document.getElementById('maintenanceUnlockMessage');
     const pagination = document.getElementById('maintenanceUnlockPagination');
     const pageInfo = document.getElementById('maintenanceUnlockPageInfo');
-    const pageSize = 10;
     let rows = [];
     let page = 1;
     let loading = false;
@@ -141,11 +176,12 @@ try {
     }
 
     function setLoadingState(isLoading) {
-        [partnerFilter, startDateFilter, endDateFilter, processButton].forEach(function (control) {
+        [partnerFilter, startDateFilter, endDateFilter, statusFilter, processButton, exportPdfButton].forEach(function (control) {
             control.disabled = isLoading;
             control.style.cursor = isLoading ? 'wait' : '';
         });
         processButton.textContent = isLoading ? 'Loading...' : 'Process';
+        exportPdfButton.disabled = isLoading || filteredRows().length === 0;
         section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         section.classList.toggle('maintenance-unlock-loading', isLoading);
         if (isLoading) closePartnerSuggestions();
@@ -156,6 +192,7 @@ try {
         page = 1;
         body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Process.</td></tr>';
         pagination.hidden = true;
+        exportPdfButton.disabled = true;
         setMessage('', '');
     }
 
@@ -163,12 +200,14 @@ try {
         const selectedPartner = String(partnerFilter.value || '').trim().toUpperCase();
         const startDate = normalizeDate(startDateFilter.value || '');
         const endDate = normalizeDate(endDateFilter.value || '');
+        const selectedStatus = String(statusFilter.value || 'all').toLowerCase();
         return rows.filter(function (row) {
             const partner = String(row.partnername || row.corporate_partner || '');
             const date = normalizeDate(row.transaction_date || row.recon_date || row.date || '');
             if (selectedPartner && partner.trim().toUpperCase() !== selectedPartner) return false;
             if (startDate && date < startDate) return false;
             if (endDate && date > endDate) return false;
+            if (selectedStatus !== 'all' && String(row.status || '').toLowerCase() !== selectedStatus) return false;
             return true;
         });
     }
@@ -221,21 +260,39 @@ try {
 
     function render() {
         const list = filteredRows();
-        const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+        const monthGroups = [];
+        list.forEach(function (row) {
+            const date = normalizeDate(row.transaction_date || row.recon_date || row.date || '');
+            const monthKey = date.slice(0, 7);
+            let group = monthGroups[monthGroups.length - 1];
+            if (!group || group.key !== monthKey) {
+                group = {key: monthKey, rows: []};
+                monthGroups.push(group);
+            }
+            group.rows.push(row);
+        });
+        const totalPages = Math.max(1, monthGroups.length);
         page = Math.min(Math.max(1, page), totalPages);
 
         if (!list.length) {
             body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
             pagination.hidden = true;
+            exportPdfButton.disabled = true;
             return;
         }
+        exportPdfButton.disabled = loading;
 
-        const start = (page - 1) * pageSize;
-        body.innerHTML = list.slice(start, start + pageSize).map(function (row) {
+        const currentGroup = monthGroups[page - 1];
+        const currentRows = currentGroup ? currentGroup.rows : [];
+        body.innerHTML = currentRows.map(function (row) {
             const partner = String(row.partnername || row.corporate_partner || '').trim();
             const date = normalizeDate(row.transaction_date || row.recon_date || row.date || '');
-            const isLocked = String(row.status || '').toLowerCase() === 'locked';
-            const actions = isLocked
+            const status = String(row.status || '').toLowerCase();
+            const isLocked = status === 'locked';
+            const isNoData = status === 'no_data';
+            const actions = isNoData
+                ? ''
+                : isLocked
                 ? '<div class="locked-dates-actions"><button type="button" class="material-btn locked-dates-action-btn locked-dates-view" data-action="maintenance-locked-view">View</button>'
                     + (isAdmin ? '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="maintenance-unlock">Unlock</button>' : '')
                     + '</div>'
@@ -245,30 +302,18 @@ try {
             return '<tr data-partner="' + escapeHtml(partner) + '" data-date="' + escapeHtml(date) + '">' +
                 '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
                 '<td>' + escapeHtml(displayDate(date)) + '</td>' +
-                '<td><span class="locked-dates-status"' + (isLocked ? '' : ' style="background:#ecfdf5;color:#047857;"') + '>' + (isLocked ? 'Locked' : 'Unlocked') + '</span></td>' +
+                '<td><span class="locked-dates-status"' + (isNoData ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isLocked ? 'Locked' : 'Unlocked')) + '</span></td>' +
                 '<td>' + actions + '</td>' +
                 '</tr>';
         }).join('');
 
         pagination.hidden = false;
-        pageInfo.textContent = 'Page ' + page + ' of ' + totalPages + ' (' + list.length.toLocaleString() + ' locked date' + (list.length === 1 ? '' : 's') + ')';
+        const monthParts = String(currentGroup && currentGroup.key || '').split('-');
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthLabel = monthParts.length === 2 ? (monthNames[Number(monthParts[1]) - 1] || '') + ' ' + monthParts[0] : '';
+        pageInfo.textContent = 'Page ' + page + ' of ' + totalPages + ' (' + monthLabel + ', ' + currentRows.length + ' date' + (currentRows.length === 1 ? '' : 's') + ')';
         pagination.querySelector('[data-unlock-page="previous"]').disabled = page <= 1;
         pagination.querySelector('[data-unlock-page="next"]').disabled = page >= totalPages;
-    }
-
-    function buildRangeRows(partner, startDate, endDate, lockedDates) {
-        const lockedSet = new Set(lockedDates.map(function (row) {
-            return normalizeDate(row.transaction_date || row.recon_date || row.date || '');
-        }).filter(Boolean));
-        const result = [];
-        const current = new Date(startDate + 'T00:00:00');
-        const last = new Date(endDate + 'T00:00:00');
-        while (current <= last) {
-            const date = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
-            result.push({partnername: partner, transaction_date: date, status: lockedSet.has(date) ? 'locked' : 'unlocked'});
-            current.setDate(current.getDate() + 1);
-        }
-        return result;
     }
 
     async function load() {
@@ -300,13 +345,13 @@ try {
         body.innerHTML = '<tr><td colspan="4" class="locked-dates-loading">Loading locked dates...</td></tr>';
         pagination.hidden = true;
         try {
-            const response = await fetch(baseUrl() + '/src/controllers/recon/get_locked_reconciliation_dates.php?source=locked_reconciliation_dates&partnername=' + encodeURIComponent(partner), {
+            const response = await fetch(baseUrl() + '/src/controllers/recon/get_transaction_lock_range.php?partnername=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate), {
                 credentials: 'same-origin',
                 cache: 'no-store'
             });
             const data = await response.json();
             if (!response.ok || !data || !data.success) throw new Error((data && (data.error || data.message)) || 'Failed to load locked reconciliation dates.');
-            rows = buildRangeRows(partner, startDate, endDate, Array.isArray(data.locked_dates) ? data.locked_dates : []);
+            rows = Array.isArray(data.rows) ? data.rows : [];
             page = 1;
             render();
         } catch (error) {
@@ -339,7 +384,8 @@ try {
         row.dataset.partnername = row.getAttribute('data-partner') || '';
         row.dataset.transactionDate = row.getAttribute('data-date') || '';
         await window.openTransactionLockReconciliationDetails(row, {
-            maintenanceButtonMode: isPublic ? 'lock' : 'hidden'
+            maintenanceButtonMode: isPublic ? 'lock' : 'hidden',
+            authoritativeStatus: 'unlocked'
         });
     }
 
@@ -432,6 +478,46 @@ try {
         }
     }
 
+    async function exportToPdf() {
+        const exportRows = filteredRows();
+        if (!exportRows.length) {
+            setMessage('There are no results to export.', 'error');
+            return;
+        }
+        exportPdfButton.disabled = true;
+        exportPdfButton.textContent = 'Exporting...';
+        setMessage('', '');
+        try {
+            const response = await fetch(baseUrl() + '/src/controllers/recon/export_transaction_lock_pdf.php', {
+                method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    partner: String(partnerFilter.value || '').trim(),
+                    start_date: normalizeDate(startDateFilter.value || ''),
+                    end_date: normalizeDate(endDateFilter.value || ''),
+                    status_filter: statusFilter.options[statusFilter.selectedIndex].text,
+                    rows: exportRows.map(function (row) {
+                        return {transaction_date: normalizeDate(row.transaction_date || ''), status: String(row.status || '')};
+                    })
+                })
+            });
+            if (!response.ok) throw new Error((await response.text()) || 'Failed to export PDF.');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'TRANSACTION-LOCK-REPORT-from-' + normalizeDate(startDateFilter.value || '') + '-to-' + normalizeDate(endDateFilter.value || '') + '.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        } catch (error) {
+            setMessage(error.message || 'Failed to export PDF.', 'error');
+        } finally {
+            exportPdfButton.textContent = 'Export to PDF';
+            exportPdfButton.disabled = filteredRows().length === 0;
+        }
+    }
+
     partnerFilter.addEventListener('input', function () {
         clearProcessedResults();
         renderPartnerSuggestions();
@@ -477,6 +563,11 @@ try {
         clearProcessedResults();
     });
     endDateFilter.addEventListener('change', clearProcessedResults);
+    statusFilter.addEventListener('change', function () {
+        if (!rows.length) return;
+        page = 1;
+        render();
+    });
     [startDateFilter, endDateFilter].forEach(function (dateInput) {
         dateInput.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter') return;
@@ -487,6 +578,7 @@ try {
     processButton.addEventListener('click', function () {
         load();
     });
+    exportPdfButton.addEventListener('click', exportToPdf);
     pagination.addEventListener('click', function (event) {
         const button = event.target.closest('[data-unlock-page]');
         if (!button) return;

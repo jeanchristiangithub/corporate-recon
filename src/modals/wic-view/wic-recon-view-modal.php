@@ -221,6 +221,10 @@
     }
 
     async function fetchRowLocks(){
+        if(modal.dataset.maintenanceAuthoritativeStatus === 'unlocked'){
+            markRowsLocked([], false);
+            return;
+        }
         const partner = modal.dataset.partnerName || '';
         const date = modal.dataset.reconDate || '';
         if(!partner || !date) return;
@@ -229,6 +233,10 @@
             const res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
             if(!res || !res.ok) return;
             const json = await res.json();
+            if(modal.dataset.maintenanceAuthoritativeStatus === 'unlocked'){
+                markRowsLocked([], false);
+                return;
+            }
             const locks = Array.isArray(json && json.locks) ? json.locks : [];
             if(locks.length) markRowsLocked(locks, true);
         }catch(e){ console.warn('Failed to fetch WIC row locks', e); }

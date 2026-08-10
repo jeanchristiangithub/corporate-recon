@@ -641,11 +641,35 @@ try {
 
     $pdo = fileRecDbConnection();
     $aliases = summary_partner_aliases($partner);
+    $normalizedPartner = summary_normalized_partner($partner);
+    $cashflowOnly = filter_var($_GET['cashflow_only'] ?? false, FILTER_VALIDATE_BOOL);
+
+    if ($cashflowOnly && $normalizedPartner === 'MONEYGRAM') {
+        $settlementReports = [];
+        foreach (['PHP', 'USD'] as $currencyCode) {
+            $settlementReports[strtolower($currencyCode)] = summary_fetch_moneygram_settlement_report(
+                $pdo,
+                $startDate,
+                $endDate,
+                $currencyCode
+            );
+        }
+
+        echo json_encode([
+            'success' => true,
+            'partner' => $aliases[0] ?? $partner,
+            'partner_input' => $partner,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'settlement_reports' => $settlementReports,
+        ]);
+        exit;
+    }
+
     $partnerTable = summary_partner_table($pdo, $partner);
     $partnerColumns = summary_columns($pdo, $partnerTable);
     $webColumns = summary_columns($pdo, 'ml_web_data');
 
-    $normalizedPartner = summary_normalized_partner($partner);
     $isWic = $normalizedPartner === 'WIC' || $normalizedPartner === 'WORLDCOMINTERNATIONALCOMMUNICATIONS';
     $isMoneygram = $normalizedPartner === 'MONEYGRAM';
 

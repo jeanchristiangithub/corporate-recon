@@ -932,17 +932,20 @@ try {
             const params = new URLSearchParams({
                 partner,
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                cashflow_only: '1'
             });
             const previousParams = new URLSearchParams({
                 partner,
                 start_date: previousStartDate,
-                end_date: previousEndDate
+                end_date: previousEndDate,
+                cashflow_only: '1'
             });
             const priorParams = new URLSearchParams({
                 partner,
                 start_date: priorStartDate,
-                end_date: priorEndDate
+                end_date: priorEndDate,
+                cashflow_only: '1'
             });
             const requestOptions = {
                 headers: { Accept: 'application/json' },

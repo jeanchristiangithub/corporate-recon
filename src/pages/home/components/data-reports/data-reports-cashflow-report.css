@@ -398,7 +398,9 @@
 
 .cash-flow-report-table-wrap {
     width: 100%;
-    overflow-x: auto;
+    max-height: min(620px, 68vh);
+    overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid #d5deeb;
     border-radius: 8px;
     background: #fff;
@@ -438,6 +440,9 @@
 }
 
 .cash-flow-report-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     background: #f7f9fc;
     border: 1px solid #d5deeb;
     color: #17213c;
@@ -446,6 +451,19 @@
     text-align: center;
     text-transform: uppercase;
     vertical-align: middle;
+}
+
+.cash-flow-report-table thead tr:first-child {
+    height: 43px;
+}
+
+.cash-flow-report-table thead tr:nth-child(2) th {
+    top: 43px;
+    z-index: 4;
+}
+
+.cash-flow-report-table thead {
+    box-shadow: 0 1px 0 #d5deeb;
 }
 
 .cash-flow-report-bank-deposit-header span {
@@ -485,9 +503,13 @@
 }
 
 .cash-flow-report-table .cash-flow-report-forwarded-table-row td {
+    position: sticky;
+    top: 86px;
+    z-index: 2;
     background: #fffaf2;
     font-weight: 700;
     text-align: right;
+    box-shadow: 0 1px 0 #d5deeb;
 }
 
 .cash-flow-report-table .cash-flow-report-forwarded-table-row td:first-child {
