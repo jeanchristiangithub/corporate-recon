@@ -8,9 +8,9 @@ reconDaycardLocksBoot();
 header('Content-Type: application/json; charset=utf-8');
 
 $role = (string) ($_SESSION['user']['role'] ?? '');
-if (strcasecmp($role, 'Public') !== 0) {
+if (strcasecmp($role, 'Public') !== 0 && strcasecmp($role, 'Admin') !== 0) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Only Public users may lock reconciliation dates.']);
+    echo json_encode(['success' => false, 'error' => 'Only Public or Admin users may lock reconciliation dates.']);
     exit;
 }
 

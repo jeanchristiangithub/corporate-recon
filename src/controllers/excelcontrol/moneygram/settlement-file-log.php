@@ -61,7 +61,7 @@ try {
 
     if ($overwritten) {
         $fileLogId = (int)$existingId;
-        $update = $pdo->prepare("UPDATE uploaded_file_logs SET has_overwrite = '1' WHERE id = ?");
+        $update = $pdo->prepare("UPDATE uploaded_file_logs SET has_overwrite = '1', uploaded_date = NOW() WHERE id = ?");
         $update->execute([$fileLogId]);
     } else {
         $insert = $pdo->prepare(

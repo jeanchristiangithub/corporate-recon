@@ -395,6 +395,7 @@
         closeBtn.addEventListener('click', function(event){
             if(modal._mbtcForceClosing) return;
             if(modal.dataset.maintenanceUnlockOnly === 'true') return;
+            if(modal.dataset.maintenanceSuppressCloseWarning === 'true') return;
             const unlockedMatched = getUnlockedMatchedRows();
             if(unlockedMatched.length === 0) return;
             event.preventDefault();

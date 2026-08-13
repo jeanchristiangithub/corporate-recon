@@ -184,7 +184,7 @@ function kpxResolveFileLogId(PDO $pdo, array $log): int
     if ($existingId !== false) {
         $fileLogId = (int)$existingId;
         $updateStmt = $pdo->prepare(
-            "UPDATE uploaded_file_logs SET has_overwrite = '1' WHERE id = ?"
+            "UPDATE uploaded_file_logs SET has_overwrite = '1', uploaded_date = NOW() WHERE id = ?"
         );
         $updateStmt->execute([$fileLogId]);
         return $fileLogId;

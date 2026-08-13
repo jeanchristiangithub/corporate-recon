@@ -142,8 +142,35 @@ try {
         $params[':search_uploader_name'] = $searchValue;
     }
 
+    if ($source === 'kpx_web_data') {
+        $linkedDataJoin = "INNER JOIN (
+            SELECT DISTINCT ufl_file_log_id
+            FROM ml_web_data
+            WHERE ufl_file_log_id IS NOT NULL
+        ) linked_logs ON linked_logs.ufl_file_log_id = l.id";
+    } elseif ($state === 'transactional') {
+        $linkedDataJoin = "INNER JOIN (
+            SELECT DISTINCT ufl_file_log_id
+            FROM moneygram_partner_data
+            WHERE ufl_file_log_id IS NOT NULL
+        ) linked_logs ON linked_logs.ufl_file_log_id = l.id";
+    } elseif ($state === 'settlement') {
+        $linkedDataJoin = "INNER JOIN (
+            SELECT DISTINCT ufl_file_log_id
+            FROM partner_settlement_data
+            WHERE ufl_file_log_id IS NOT NULL
+        ) linked_logs ON linked_logs.ufl_file_log_id = l.id";
+    } else {
+        $linkedDataJoin = "INNER JOIN (
+            SELECT ufl_file_log_id FROM moneygram_partner_data WHERE ufl_file_log_id IS NOT NULL
+            UNION
+            SELECT ufl_file_log_id FROM partner_settlement_data WHERE ufl_file_log_id IS NOT NULL
+        ) linked_logs ON linked_logs.ufl_file_log_id = l.id";
+    }
+
     $fromAndWhere = "
         FROM uploaded_file_logs l
+        {$linkedDataJoin}
         LEFT JOIN users u
             ON u.id_number COLLATE utf8mb4_unicode_ci
              = l.uploaded_by COLLATE utf8mb4_unicode_ci
@@ -165,7 +192,6 @@ try {
             l.partner_name,
             l.uploaded_by,
             l.has_overwrite,
-            l.kpxweb_data_status,
             COALESCE(
                 NULLIF(CONCAT_WS(' ',
                     NULLIF(TRIM(u.firstname), ''),
@@ -183,43 +209,8 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $idsByLinkedTable = [];
-    foreach ($rows as $row) {
-        $rowId = (int)($row['id'] ?? 0);
-        if ($rowId < 1) {
-            continue;
-        }
-
-        if ($source === 'kpx_web_data') {
-            $linkedTable = 'ml_web_data';
-        } else {
-            $statuses = array_map('trim', explode(',', strtoupper((string)($row['kpxweb_data_status'] ?? ''))));
-            $linkedTable = in_array('SD', $statuses, true)
-                ? 'partner_settlement_data'
-                : 'moneygram_partner_data';
-        }
-        $idsByLinkedTable[$linkedTable][] = $rowId;
-    }
-
-    $linkedIds = [];
-    foreach ($idsByLinkedTable as $linkedTable => $logIds) {
-        $logIds = array_values(array_unique(array_map('intval', $logIds)));
-        if (!$logIds) {
-            continue;
-        }
-        $placeholders = implode(',', array_fill(0, count($logIds), '?'));
-        $linkedStmt = $pdo->prepare(
-            "SELECT DISTINCT ufl_file_log_id FROM {$linkedTable} WHERE ufl_file_log_id IN ({$placeholders})"
-        );
-        $linkedStmt->execute($logIds);
-        foreach ($linkedStmt->fetchAll(PDO::FETCH_COLUMN) as $linkedId) {
-            $linkedIds[(int)$linkedId] = true;
-        }
-    }
-
     foreach ($rows as &$row) {
-        $row['has_linked_data'] = isset($linkedIds[(int)($row['id'] ?? 0)]) ? 1 : 0;
-        unset($row['kpxweb_data_status']);
+        $row['has_linked_data'] = 1;
     }
     unset($row);
 

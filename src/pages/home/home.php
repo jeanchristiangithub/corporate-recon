@@ -461,7 +461,27 @@ if ($currentUserId !== '') {
             links.forEach(a=> a.classList.remove('is-active'));
             if(!sectionId) return;
             const activeLink = document.querySelector('.sidebar-nav a[data-show="'+sectionId+'"]');
-            if(activeLink) activeLink.classList.add('is-active');
+            if(activeLink) {
+                activeLink.classList.add('is-active');
+
+                const subgroup = activeLink.closest('.nav-subgroup');
+                if(subgroup){
+                    subgroup.classList.add('is-open');
+                    const subgroupToggle = subgroup.querySelector('.nav-subgroup-toggle');
+                    const subgroupMenu = subgroup.querySelector('.nav-subgroup-menu');
+                    if(subgroupToggle) subgroupToggle.setAttribute('aria-expanded', 'true');
+                    if(subgroupMenu) subgroupMenu.style.display = 'flex';
+                }
+
+                const group = activeLink.closest('.nav-group');
+                if(group){
+                    group.classList.add('is-open');
+                    const groupToggle = group.querySelector(':scope > .nav-group-toggle');
+                    const groupMenu = group.querySelector(':scope > .nav-group-menu');
+                    if(groupToggle) groupToggle.setAttribute('aria-expanded', 'true');
+                    if(groupMenu) groupMenu.style.display = 'flex';
+                }
+            }
         }catch(e){ }
     }
 
@@ -498,6 +518,7 @@ if ($currentUserId !== '') {
                 webdata: 'webdataSection',
                 webdatacancellation: 'webdataCancellationSection',
                 kpxwebdataver2: 'kpxWebDataVer2Section',
+                reportswebdata: 'reportsWebDataSection',
                 settlementdaily: 'settlementDailySection',
                 settlementendmonth: 'settlementEndMonthSection',
                 dataentrysettlementdetail: 'dataEntrySettlementDetailSection',
@@ -538,9 +559,42 @@ if ($currentUserId !== '') {
         // 'navUploadedFileLogs',
         'navWebDataCancellation',
         // 'navDataEntrySettlementDetail',
-        'navEdiReport',
+        // 'navEdiReport',
         'navMaintenance',
     ];
+
+    const sectionRoutes = {
+        dashboardSection: 'dashboard',
+        homeSection: 'workspace',
+        usersSection: 'users',
+        webdataSection: 'webdata',
+        webdataCancellationSection: 'webdatacancellation',
+        kpxWebDataVer2Section: 'kpxwebdataver2',
+        partnerdataSection: 'partnerdata',
+        settlementDailySection: 'settlementdaily',
+        settlementEndMonthSection: 'settlementendmonth',
+        dataEntrySettlementDetailSection: 'dataentrysettlementdetail',
+        reportsWebDataSection: 'reportswebdata',
+        reportsPartnerDataSection: 'partnerdatareportdaily',
+        reportsPartnerDataSettlementSection: 'partnerdatareportsettlement',
+        summaryReportSection: 'summaryreport',
+        reconReportSection: 'reconreport',
+        cashFlowReportSection: 'cashflowreport',
+        ediReportSection: 'edireport',
+        maintenanceDataUnlockSection: 'maintenancedataunlock',
+        maintenanceSection: 'maintenance',
+        uploadedFileLogsSection: 'uploadedfilelogs',
+        originDataLogsPartnerSection: 'origindatalogspartner'
+    };
+
+    function getSectionUrl(sectionId){
+        const route = sectionRoutes[sectionId];
+        if(!route) return '';
+        const url = new URL(window.location.href);
+        url.searchParams.set('section', route);
+        url.hash = '';
+        return url.toString();
+    }
 
     // wire nav links
     ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
@@ -567,23 +621,9 @@ if ($currentUserId !== '') {
                     dismissUserCreateAlert();
                 }
                 const targetId = navEl.dataset.show;
-                const target = targetId ? document.getElementById(targetId) : null;
-                if (target) {
-                    hideAllSectionTargets();
-                    target.style.display = 'block';
-                    target.classList.add('is-visible');
-                    setActiveNavFor(targetId);
-                    const shouldAutoFocus = targetId !== 'reportsWebDataSection';
-                    const first = shouldAutoFocus ? target.querySelector('input,button,a,select,textarea') : null;
-                    if (first) {
-                        try { first.focus({preventScroll:true}); } catch (e) { first.focus(); }
-                    }
-                    setTimeout(() => {
-                        try { target.scrollIntoView({behavior:'auto', block:'start'}); } catch (e) {}
-                    }, 40);
-                    if (navEl.closest('.nav-group-menu')) {
-                        closeSidebar();
-                    }
+                const sectionUrl = getSectionUrl(targetId);
+                if (sectionUrl) {
+                    window.location.assign(sectionUrl);
                 }
             } catch (err) {
                 console.error('[sidebar] nav click handler error', err);

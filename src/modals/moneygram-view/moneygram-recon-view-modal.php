@@ -17,11 +17,15 @@
             </div>
 
             <div class="moneygram-recon-modal__controls">
-                <label class="cmp-control-search"><input data-role="resultSearch" type="search" placeholder="Search"></label>
-                <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
-                <label class="cmp-control-filter">Show: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
-                <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
-                <button id="moneygramViewDataDetectedBtn" class="moneygram-lock-all-btn moneygram-detected-count-btn" type="button"><span class="moneygram-detected-count-btn__badge" data-role="dataDetectedCount">0</span><span>VIEW DATA DETECTED</span></button>
+                <div class="moneygram-recon-modal__filter-row">
+                    <label class="cmp-control-search"><input data-role="resultSearch" type="search" placeholder="Search"></label>
+                    <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
+                    <label class="cmp-control-filter">Status: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
+                </div>
+                <div class="moneygram-recon-modal__action-row">
+                    <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
+                    <button id="moneygramViewDataDetectedBtn" class="moneygram-lock-all-btn moneygram-detected-count-btn" type="button"><span class="moneygram-detected-count-btn__badge" data-role="dataDetectedCount">0</span><span>VIEW ERROR DETECTED</span></button>
+                </div>
             </div>
 
         </div>
@@ -37,13 +41,13 @@
                             </div>
                             <div class="moneygram-principal moneygram-metric-breakdown" data-role="partnersPrincipalPhp">
                                 <p data-part="label"><span class="moneygram-metric-label">Principal:</span></p>
-                                <p data-part="php">PHP: 0.00</p>
-                                <p data-part="usd">USD: 0.00</p>
+                                <p data-part="php"><span class="moneygram-currency-label">PHP:</span> 0.00</p>
+                                <p data-part="usd"><span class="moneygram-currency-label">USD:</span> 0.00</p>
                             </div>
                             <div class="moneygram-commission moneygram-metric-breakdown" data-role="partnersCommission">
                                 <p data-part="label"><span class="moneygram-metric-label">Commission:</span></p>
-                                <p data-part="php">PHP: 0.00</p>
-                                <p data-part="usd">USD: 0.00</p>
+                                <p data-part="php"><span class="moneygram-currency-label">PHP:</span> 0.00</p>
+                                <p data-part="usd"><span class="moneygram-currency-label">USD:</span> 0.00</p>
                             </div>
                             <div class="moneygram-principal" data-role="partnersPrincipalUsd" style="display:none;"></div>
                         </div>
@@ -56,8 +60,8 @@
                             </div>
                             <div class="moneygram-principal moneygram-metric-breakdown" data-role="webPrincipalPhp">
                                 <p data-part="label"><span class="moneygram-metric-label">Principal:</span></p>
-                                <p data-part="php">PHP: 0.00</p>
-                                <p data-part="usd">USD: 0.00</p>
+                                <p data-part="php"><span class="moneygram-currency-label">PHP:</span> 0.00</p>
+                                <p data-part="usd"><span class="moneygram-currency-label">USD:</span> 0.00</p>
                             </div>
                             <div class="moneygram-principal" data-role="webPrincipalUsd" style="display:none;"></div>
                             <div class="moneygram-commission" data-role="webCommission" style="display:none;"></div>
@@ -201,7 +205,7 @@
     <div class="moneygram-data-detected-modal__overlay" data-action="close-moneygram-data-detected"></div>
     <div class="moneygram-data-detected-modal__dialog">
         <div class="moneygram-data-detected-modal__header">
-            <h3>VIEW DATA DETECTED</h3>
+            <h3>VIEW ERROR DETECTED</h3>
             <div class="moneygram-data-detected-modal__actions">
                 <button type="button" class="moneygram-data-detected-modal__pdf" data-action="export-moneygram-data-detected-pdf">Export to PDF</button>
                 <button type="button" class="moneygram-data-detected-modal__close" data-action="close-moneygram-data-detected" aria-label="Close">×</button>
@@ -365,7 +369,7 @@ window.showSuccessToast = function(message, timeout){
         if(!raw) return '';
         const remarks = [];
         const displayLabels = {
-            'Maybe New Branch': 'Maybe New Branch, Contact CAD System Administrator to verify Branch ID',
+            'Maybe New Branch': 'Contact CAD System Administrator to verify Branch ID',
             'PARTNER DATA REFERENCE ID not found in KPX WEB Report': 'PARTNER Data: REFERENCE ID not found in KPX Report',
             'KPX WEB DATA CCREF NO not found in Partners Report': 'KPX Data: CCREF NO not found in Partners Report'
         };
@@ -493,8 +497,27 @@ window.showSuccessToast = function(message, timeout){
 
     if(viewDataDetectedBtn && viewDataDetectedBtn.dataset.bound !== 'true'){
         viewDataDetectedBtn.dataset.bound = 'true';
-        viewDataDetectedBtn.addEventListener('click', function(e){
+        viewDataDetectedBtn.addEventListener('click', async function(e){
             e.preventDefault();
+            const detectedRows = modal._moneygramVirtual && typeof modal._moneygramVirtual.getDetectedRows === 'function'
+                ? modal._moneygramVirtual.getDetectedRows()
+                : [];
+            if(!detectedRows.length){
+                if(window.Swal){
+                    await Swal.fire({
+                        icon: 'info',
+                        text: 'No Data error found.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#dc3545',
+                        heightAuto: false
+                    });
+                } else if(window.showAlertModal){
+                    await showAlertModal('No Data error found.', { icon: 'info' });
+                } else {
+                    window.alert('No Data error found.');
+                }
+                return;
+            }
             const detectedModal = document.getElementById('moneygramDataDetectedModal');
             if(detectedModal){
                 renderDataDetectedRows();
@@ -833,6 +856,7 @@ window.showSuccessToast = function(message, timeout){
         
         closeBtn.addEventListener('click', function(e){
             if(modal.dataset.maintenanceUnlockOnly === 'true') return;
+            if(modal.dataset.maintenanceSuppressCloseWarning === 'true') return;
             // Collect matched rows that are NOT locked
             const unlockedMatched = modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)
                 ? modal._moneygramVirtual.pairs.filter(pair => !pair.isMismatch && !pair.isDuplicate && !pair.locked)

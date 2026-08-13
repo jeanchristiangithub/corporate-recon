@@ -28,7 +28,7 @@ try {
 <section id="homeSection" class="home-section" aria-label="Process Recon" style="display:none;">
     <div class="home-section__inner">
         <div class="home-section__header">
-            <h2 class="home-section__title">Process Recon</h2>
+            <h2 class="home-section__title">Process Reconciliation</h2>
         </div>
         <div class="home-section__sticky">
             <div class="filters">
@@ -55,7 +55,7 @@ try {
                         <input id="hsEndDate" type="date" value="<?= date('Y-m-d') ?>">
                     </label>
                     <div style="display:inline-flex;align-items:flex-end;gap:8px">
-                        <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Process</button>
+                        <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Display</button>
                         <!-- <button id="hsViewLockedDates" class="material-btn locked-dates-btn" type="button">View Locked Dates</button> -->
                     </div>
                 </div>
@@ -376,8 +376,8 @@ try {
             const usdEl = el.querySelector && el.querySelector('[data-part="usd"]');
             if(labelEl && phpEl && usdEl){
                 labelEl.innerHTML = '<span class="moneygram-metric-label">' + label + ':</span>';
-                phpEl.textContent = 'PHP: ' + php;
-                usdEl.textContent = 'USD: ' + usd;
+                phpEl.innerHTML = '<span class="moneygram-currency-label">PHP:</span> ' + php;
+                usdEl.innerHTML = '<span class="moneygram-currency-label">USD:</span> ' + usd;
                 return;
             }
             el.textContent = label + ': PHP: ' + php + ' USD: ' + usd;
@@ -558,7 +558,7 @@ try {
             if(reconOverlay) reconOverlay.classList.remove('active');
             reconcileBtn.disabled = false;
             reconcileBtn.classList.remove('disabled');
-            reconcileBtn.textContent = origText || 'Start Reconcile';
+            reconcileBtn.textContent = origText || 'Display';
         }
 
         function setLockedDatesMessage(message, type){

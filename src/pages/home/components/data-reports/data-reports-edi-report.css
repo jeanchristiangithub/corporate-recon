@@ -12,7 +12,7 @@
 
 .edi-report-filters {
     display: grid;
-    grid-template-columns: minmax(280px, 560px) 176px max-content;
+    grid-template-columns: minmax(280px, 2fr) repeat(6, minmax(145px, 1fr)) max-content max-content;
     align-items: end;
     gap: 12px;
     padding: 16px;
@@ -32,7 +32,13 @@
     font-weight: 600;
 }
 
-.edi-report-field input {
+.edi-report-required {
+    color: #ed2947;
+    font-style: normal;
+}
+
+.edi-report-field input,
+.edi-report-field select {
     width: 100%;
     height: 41px;
     padding: 0 12px;
@@ -45,12 +51,56 @@
     box-sizing: border-box;
 }
 
-.edi-report-field input:focus {
+.edi-report-field select {
+    padding-right: 32px;
+    cursor: pointer;
+}
+
+.edi-report-field input:focus,
+.edi-report-field select:focus {
     box-shadow: 0 0 0 3px rgba(239, 41, 73, 0.12);
 }
 
 .edi-report-autocomplete {
     position: relative;
+}
+
+.edi-report-autocomplete input {
+    padding-right: 36px;
+}
+
+.edi-report-autocomplete-clear {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    right: 9px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #667085;
+    font: 400 21px/24px Arial, sans-serif;
+    cursor: pointer;
+}
+
+.edi-report-autocomplete-clear:hover {
+    background: #f1f5fa;
+    color: #ed2947;
+}
+
+.edi-report-autocomplete-clear:focus-visible {
+    outline: 2px solid rgba(239, 41, 73, 0.3);
+}
+
+.edi-report-autocomplete-clear[hidden] {
+    display: none;
+}
+
+.edi-report-field--branch {
+    min-width: 190px;
 }
 
 .edi-report-autocomplete ul {
@@ -87,7 +137,8 @@
     background: #f1f5fa;
 }
 
-.edi-report-generate {
+.edi-report-generate,
+.edi-report-export {
     min-width: 96px;
     height: 41px;
     padding: 0 17px;
@@ -99,13 +150,157 @@
     cursor: pointer;
 }
 
+.edi-report-export {
+    min-width: 126px;
+    background: #198754;
+}
+
 .edi-report-generate:hover {
     background: #d91f3d;
+}
+
+.edi-report-export:hover:not(:disabled) {
+    background: #157347;
+}
+
+.edi-report-export:disabled {
+    background: #aeb6c2;
+    cursor: not-allowed;
 }
 
 .edi-report-generate:focus-visible {
     outline: 3px solid rgba(239, 41, 73, 0.25);
     outline-offset: 2px;
+}
+
+.edi-report-table-card {
+    width: 100%;
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.edi-report-table-card[hidden] {
+    display: none;
+}
+
+.edi-report-table-wrap {
+    width: 100%;
+    max-height: min(560px, calc(100vh - 300px));
+    overflow: auto;
+    border: 1px solid #17213c;
+    box-sizing: border-box;
+}
+
+.edi-report-table {
+    width: 100%;
+    min-width: 1305px;
+    border-collapse: collapse;
+    color: #000;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    text-align: center;
+}
+
+.edi-report-table th,
+.edi-report-table td {
+    height: 20px;
+    padding: 2px 4px;
+    border-right: 1px solid #17213c;
+    border-bottom: 1px solid #17213c;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.edi-report-table th {
+    background: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.edi-report-table thead th {
+    position: sticky;
+    z-index: 3;
+    box-shadow: 0 1px 0 #17213c;
+}
+
+.edi-report-table thead tr:nth-child(1) th {
+    top: 0;
+}
+
+.edi-report-table thead tr:nth-child(2) th {
+    top: 20px;
+}
+
+.edi-report-table thead tr:nth-child(3) th {
+    top: 40px;
+}
+
+.edi-report-table thead tr:nth-child(4) th {
+    top: 60px;
+}
+
+.edi-report-table thead th[rowspan="4"] {
+    top: 0;
+    z-index: 4;
+}
+
+.edi-report-table thead tr:first-child > th:last-child,
+.edi-report-table tbody tr > td:last-child {
+    border-right: 0;
+}
+
+.edi-report-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.edi-report-table tbody tr:not(.edi-report-empty-row):hover td {
+    background: #f1f6fd;
+}
+
+.edi-report-table tbody td {
+    transition: background-color 0.15s ease;
+}
+
+.edi-report-empty-row td {
+    height: 22px;
+}
+
+.edi-report-table td:nth-child(3),
+.edi-report-table td:nth-child(4) {
+    text-align: left;
+}
+
+.edi-report-table td:nth-child(6),
+.edi-report-table td:nth-child(7),
+.edi-report-table td:nth-child(8),
+.edi-report-table td:nth-child(10),
+.edi-report-table td:nth-child(11),
+.edi-report-table td:nth-child(12),
+.edi-report-table td:nth-child(14),
+.edi-report-table td:nth-child(15),
+.edi-report-table td:nth-child(16),
+.edi-report-table td:nth-child(18),
+.edi-report-table td:nth-child(19) {
+    text-align: right;
+}
+
+.edi-report-table td:nth-child(20) {
+    text-align: right;
+}
+
+.edi-report-no-results {
+    height: 42px !important;
+    color: #667085;
+    text-align: center !important;
+}
+
+.edi-report-no-results--error {
+    color: #ed2947;
 }
 
 @media (max-width: 760px) {
@@ -114,6 +309,10 @@
     }
 
     .edi-report-generate {
+        width: 100%;
+    }
+
+    .edi-report-export {
         width: 100%;
     }
 }

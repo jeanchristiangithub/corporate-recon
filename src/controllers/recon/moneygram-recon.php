@@ -542,7 +542,7 @@ try{
                 }
 
                 // Show cancellation details first, followed by any missing-data
-                // combination detected by VIEW DATA DETECTED.
+                // combination detected by VIEW ERROR DETECTED.
                 $webRaw = $web['raw'] ?? [];
                 $dateCancelled = trim((string)($webRaw['date_cancelled'] ?? ($webRaw['date_cancellation'] ?? '')));
                 $remarks = [];

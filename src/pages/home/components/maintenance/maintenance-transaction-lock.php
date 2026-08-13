@@ -44,6 +44,19 @@ try {
         background: #f1f7ff;
         box-shadow: inset 3px 0 0 #dc3545;
     }
+    #maintenanceDataUnlockSection .locked-dates-table th,
+    #maintenanceDataUnlockSection .locked-dates-table td {
+        padding: 6px 10px;
+        line-height: 1.2;
+    }
+    #maintenanceDataUnlockSection .locked-dates-status {
+        min-height: 20px;
+        padding: 2px 8px;
+    }
+    #maintenanceDataUnlockSection .locked-dates-action-btn {
+        height: 26px;
+        padding: 3px 10px;
+    }
     #maintenanceDataUnlockSection .locked-dates-table-wrap {
         max-height: min(62vh, 560px);
         overflow: auto;
@@ -87,10 +100,9 @@ try {
                         <option value="all">All Status</option>
                         <option value="locked">Locked</option>
                         <option value="unlocked">Unlocked</option>
-                        <option value="no_data">No Data</option>
                     </select>
                 </label>
-                <button id="maintenanceLockProcess" type="button" class="material-btn material-btn--primary" style="height:36px;padding:7px 18px;border-radius:999px;">Process</button>
+                <button id="maintenanceLockProcess" type="button" class="material-btn material-btn--primary" style="height:36px;padding:7px 18px;border-radius:999px;">Display</button>
                 <button id="maintenanceLockExportPdf" type="button" class="material-btn" disabled style="height:36px;padding:7px 18px;">Export to PDF</button>
             </div>
         </div>
@@ -106,7 +118,7 @@ try {
                     </tr>
                 </thead>
                 <tbody id="maintenanceUnlockBody">
-                    <tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then click Process.</td></tr>
+                    <tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then click Display.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -180,7 +192,7 @@ try {
             control.disabled = isLoading;
             control.style.cursor = isLoading ? 'wait' : '';
         });
-        processButton.textContent = isLoading ? 'Loading...' : 'Process';
+        processButton.textContent = isLoading ? 'Loading...' : 'Display';
         exportPdfButton.disabled = isLoading || filteredRows().length === 0;
         section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         section.classList.toggle('maintenance-unlock-loading', isLoading);
@@ -190,7 +202,7 @@ try {
     function clearProcessedResults() {
         rows = [];
         page = 1;
-        body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Process.</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Display.</td></tr>';
         pagination.hidden = true;
         exportPdfButton.disabled = true;
         setMessage('', '');
@@ -297,7 +309,7 @@ try {
                     + (isAdmin ? '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="maintenance-unlock">Unlock</button>' : '')
                     + '</div>'
                 : '<div class="locked-dates-actions"><button type="button" class="material-btn locked-dates-action-btn locked-dates-view" data-action="maintenance-lock-view">View</button>'
-                    + (isPublic ? '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="maintenance-lock">Lock</button>' : '')
+                    + ((isPublic || isAdmin) ? '<button type="button" class="material-btn locked-dates-action-btn locked-dates-unlock" data-action="maintenance-lock">Lock</button>' : '')
                     + '</div>';
             return '<tr data-partner="' + escapeHtml(partner) + '" data-date="' + escapeHtml(date) + '">' +
                 '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
@@ -376,6 +388,21 @@ try {
         return window.confirm(prompt);
     }
 
+    function suppressCloseWarningForOpenDetails() {
+        const modal = ['moneygramReconViewModal', 'mbtcReconViewModal', 'wicReconViewModal']
+            .map(function (id) { return document.getElementById(id); })
+            .find(function (element) { return element && window.getComputedStyle(element).display !== 'none'; });
+        if (!modal) return;
+        modal.dataset.maintenanceSuppressCloseWarning = 'true';
+        const observer = new MutationObserver(function () {
+            if (modal.style.display === 'none') {
+                delete modal.dataset.maintenanceSuppressCloseWarning;
+                observer.disconnect();
+            }
+        });
+        observer.observe(modal, { attributes: true, attributeFilter: ['style'] });
+    }
+
     async function viewDetails(row) {
         if (typeof window.openTransactionLockReconciliationDetails !== 'function') {
             setMessage('The reconciliation details viewer is unavailable.', 'error');
@@ -384,9 +411,10 @@ try {
         row.dataset.partnername = row.getAttribute('data-partner') || '';
         row.dataset.transactionDate = row.getAttribute('data-date') || '';
         await window.openTransactionLockReconciliationDetails(row, {
-            maintenanceButtonMode: isPublic ? 'lock' : 'hidden',
+            maintenanceButtonMode: (isPublic || isAdmin) ? 'lock' : 'hidden',
             authoritativeStatus: 'unlocked'
         });
+        suppressCloseWarningForOpenDetails();
     }
 
     async function viewLockedDetails(row, button) {
@@ -563,11 +591,7 @@ try {
         clearProcessedResults();
     });
     endDateFilter.addEventListener('change', clearProcessedResults);
-    statusFilter.addEventListener('change', function () {
-        if (!rows.length) return;
-        page = 1;
-        render();
-    });
+    statusFilter.addEventListener('change', clearProcessedResults);
     [startDateFilter, endDateFilter].forEach(function (dateInput) {
         dateInput.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter') return;
@@ -602,7 +626,7 @@ try {
             return;
         }
         const lockButton = event.target.closest('[data-action="maintenance-lock"]');
-        if (lockButton && isPublic) lock(lockButton.closest('tr'), lockButton);
+        if (lockButton && (isPublic || isAdmin)) lock(lockButton.closest('tr'), lockButton);
     });
 })();
 </script>

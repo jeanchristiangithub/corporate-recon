@@ -328,17 +328,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function formatUploadedDate(value) {
-        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const match = String(value || '').match(
+            /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?/
+        );
         if (!match) {
             return value;
         }
 
-        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-        return new Intl.DateTimeFormat('en-US', {
+        const date = new Date(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4] || 0),
+            Number(match[5] || 0),
+            Number(match[6] || 0)
+        );
+        const formattedDate = new Intl.DateTimeFormat('en-US', {
             month: 'long',
             day: '2-digit',
             year: 'numeric'
         }).format(date);
+        const hours = date.getHours();
+        const meridiem = hours >= 12 ? 'PM' : 'AM';
+        const twelveHour = hours % 12 || 12;
+        const formattedTime = [twelveHour, date.getMinutes(), date.getSeconds()]
+            .map(function (part) { return String(part).padStart(2, '0'); })
+            .join(':');
+
+        return formattedDate + ' ' + formattedTime + ' ' + meridiem;
     }
 
     function appendViewAction(row, item) {

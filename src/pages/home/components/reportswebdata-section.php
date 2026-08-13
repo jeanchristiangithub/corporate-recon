@@ -155,7 +155,6 @@ try {
 		.txn-detail-notes { margin-top:1.35em; }
 		.txn-detail-notes label { display:block; margin-bottom:6px; color:#252a34; font-size:.9rem; font-weight:700; }
 		.txn-detail-notes textarea { display:block; width:100%; height:76px; padding:9px 10px; border:1px solid #d8dee7; border-radius:5px; box-sizing:border-box; resize:none; overflow-x:hidden; overflow-y:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#f8fafc; color:#656b73; font:inherit; line-height:1.4; }
-		.txn-detail-status { display:inline-block; padding:2px 8px; border-radius:5px; background:#f6b900; color:#1f2937; font-size:.75rem; font-weight:800; }
 		.txn-detail-amounts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:24px; padding-top:16px; border-top:1px solid #edf0f4; text-align:center; }
 		.txn-detail-amount__label { display:block; color:#252a34; font-size:.9rem; font-weight:700; }
 		.txn-detail-amount__value { display:block; margin-top:4px; color:#df3044; font-size:1.45rem; font-weight:800; overflow-wrap:anywhere; }
@@ -393,7 +392,7 @@ try {
 		<div class="txn-detail-modal__overlay" data-action="close-rwd-detail"></div>
 		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="KPX Web Transaction Details">
 			<div class="txn-detail-modal__head">
-				<h4> KPX Web Transaction Details</h4>
+				<h4 id="rwdTxnDetailTitle">KPX Web Transaction Details</h4>
 				<button type="button" class="txn-detail-close" data-action="close-rwd-detail" aria-label="Close">&times;</button>
 			</div>
 			<div class="txn-detail-modal__body" data-role="rwdTxnDetailBody">Loading...</div>
@@ -1242,7 +1241,7 @@ try {
 				return (currencySymbol ? currencySymbol + ' ' : '') + formatted;
 			};
 
-			let transactionRows = row('CAD Status', '-');
+			let transactionRows = '';
 			if (hasCancelled && hasClaimed) {
 				transactionRows += row('Date Cancelled', value('date_cancelled', true));
 				transactionRows += row('Date Claimed', value('date_claimed', true));
@@ -1301,7 +1300,9 @@ try {
 		async function openWebDetailModal(id) {
 			const modal = document.getElementById('rwdTxnDetailModal');
 			const body = modal ? modal.querySelector('[data-role="rwdTxnDetailBody"]') : null;
+			const title = modal ? modal.querySelector('#rwdTxnDetailTitle') : null;
 			if (!modal || !body || !id) return;
+			if (title) title.textContent = 'KPX Web Transaction Details';
 			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
 			modal.style.display = 'flex';
 			modal.setAttribute('aria-hidden', 'false');
@@ -1312,6 +1313,14 @@ try {
 					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
 					return;
 				}
+				const statusLabels = {
+					PO: 'PAYOUT',
+					SO: 'SENDOUT',
+					POC: 'PAYOUT CANCELLED',
+					SOC: 'SENDOUT CANCELLED'
+				};
+				const status = String(json.data.data_status || '').trim().toUpperCase();
+				if (title) title.textContent = 'KPX Web Transaction Details' + (statusLabels[status] ? ' - (' + statusLabels[status] + ')' : '');
 				body.innerHTML = renderDetailGrid(json.data);
 			} catch (err) {
 				console.error('KPX Web detail error', err);

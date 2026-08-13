@@ -640,7 +640,7 @@ class MoneygramInsert {
                 . 'ORDER BY id DESC LIMIT 1 FOR UPDATE'
             );
             $markOverwriteStmt = $pdo->prepare(
-                "UPDATE uploaded_file_logs SET has_overwrite = '1' WHERE id = ?"
+                "UPDATE uploaded_file_logs SET has_overwrite = '1', uploaded_date = NOW() WHERE id = ?"
             );
             foreach($payloads as $payloadIndex => $payload){
                 $originalFilename = trim(basename((string)($payload['filename'] ?? '')));
