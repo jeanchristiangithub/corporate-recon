@@ -78,6 +78,35 @@ try {
 			align-items: center;
 		}
 
+		.reports-webdata-content .rwd-primary-actions {
+			display: flex;
+			align-items: flex-end;
+			justify-content: flex-end;
+			gap: 0.4rem;
+			margin-left: auto;
+			flex: 0 0 auto;
+			flex-wrap: nowrap;
+		}
+
+		.reports-webdata-content #reportsWebdataForm > label[for="rwdPartner"] {
+			flex: 1 1 220px !important;
+			min-width: 220px !important;
+		}
+
+		.reports-webdata-content .rwd-duration {
+			flex: 0 0 auto;
+			flex-wrap: nowrap !important;
+		}
+
+		.reports-webdata-content #rwdExportBtn.is-hidden {
+			visibility: hidden;
+			pointer-events: none;
+		}
+
+		.reports-webdata-content #rwdClearBtn.is-hidden {
+			display: none;
+		}
+
 		.reports-webdata-content .txn-view-btn {
 			border: 1px solid #dc3545;
 			background: #fff;
@@ -152,10 +181,19 @@ try {
 		.txn-detail-row { display:grid; grid-template-columns:minmax(145px,38%) minmax(0,1fr); gap:10px; padding:2px 0; font-size:.9rem; line-height:1.35; }
 		.txn-detail-row dt { margin:0; color:#252a34; font-weight:700; }
 		.txn-detail-row dd { margin:0; color:#656b73; overflow-wrap:anywhere; }
+		.txn-detail-row--empty { min-height:1.215rem; }
 		.txn-detail-notes { margin-top:1.35em; }
 		.txn-detail-notes label { display:block; margin-bottom:6px; color:#252a34; font-size:.9rem; font-weight:700; }
 		.txn-detail-notes textarea { display:block; width:100%; height:76px; padding:9px 10px; border:1px solid #d8dee7; border-radius:5px; box-sizing:border-box; resize:none; overflow-x:hidden; overflow-y:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#f8fafc; color:#656b73; font:inherit; line-height:1.4; }
 		.txn-detail-amounts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; margin-top:24px; padding-top:16px; border-top:1px solid #edf0f4; text-align:center; }
+		#rwdTxnDetailModal .txn-detail-amounts--two {
+			display:flex;
+			width:min(100%,520px);
+			margin-left:auto;
+			margin-right:auto;
+			justify-content:space-between;
+		}
+		#rwdTxnDetailModal .txn-detail-amounts--two .txn-detail-amount { flex:0 0 200px; }
 		.txn-detail-amount__label { display:block; color:#252a34; font-size:.9rem; font-weight:700; }
 		.txn-detail-amount__value { display:block; margin-top:4px; color:#df3044; font-size:1.45rem; font-weight:800; overflow-wrap:anywhere; }
 		/* Keep this modal independent from the Partner Data modal's shared class names. */
@@ -186,6 +224,8 @@ try {
 		@media (max-width: 760px) {
 			.txn-detail-columns { grid-template-columns:1fr; }
 			.txn-detail-amounts { grid-template-columns:1fr; }
+			#rwdTxnDetailModal .txn-detail-amounts--two { display:grid; width:100%; margin-left:0; margin-right:0; }
+			#rwdTxnDetailModal .txn-detail-amounts--two .txn-detail-amount { flex-basis:auto; }
 			#rwdTxnDetailModal .txn-detail-row { grid-template-columns:minmax(130px,42%) minmax(0,1fr); }
 		}
 
@@ -199,8 +239,20 @@ try {
 		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px; font-size:0.9rem; font-weight:800; }
 		.reports-webdata-content .rwd-filter-card__money--php { color:#00704a; }
 		.reports-webdata-content .rwd-filter-card__money--usd { color:#0b4aa2; }
+		@media (max-width: 1180px) {
+			.reports-webdata-content .rwd-primary-actions { flex:0 0 100%; margin-left:0; justify-content:flex-start; flex-wrap:wrap; }
+			.reports-webdata-content .rwd-primary-actions label { flex:1 1 150px; }
+			.reports-webdata-content .rwd-primary-actions input,
+			.reports-webdata-content .rwd-primary-actions select { width:100%; }
+		}
 		@media (max-width: 900px) {
 			.reports-webdata-content .rwd-results-layout { grid-template-columns:1fr; }
+		}
+		@media (max-width: 560px) {
+			.reports-webdata-content .rwd-primary-actions > * { flex:1 1 100%; width:100%; }
+			.reports-webdata-content .rwd-duration { width:100%; }
+			.reports-webdata-content .rwd-duration > div { flex:1 1 130px; }
+			.reports-webdata-content .rwd-duration-input { width:100%; }
 		}
 	</style>
 	<div class="reports-inner" style="padding:.25rem">
@@ -227,7 +279,7 @@ try {
 		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the ML Web Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="reportsWebdataForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-			<label for="rwdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
+			<label for="rwdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px"><span>CORPORATE PARTNER <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></span>
 				<div class="autocomplete-field">
 					<input id="rwdPartner" name="partner" placeholder="Search corporate partner" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;width:100%;box-sizing:border-box;color:#111;font-size:.9rem;outline:none">
 					<ul class="autocomplete-list" id="rwdPartnerSuggestions" role="listbox" hidden></ul>
@@ -246,7 +298,7 @@ try {
 				</div>
 			</div>
 
-			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto;flex-wrap:nowrap">
+			<div class="rwd-primary-actions">
 				<label for="rwdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:8ch">
 					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
 					<select id="rwdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;min-width:8ch;font-size:.9rem;outline:none">
@@ -270,8 +322,8 @@ try {
 					<input id="rwdReferenceId" name="reference_id" type="text" placeholder="Enter CCREF NO" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
 				</label>
 				<button type="button" id="rwdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
-				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary" style="display:none;padding:0.55rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff;white-space:nowrap">Export Excel</button>
-				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
+				<button type="button" id="rwdExportBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px;background:#198754;border-color:#198754;color:#fff;white-space:nowrap">Export Excel</button>
+				<button type="button" id="rwdClearBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px">Clear filters</button>
 			</div>
 
 			<!-- Additional multi-column filters: MAINZONE, ZONE, REGION, AREA, BRANCH NAME, BRANCH ID -->
@@ -413,6 +465,12 @@ try {
 		const operatorHeader = document.getElementById('rwdThOperator');
 		const chargeHeader = document.getElementById('rwdThCharge');
 		const exportBtn = document.getElementById('rwdExportBtn');
+		function setExportVisible(visible) {
+			if (!exportBtn) return;
+			exportBtn.classList.toggle('is-hidden', !visible);
+			exportBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+			exportBtn.tabIndex = visible ? 0 : -1;
+		}
 		const currencyFilter = document.getElementById('rwdCurrencyFilter');
 		const pagination = document.getElementById('rwdPagination');
 		const paginationInfo = document.getElementById('rwdPaginationInfo');
@@ -1084,6 +1142,12 @@ try {
 		// Do not pre-populate branch filters; keep inputs blank so placeholder shows
 
 		const clearBtn = document.getElementById('rwdClearBtn');
+		function setClearFiltersVisible(visible) {
+			if (!clearBtn) return;
+			clearBtn.classList.toggle('is-hidden', !visible);
+			clearBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+			clearBtn.tabIndex = visible ? 0 : -1;
+		}
 
 		function clearAllFilters(){
 			try{
@@ -1115,7 +1179,8 @@ try {
 					resultsBody.innerHTML = '';
 					if(resultsDiv){ resultsDiv.style.display = 'none'; if(resultsDiv.dataset) resultsDiv.dataset.reportData = ''; }
 					if(pagination) pagination.style.display = 'none';
-					if(exportBtn) exportBtn.style.display = 'none';
+					setExportVisible(false);
+					setClearFiltersVisible(false);
 					virtualWebRows = [];
 					lastReportData = null;
 					currentFilters = null;
@@ -1228,6 +1293,7 @@ try {
 				return isDate ? formatDetailDateValue(raw) : String(raw);
 			};
 			const row = (label, displayValue, valueClass = '') => '<div class="txn-detail-row"><dt>' + escapeHtml(label) + ':</dt><dd>' + (valueClass ? '<span class="' + valueClass + '">' : '') + escapeHtml(displayValue) + (valueClass ? '</span>' : '') + '</dd></div>';
+			const emptyRow = () => '<div class="txn-detail-row txn-detail-row--empty" aria-hidden="true"><dt></dt><dd></dd></div>';
 			const hasCancelled = hasValue(data.date_cancelled);
 			const hasClaimed = hasValue(data.date_claimed);
 			const hasSend = hasValue(data.date_send);
@@ -1253,10 +1319,11 @@ try {
 			} else if (hasSend) {
 				transactionRows += row('Date Send', value('date_send', true));
 			}
-			transactionRows += row('Control Series Number', value('control_series_no'));
+			transactionRows += row('Control Number', value('control_series_no'));
 			transactionRows += row('KPTN', value('kptn'));
 			transactionRows += row('CCREF Number', value('ccref_no'));
 			transactionRows += row('Currency', value('currency'));
+			transactionRows += emptyRow();
 			transactionRows += row('Sender Name', value('sender_name'));
 			if (hasClaimed) {
 				transactionRows += row('Sender Country', value('sender_country'));
@@ -1272,8 +1339,9 @@ try {
 			branchRows += row('Branch ID', value('branch_id'));
 			branchRows += row('Remote Operator', value('remote_operator'));
 			branchRows += row('Remote Branch', value('remote_branch'));
-			branchRows += row('Uploaded Date', value('created_at', true));
+			branchRows += emptyRow();
 			branchRows += row('Uploaded By', hasValue(data.uploaded_by_name) ? value('uploaded_by_name') : value('uploaded_by'));
+			branchRows += row('Uploaded Date', value('created_at', true));
 			if (isCancelled) branchRows += '<div class="txn-detail-notes"><label for="rwdOtherDetails">Other Details:</label><textarea id="rwdOtherDetails" readonly>' + escapeHtml(value('other_details')) + '</textarea></div>';
 
 			let amountCards = '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Principal Amount</span><span class="txn-detail-amount__value">' + escapeHtml(money('amount')) + '</span></div>';
@@ -1284,10 +1352,12 @@ try {
 				amountCards += '<div class="txn-detail-amount"><span class="txn-detail-amount__label">Charge</span><span class="txn-detail-amount__value">' + escapeHtml(money('charge')) + '</span></div>';
 			}
 
+			const amountGroupClass = isPayout ? 'txn-detail-amounts' : 'txn-detail-amounts txn-detail-amounts--two';
+
 			return '<div class="txn-detail-columns">' +
 				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">info</span>Transaction Information</h5><dl class="txn-detail-list">' + transactionRows + '</dl></section>' +
 				'<section class="txn-detail-section"><h5 class="txn-detail-section__title"><span class="material-icons" aria-hidden="true">account_balance</span>Branch Information</h5><dl class="txn-detail-list">' + branchRows + '</dl></section>' +
-				'</div><div class="txn-detail-amounts">' + amountCards + '</div>';
+				'</div><div class="' + amountGroupClass + '">' + amountCards + '</div>';
 		}
 
 		function closeWebDetailModal() {
@@ -1627,6 +1697,16 @@ try {
 			await runReport();
 		});
 
+		// Run the report when Enter is pressed in a filter field. If an
+		// autocomplete option is active, its own handler takes precedence.
+		form.addEventListener('keydown', async function(e) {
+			if (e.key !== 'Enter' || e.defaultPrevented || e.repeat) return;
+			const target = e.target;
+			if (!target || !target.matches('input, select')) return;
+			e.preventDefault();
+			await runReport();
+		});
+
 		// View transactions click handler
 		viewBtn.addEventListener('click', async function(e) {
 			e.preventDefault();
@@ -1671,6 +1751,7 @@ try {
 
 		// Display results in table
 		function displayResults(data) {
+			setClearFiltersVisible(true);
 			updateFilterResultsCard(data);
 			const activeDateLabel = String(data.date_label || 'Date Claimed');
 			if(dateHeader) dateHeader.textContent = activeDateLabel;
@@ -1688,14 +1769,14 @@ try {
 			virtualWebRows = [];
 
 			if (!data.rows || data.rows.length === 0) {
-				if (exportBtn) exportBtn.style.display = 'none';
+				setExportVisible(false);
 				resultsBody.innerHTML = `<tr><td colspan="${isSendout ? 13 : 12}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
 				return;
 			}
 
-			if (exportBtn) exportBtn.style.display = '';
+			setExportVisible(true);
 			virtualWebRows = data.rows || [];
 			virtualWebIsSendout = isSendout;
 			if (resultsWrap) resultsWrap.scrollTop = 0;

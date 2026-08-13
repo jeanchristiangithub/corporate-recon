@@ -191,6 +191,7 @@ try {
             l.filename_ext,
             l.partner_name,
             l.uploaded_by,
+            l.kpxweb_data_status,
             l.has_overwrite,
             COALESCE(
                 NULLIF(CONCAT_WS(' ',

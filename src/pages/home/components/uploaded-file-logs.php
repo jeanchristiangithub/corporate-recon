@@ -45,7 +45,7 @@
                     <span>End Date</span>
                     <input type="date" id="uploadedFileLogsEndDate" value="<?= date('Y-m-d') ?>">
                 </label>
-                <button type="button" id="uploadedFileLogsProcessBtn" class="uploaded-file-logs-process-btn">Process</button>
+                <button type="button" id="uploadedFileLogsProcessBtn" class="uploaded-file-logs-process-btn">Display</button>
             </div>
 
             <div class="uploaded-file-logs-state-card" data-log-source-card="kpx_web_data">
@@ -93,18 +93,19 @@
                         <table class="uploaded-file-logs-table">
                             <thead>
                                 <tr>
-                                    <th>Uploaded Date</th>
                                     <th>Filename</th>
                                     <th>File Extension</th>
                                     <th>Partner Name</th>
                                     <th>Uploaded By</th>
+                                    <th>Uploaded Date</th>
+                                    <th>Status</th>
                                     <th>Remark</th>
-                                    <th>Actions</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="uploadedFileLogsTableBody">
                                 <tr>
-                                    <td colspan="7" class="uploaded-file-logs-empty">No PAYOUT uploaded files found.</td>
+                                    <td colspan="8" class="uploaded-file-logs-empty">No PAYOUT uploaded files found.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -125,7 +126,7 @@
                             </label>
                             <label class="uploaded-file-logs-radio uploaded-file-logs-tab" role="tab" aria-selected="false">
                                 <input type="radio" name="partner_uploaded_file_log_state" value="transactional">
-                                <span>TRANSACTIONAL</span>
+                                <span>DAILY</span>
                             </label>
                             <label class="uploaded-file-logs-radio uploaded-file-logs-tab" role="tab" aria-selected="false">
                                 <input type="radio" name="partner_uploaded_file_log_state" value="settlement">
@@ -149,18 +150,19 @@
                         <table class="uploaded-file-logs-table">
                             <thead>
                                 <tr>
-                                    <th>Uploaded Date</th>
                                     <th>Filename</th>
                                     <th>File Extension</th>
                                     <th>Partner Name</th>
                                     <th>Uploaded By</th>
+                                    <th>Uploaded Date</th>
+                                    <th>Status</th>
                                     <th>Remark</th>
-                                    <th>Actions</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="partnerUploadedFileLogsTableBody">
                                 <tr>
-                                    <td colspan="7" class="uploaded-file-logs-empty">No Partner Data uploaded files found.</td>
+                                    <td colspan="8" class="uploaded-file-logs-empty">No Partner Data uploaded files found.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -201,7 +203,7 @@
                         <dt>Remark:</dt>
                         <dd>
                             <span id="uploadedFileLogsDetailRemark"
-                                  class="uploaded-file-logs-remark uploaded-file-logs-remark--success">Success</span>
+                                  class="uploaded-file-logs-remark uploaded-file-logs-remark--success">Uploaded</span>
                         </dd>
                     </div>
                     <div class="uploaded-file-logs-detail-row">
@@ -260,6 +262,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const processEndDate = document.getElementById('uploadedFileLogsEndDate');
     const processButton = document.getElementById('uploadedFileLogsProcessBtn');
     const viewModal = document.getElementById('uploadedFileLogsViewModal');
+    const viewModalTitle = document.getElementById('uploadedFileLogsViewModalTitle');
     const viewModalClose = document.getElementById('uploadedFileLogsViewModalClose');
     const detailPartner = document.getElementById('uploadedFileLogsDetailPartner');
     const detailFilename = document.getElementById('uploadedFileLogsDetailFilename');
@@ -292,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
         sendout: 'SENDOUT',
         payout_cancel: 'PAYOUT CANCELLATION',
         sendout_cancel: 'SENDOUT CANCELLATION',
-        transactional: 'TRANSACTIONAL',
+        transactional: 'DAILY',
         settlement: 'SETTLEMENT'
     };
 
@@ -358,6 +361,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return formattedDate + ' ' + formattedTime + ' ' + meridiem;
     }
 
+    function formatUploadStatus(value) {
+        const statusLabels = {
+            PO: 'PAYOUT',
+            SO: 'SENDOUT',
+            POC: 'PAYOUT CANCELLED',
+            SOC: 'SENDOUT CANCELLED',
+            TD: 'DAILY',
+            SD: 'SETTLEMENT'
+        };
+
+        return String(value || '')
+            .split(',')
+            .map(function (status) { return status.trim().toUpperCase(); })
+            .filter(Boolean)
+            .map(function (status) { return statusLabels[status] || status; })
+            .join(', ');
+    }
+
     function appendViewAction(row, item) {
         const cell = document.createElement('td');
         const hasLinkedData = String(item.has_linked_data || '') === '1';
@@ -375,9 +396,10 @@ document.addEventListener('DOMContentLoaded', function () {
         button.dataset.logId = String(item.id || '');
         button.dataset.partnerName = String(item.partner_name || '');
         button.dataset.filename = String(item.filename || '');
-        button.dataset.remark = String(item.has_overwrite || '') === '1' ? 'Overwritten' : 'Success';
+        button.dataset.remark = String(item.has_overwrite || '') === '1' ? 'Re-uploaded' : 'Uploaded';
         button.dataset.uploadedDate = formatUploadedDate(item.uploaded_date);
         button.dataset.uploadedBy = String(item.uploader_name || '');
+        button.dataset.uploadStatus = String(item.kpxweb_data_status || '');
         button.title = 'View';
         button.setAttribute('aria-label', 'View ' + String(item.filename || 'uploaded file'));
 
@@ -395,14 +417,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const badge = document.createElement('span');
         const hasLinkedData = String(item.has_linked_data || '') === '1';
         const isOverwritten = String(item.has_overwrite || '') === '1';
-        let remark = 'Success';
+        let remark = 'Uploaded';
         let remarkClass = 'uploaded-file-logs-remark--success';
 
         if (!hasLinkedData) {
             remark = 'Deleted';
             remarkClass = 'uploaded-file-logs-remark--deleted';
         } else if (isOverwritten) {
-            remark = 'Overwritten';
+            remark = 'Re-uploaded';
             remarkClass = 'uploaded-file-logs-remark--overwritten';
         }
 
@@ -539,11 +561,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
 
+        const statusLabel = formatUploadStatus(button.dataset.uploadStatus);
+        if (viewModalTitle) {
+            viewModalTitle.textContent = 'Uploaded File Details' +
+                (statusLabel ? ' - (' + statusLabel + ')' : '');
+        }
+
         setDetail(detailPartner, button.dataset.partnerName);
         setDetail(detailFilename, button.dataset.filename);
         setDetail(detailRemark, button.dataset.remark);
         if (detailRemark) {
-            const isOverwritten = button.dataset.remark === 'Overwritten';
+            const isOverwritten = button.dataset.remark === 'Re-uploaded';
             detailRemark.classList.toggle('uploaded-file-logs-remark--overwritten', isOverwritten);
             detailRemark.classList.toggle('uploaded-file-logs-remark--success', !isOverwritten);
         }
@@ -590,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!rows.length) {
             const emptyRow = document.createElement('tr');
             const emptyCell = document.createElement('td');
-            emptyCell.colSpan = 7;
+            emptyCell.colSpan = 8;
             emptyCell.className = 'uploaded-file-logs-empty';
             emptyCell.textContent = 'No ' + emptyLabel + ' uploaded files found.';
             emptyRow.appendChild(emptyCell);
@@ -600,11 +628,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         rows.forEach(function (item) {
             const row = document.createElement('tr');
-            appendCell(row, formatUploadedDate(item.uploaded_date));
             appendCell(row, item.filename);
             appendCell(row, item.filename_ext);
             appendCell(row, item.partner_name);
             appendCell(row, item.uploader_name);
+            appendCell(row, formatUploadedDate(item.uploaded_date));
+            appendCell(row, formatUploadStatus(item.kpxweb_data_status));
             appendRemark(row, item);
             appendViewAction(row, item);
             targetBody.appendChild(row);
@@ -614,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderMessage(targetBody, message, isError) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.className = 'uploaded-file-logs-empty' + (isError ? ' uploaded-file-logs-error' : '');
         cell.textContent = message;
         row.appendChild(cell);

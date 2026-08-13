@@ -11,8 +11,8 @@
 }
 
 .edi-report-filters {
-    display: grid;
-    grid-template-columns: minmax(280px, 2fr) repeat(6, minmax(145px, 1fr)) max-content max-content;
+    display: flex;
+    flex-wrap: wrap;
     align-items: end;
     gap: 12px;
     padding: 16px;
@@ -24,12 +24,17 @@
 
 .edi-report-field {
     display: flex;
+    flex: 1 1 145px;
     min-width: 0;
     flex-direction: column;
     gap: 7px;
     color: #17213c;
     font-size: 13px;
     font-weight: 600;
+}
+
+.edi-report-field--partner {
+    flex: 2 1 250px;
 }
 
 .edi-report-required {
@@ -100,7 +105,7 @@
 }
 
 .edi-report-field--branch {
-    min-width: 190px;
+    flex: 1.25 1 190px;
 }
 
 .edi-report-autocomplete ul {
@@ -139,6 +144,7 @@
 
 .edi-report-generate,
 .edi-report-export {
+    flex: 0 0 auto;
     min-width: 96px;
     height: 41px;
     padding: 0 17px;
@@ -304,15 +310,15 @@
 }
 
 @media (max-width: 760px) {
-    .edi-report-filters {
-        grid-template-columns: 1fr;
+    .edi-report-field,
+    .edi-report-field--partner,
+    .edi-report-field--branch {
+        flex-basis: 100%;
     }
 
-    .edi-report-generate {
-        width: 100%;
-    }
-
+    .edi-report-generate,
     .edi-report-export {
+        flex: 1 1 100%;
         width: 100%;
     }
 }

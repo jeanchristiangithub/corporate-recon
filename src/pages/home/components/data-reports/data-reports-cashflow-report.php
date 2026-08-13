@@ -80,9 +80,6 @@ try {
             Generate
         </button>
 
-        <button id="cashFlowReportSubmitChanges" class="cash-flow-report-submit-changes" type="button" hidden disabled>
-            Submit Changes
-        </button>
     </form>
 
     <div id="cashFlowReportStatus" class="cash-flow-report-status" role="status" aria-live="polite" hidden></div>
@@ -452,25 +449,85 @@ try {
         maximumFractionDigits: 2
     }).format(Number(value || 0));
 
-    const submitChangesButton = document.getElementById('cashFlowReportSubmitChanges');
     const resultsLayout = document.getElementById('cashFlowReportResultsLayout');
     const reportStatus = document.getElementById('cashFlowReportStatus');
     const exportExcelButton = document.getElementById('cashFlowReportExportExcel');
     let latestCashFlowAccounts = { php: '', usd: '' };
 
-    const updateSubmitChangesState = () => {
-        if (!submitChangesButton) return;
-        const remarks = Array.from(document.querySelectorAll('.cash-flow-report-remarks'));
-        const changedCount = new Set(
-            remarks
-                .filter((select) => select.value !== (select.dataset.initialValue || 'NOT VALID'))
-                .map((select) => `${select.dataset.currency}|${select.dataset.tranDate}`)
-                .filter(Boolean)
-        ).size;
-        submitChangesButton.disabled = changedCount === 0;
-        submitChangesButton.textContent = changedCount >= 2
-            ? `Submit Changes (${changedCount})`
-            : 'Submit Changes';
+    const updateRemarkAppearance = (select) => {
+        const isValid = select.value === 'VALID';
+        select.classList.toggle('is-valid', isValid);
+        select.classList.toggle('is-not-valid', !isValid);
+    };
+
+    const updateRemarkSaveIcon = (select, state) => {
+        const icon = select.nextElementSibling;
+        if (icon?.classList.contains('cash-flow-report-status-icon')) {
+            icon.className = `cash-flow-report-status-icon is-${state}`;
+            icon.textContent = state === 'saved' ? '✓' : (state === 'error' ? '×' : '');
+            icon.title = state === 'saving'
+                ? 'Saving status'
+                : (state === 'saved' ? 'Status saved' : 'Status was not saved');
+        }
+    };
+
+    const saveRemark = async (select) => {
+        const transactionDate = select.dataset.tranDate || '';
+        const currency = (select.dataset.currency || '').toLowerCase();
+        const previousValue = select.dataset.initialValue || 'NOT VALID';
+        if (!transactionDate || !['php', 'usd'].includes(currency)) return;
+
+        select.disabled = true;
+        select.setAttribute('aria-busy', 'true');
+        updateRemarkSaveIcon(select, 'saving');
+        try {
+            const formData = new FormData();
+            formData.append('csrf_token', cashFlowCsrfToken);
+            formData.append('partner', input.value.trim());
+            formData.append('changes', JSON.stringify([{
+                tran_date: transactionDate,
+                currency,
+                remarks: select.value === 'VALID' ? 'valid' : 'not-valid'
+            }]));
+
+            const response = await fetch(remarksSaveEndpoint, {
+                method: 'POST',
+                body: formData,
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin'
+            });
+            const responseText = await response.text();
+            let data = null;
+            try {
+                data = JSON.parse(responseText);
+            } catch (error) {
+                data = null;
+            }
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || responseText || 'Unable to save status.');
+            }
+            select.dataset.initialValue = select.value;
+            updateRemarkSaveIcon(select, 'saved');
+        } catch (error) {
+            select.value = previousValue;
+            updateRemarkAppearance(select);
+            updateRemarkSaveIcon(select, 'error');
+            const message = error instanceof Error ? error.message : 'Unable to save status.';
+            if (window.Swal) {
+                await window.Swal.fire({
+                    icon: 'error',
+                    title: 'Unable to Save Status',
+                    text: message,
+                    confirmButtonText: 'Okay',
+                    confirmButtonColor: '#ed2947'
+                });
+            } else {
+                window.alert(message);
+            }
+        } finally {
+            select.disabled = false;
+            select.removeAttribute('aria-busy');
+        }
     };
 
     const addRemarksDropdown = (
@@ -479,6 +536,7 @@ try {
         transactionDate = '',
         currency = 'PHP'
     ) => {
+        cell.classList.add('cash-flow-report-remarks-cell');
         const select = document.createElement('select');
         const initialValue = savedRemark === 'valid' ? 'VALID' : 'NOT VALID';
         select.className = `cash-flow-report-remarks ${initialValue === 'VALID' ? 'is-valid' : 'is-not-valid'}`;
@@ -495,96 +553,16 @@ try {
 
         select.value = initialValue;
         select.dataset.initialValue = initialValue;
-        select.addEventListener('change', () => {
-            const isValid = select.value === 'VALID';
-            select.classList.toggle('is-valid', isValid);
-            select.classList.toggle('is-not-valid', !isValid);
-            updateSubmitChangesState();
+        select.addEventListener('change', async () => {
+            updateRemarkAppearance(select);
+            await saveRemark(select);
         });
-        cell.appendChild(select);
+        const statusIcon = document.createElement('span');
+        statusIcon.className = 'cash-flow-report-status-icon';
+        statusIcon.setAttribute('aria-hidden', 'true');
+        cell.append(select, statusIcon);
+        updateRemarkAppearance(select);
     };
-
-    submitChangesButton?.addEventListener('click', async () => {
-        const changesByCurrencyDate = new Map();
-        document.querySelectorAll('.cash-flow-report-remarks').forEach((select) => {
-            if (select.value === (select.dataset.initialValue || 'NOT VALID')) return;
-            const transactionDate = select.dataset.tranDate || '';
-            const currency = (select.dataset.currency || '').toLowerCase();
-            if (!transactionDate || !['php', 'usd'].includes(currency)) return;
-            changesByCurrencyDate.set(`${currency}|${transactionDate}`, {
-                tran_date: transactionDate,
-                currency,
-                remarks: select.value === 'VALID' ? 'valid' : 'not-valid'
-            });
-        });
-        if (!changesByCurrencyDate.size) return;
-
-        submitChangesButton.disabled = true;
-        submitChangesButton.setAttribute('aria-busy', 'true');
-        submitChangesButton.textContent = 'Saving...';
-
-        try {
-            const formData = new FormData();
-            formData.append('csrf_token', cashFlowCsrfToken);
-            formData.append('partner', input.value.trim());
-            formData.append('changes', JSON.stringify(Array.from(changesByCurrencyDate.values())));
-
-            const response = await fetch(remarksSaveEndpoint, {
-                method: 'POST',
-                body: formData,
-                headers: { Accept: 'application/json' },
-                credentials: 'same-origin'
-            });
-            const responseText = await response.text();
-            let data = null;
-            try {
-                data = JSON.parse(responseText);
-            } catch (error) {
-                data = null;
-            }
-            if (!response.ok || !data?.success) {
-                throw new Error(data?.message || responseText || 'Unable to save remarks.');
-            }
-
-            document.querySelectorAll('.cash-flow-report-remarks').forEach((select) => {
-                const key = `${(select.dataset.currency || '').toLowerCase()}|${select.dataset.tranDate || ''}`;
-                if (changesByCurrencyDate.has(key)) {
-                    select.dataset.initialValue = select.value;
-                }
-            });
-            updateSubmitChangesState();
-            submitChangesButton.textContent = 'Saved';
-            if (window.Swal) {
-                await window.Swal.fire({
-                    icon: 'success',
-                    title: 'Changes Submitted',
-                    text: `${data.saved} remark${data.saved === 1 ? '' : 's'} saved successfully.`,
-                    confirmButtonText: 'Okay',
-                    confirmButtonColor: '#17803d'
-                });
-            }
-            window.setTimeout(updateSubmitChangesState, 1200);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unable to save remarks.';
-            if (window.Swal) {
-                await window.Swal.fire({
-                    icon: 'error',
-                    title: 'Unable to Submit Changes',
-                    text: message,
-                    confirmButtonText: 'Okay',
-                    confirmButtonColor: '#ed2947'
-                });
-            } else {
-                window.alert(message);
-            }
-            updateSubmitChangesState();
-        } finally {
-            submitChangesButton.removeAttribute('aria-busy');
-            if (submitChangesButton.textContent !== 'Saved') {
-                updateSubmitChangesState();
-            }
-        }
-    });
 
     const exportNumber = (value) => {
         const normalized = String(value || '').replace(/,/g, '').trim();
@@ -841,7 +819,6 @@ try {
             deposits: totalDeposits,
             running: runningBalance
         };
-        updateSubmitChangesState();
         const selectedTab = document.querySelector(
             '.cash-flow-report-currency-tab[aria-selected="true"]'
         );
@@ -892,7 +869,6 @@ try {
         if (!partner || !monthValue) return;
 
         if (resultsLayout) resultsLayout.hidden = true;
-        if (submitChangesButton) submitChangesButton.hidden = true;
         if (reportStatus) {
             reportStatus.hidden = false;
             reportStatus.classList.remove('is-error');
@@ -1032,7 +1008,6 @@ try {
             );
             if (reportStatus) reportStatus.hidden = true;
             if (resultsLayout) resultsLayout.hidden = false;
-            if (submitChangesButton) submitChangesButton.hidden = false;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to load settlement data.';
             replaceTableMessage('PHP', message);

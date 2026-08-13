@@ -14,6 +14,18 @@ try {
 } catch (Throwable $e) {
 	$partners = [];
 }
+
+$agentNames = [];
+try {
+	$pdo = fileRecDbConnection();
+	$stmt = $pdo->query("SELECT DISTINCT TRIM(agent_name) AS agent_name FROM moneygram_partner_data WHERE agent_name IS NOT NULL AND TRIM(agent_name) <> '' ORDER BY agent_name ASC");
+	$rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
+	if (is_array($rows)) {
+		$agentNames = $rows;
+	}
+} catch (Throwable $e) {
+	$agentNames = [];
+}
 ?>
 <div class="reports-webdata-content">
 	<style>
@@ -282,6 +294,66 @@ try {
 			border-color: #157347;
 		}
 
+		.reports-webdata-content .rpd-primary-actions {
+			display:flex;
+			align-items:flex-end;
+			gap:0.35rem;
+			flex:1 1 auto;
+			width:0;
+			margin-left:auto;
+			flex-wrap:nowrap;
+		}
+
+		.reports-webdata-content .rpd-primary-actions label {
+			flex:0 0 auto;
+			min-width:0 !important;
+		}
+
+		.reports-webdata-content .rpd-primary-actions input,
+		.reports-webdata-content .rpd-primary-actions select {
+			width:100%;
+		}
+
+		.reports-webdata-content #rpdForm > label[for="rpdPartner"] {
+			flex:0 1 280px !important;
+			width:280px;
+			min-width:220px !important;
+		}
+
+		.reports-webdata-content #rpdForm .rwd-duration {
+			flex:0 0 auto;
+			flex-wrap:nowrap !important;
+		}
+
+		.reports-webdata-content label[for="rpdCurrencyFilter"] { flex:0.8 1 85px; }
+		.reports-webdata-content label[for="rpdType"] { flex:1.25 1 125px; }
+		.reports-webdata-content label[for="rpdAgentName"] { flex:1 1 105px; }
+		.reports-webdata-content label[for="rpdReferenceId"] { flex:1 1 105px; }
+		.reports-webdata-content #rpdCurrencyFilter,
+		.reports-webdata-content #rpdType { width:100%; min-width:0 !important; }
+		.reports-webdata-content #rpdForm .rwd-duration-input { width:110px; min-width:0 !important; }
+
+		.reports-webdata-content #rpdExportBtn.is-hidden {
+			display:none;
+		}
+
+		.reports-webdata-content #rpdHideBtn.is-hidden {
+			display:none;
+		}
+
+		@media (max-width: 1180px) {
+			.reports-webdata-content .rpd-primary-actions { flex:0 0 100%; width:100%; margin-left:0; flex-wrap:wrap; }
+			.reports-webdata-content .rpd-primary-actions label { flex:1 1 calc(50% - 0.5rem) !important; }
+			.reports-webdata-content #rpdCurrencyFilter,
+			.reports-webdata-content #rpdType,
+			.reports-webdata-content label[for="rpdAgentName"],
+			.reports-webdata-content label[for="rpdReferenceId"] { width:auto; }
+		}
+
+		@media (max-width: 560px) {
+			.reports-webdata-content .rpd-primary-actions > * { flex:1 1 100%; width:100%; }
+		}
+
 		.reports-webdata-content .txn-view-btn {
 			border: 1px solid #dc3545;
 			background: #fff;
@@ -431,7 +503,7 @@ try {
 		<!-- <p style="margin:0 0 1rem;color:#6b7280;font-size:0.9rem">View all transactions uploaded via the Partner Data Uploader, filtered by corporate partner.</p> -->
 
 		<form id="rpdForm" style="background:#fff;border:1px solid #e6eef6;border-radius:8px;padding:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-			<label for="rpdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px">CORPORATE PARTNER
+			<label for="rpdPartner" style="flex:1;display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:#6b7280;min-width:300px"><span>CORPORATE PARTNER <span class="rpd-text-danger">*</span></span>
 				<div class="autocomplete-field">
 					<input id="rpdPartner" name="partner" placeholder="Search corporate partner" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;width:100%;box-sizing:border-box;color:#111;font-size:.9rem;outline:none">
 					<ul class="autocomplete-list" id="rpdPartnerSuggestions" role="listbox" hidden></ul>
@@ -450,7 +522,7 @@ try {
 				</div>
 			</div>
 
-			<div style="display:flex;align-items:flex-end;gap:0.5rem;margin-left:auto">
+			<div class="rpd-primary-actions">
 				<label for="rpdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
 					<select id="rpdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
@@ -460,7 +532,7 @@ try {
 						<option value="USD">USD</option>
 					</select>
 				</label>
-				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
+				<label for="rpdType" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
 					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
 					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="" selected>Select Transaction Type</option>
@@ -471,13 +543,20 @@ try {
 						<option value="sendout-cancelled">SENDOUT CANCELLED</option>
 					</select>
 				</label>
+				<label for="rpdAgentName" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
+					<span style="font-size:0.75rem;color:#6b7280">AGENT NAME</span>
+					<div class="autocomplete-field">
+						<input id="rpdAgentName" name="agent_name" type="text" placeholder="Enter Agent Name" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;width:100%;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
+						<ul class="autocomplete-list" id="rpdAgentNameSuggestions" role="listbox" hidden></ul>
+					</div>
+				</label>
 				<label for="rpdReferenceId" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:14ch">
 					<span style="font-size:0.75rem;color:#6b7280">REFERENCE ID</span>
 					<input id="rpdReferenceId" name="reference_id" type="text" placeholder="Enter Reference ID" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:14ch;box-sizing:border-box;font-size:.9rem;outline:none">
 				</label>
-				<button type="button" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
-				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Export to Excel</button>
-				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary" style="padding:0.55rem 1rem;border-radius:6px;display:none">Clear</button>
+				<button type="submit" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
+				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px">Export to Excel</button>
+				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px">Clear</button>
 			</div>
 		</form>
 
@@ -568,7 +647,7 @@ try {
 		<div class="txn-detail-modal__overlay" data-action="close-rpd-detail"></div>
 		<div class="txn-detail-modal__dialog" role="dialog" aria-modal="true" aria-label="MONEYGRAM Partner Transaction Details">
 			<div class="txn-detail-modal__head">
-				<h4>Partner Transaction Details</h4>
+				<h4 id="rpdTxnDetailTitle">Partner Transaction Details</h4>
 				<button type="button" class="txn-detail-close" data-action="close-rpd-detail" aria-label="Close">&times;</button>
 			</div>
 			<div class="txn-detail-modal__body" data-role="rpdTxnDetailBody">Loading...</div>
@@ -587,8 +666,21 @@ try {
 		const resultsWrap = document.querySelector('#rpdResults .rwd-results-table-wrap');
 		const exportBtn = document.getElementById('rpdExportBtn');
 		const hideBtn = document.getElementById('rpdHideBtn');
+		function setExportVisible(visible) {
+			if (!exportBtn) return;
+			exportBtn.classList.toggle('is-hidden', !visible);
+			exportBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+			exportBtn.tabIndex = visible ? 0 : -1;
+		}
+		function setClearVisible(visible) {
+			if (!hideBtn) return;
+			hideBtn.classList.toggle('is-hidden', !visible);
+			hideBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+			hideBtn.tabIndex = visible ? 0 : -1;
+		}
 		const typeFilter = document.getElementById('rpdType');
 		const currencyFilter = document.getElementById('rpdCurrencyFilter');
+		const agentNameFilter = document.getElementById('rpdAgentName');
 		const referenceIdFilter = document.getElementById('rpdReferenceId');
 		const pagination = document.getElementById('rpdPagination');
 		const paginationInfo = document.getElementById('rpdPaginationInfo');
@@ -605,6 +697,7 @@ try {
 		const cardCommissionPhp = document.getElementById('rpdCardCommissionPhp');
 		const cardCommissionUsd = document.getElementById('rpdCardCommissionUsd');
 		const partners = <?= json_encode($partners) ?>;
+		const agentNames = <?= json_encode($agentNames) ?>;
 		const DEFAULT_PAGE_SIZE = 10000;
 		const VIRTUAL_ROW_HEIGHT = 48;
 		const VIRTUAL_BUFFER_ROWS = 12;
@@ -751,6 +844,7 @@ try {
 
 		// Initialize autocomplete
 		attachPartnerAutocomplete(input, partners);
+		attachPartnerAutocomplete(agentNameFilter, agentNames);
 
 		// Modal helpers
 		const modalOverlay = document.getElementById('rpdModalOverlay');
@@ -931,7 +1025,7 @@ try {
 				text('Transaction Forex Rate', pick('fx_rate_trn', 'tran_fx_rate')) +
 				text('Margin', pick('margin')) +
 				text('Fee Amount', pick('fee_tran_amt'), { amount: true });
-			const upload = text('Uploaded Date', pick('created_at'), { dateTime: true }) + text('Uploaded By', pick('uploaded_by_name', 'uploaded_by', 'created_by'));
+			const upload = text('Uploaded By', pick('uploaded_by_name', 'uploaded_by', 'created_by')) + text('Uploaded Date', pick('created_at'), { dateTime: true });
 			const transactionCurrency = String(pick('transaction_currency')).trim().toUpperCase();
 			const currencySign = transactionCurrency === 'PHP' ? '\u20B1' : (transactionCurrency === 'USD' ? '$' : '');
 			const amount = (label, value) => '<div><span class="txn-detail-amount-label">' + escapeHtml(label) + '</span><span class="txn-detail-amount-value">' + escapeHtml(value === '-' ? '-' : (currencySign ? currencySign + ' ' : '') + formatCurrencyAbsolute(value)) + '</span></div>';
@@ -948,10 +1042,30 @@ try {
 			modal.setAttribute('aria-hidden', 'true');
 		}
 
+		function updatePartnerDetailTitle(transactionType) {
+			const title = document.getElementById('rpdTxnDetailTitle');
+			const modalDialog = document.querySelector('#rpdTxnDetailModal .txn-detail-modal__dialog');
+			if (!title) return;
+
+			const type = String(transactionType || '').trim().toUpperCase();
+			const transactionLabels = {
+				REC: 'PAYOUT',
+				RRC: 'PAYOUT CANCELLED',
+				SEN: 'SENDOUT',
+				RSN: 'SENDOUT CANCELLED',
+				REF: 'SENDOUT CANCELLED'
+			};
+			const label = transactionLabels[type];
+			const titleText = 'Partner Transaction Details' + (label ? ' - (' + label + ')' : '');
+			title.textContent = titleText;
+			if (modalDialog) modalDialog.setAttribute('aria-label', titleText);
+		}
+
 		async function openPartnerDetailModal(id) {
 			const modal = document.getElementById('rpdTxnDetailModal');
 			const body = modal ? modal.querySelector('[data-role="rpdTxnDetailBody"]') : null;
 			if (!modal || !body || !id) return;
+			updatePartnerDetailTitle('');
 			body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Loading...</div>';
 			modal.style.display = 'flex';
 			modal.setAttribute('aria-hidden', 'false');
@@ -962,6 +1076,7 @@ try {
 					body.innerHTML = '<div style="color:#6b7280;padding:12px 0">Transaction details not found.</div>';
 					return;
 				}
+				updatePartnerDetailTitle(json.data.tran_type);
 				body.innerHTML = renderDetailGrid(json.data);
 			} catch (err) {
 				console.error('MONEYGRAM partner detail error', err);
@@ -1010,6 +1125,7 @@ try {
 					end_date: currentFilters.endDate,
 					type: currentFilters.type || '',
 					settlement_currency: currentFilters.currency || '',
+					agent_name: currentFilters.agentName || '',
 					reference_id: currentFilters.referenceId || '',
 					page: String(page),
 					per_page: String(DEFAULT_PAGE_SIZE)
@@ -1021,6 +1137,18 @@ try {
 				if (!data.success) {
 					alert('Error: ' + (data.error || 'Unknown error'));
 					return;
+				}
+
+				// Populate Agent Name from the transaction matched by Reference ID.
+				if (currentFilters.referenceId && !currentFilters.agentName && agentNameFilter) {
+					const matchedRows = Array.isArray(data.moneygram_rows) && data.moneygram_rows.length
+						? data.moneygram_rows
+						: (Array.isArray(data.rows) ? data.rows : []);
+					const matchedAgentName = matchedRows.length ? String(matchedRows[0].agent_name || '').trim() : '';
+					if (matchedAgentName) {
+						agentNameFilter.value = matchedAgentName;
+						currentFilters.agentName = matchedAgentName;
+					}
 				}
 
 				lastReportData = data;
@@ -1040,15 +1168,18 @@ try {
 			const partnerVal = input.value && input.value.trim() ? input.value.trim() : '';
 			const startDate = (document.getElementById('rpdStartDate') || {}).value || '';
 			const endDate = (document.getElementById('rpdEndDate') || {}).value || '';
+			const agentName = agentNameFilter ? agentNameFilter.value.trim() : '';
 			const referenceId = referenceIdFilter ? referenceIdFilter.value.trim() : '';
+			const hasDirectSearch = referenceId !== '' || agentName !== '';
+			const reportPartner = partnerVal || (hasDirectSearch ? 'MONEYGRAM' : '');
 
 			// clear previous markers
 			if (sdEl) sdEl.classList.remove('rpd-invalid');
 			if (edEl) edEl.classList.remove('rpd-invalid');
 
-			if (!partnerVal) missing.push('Corporate Partner');
-			if (!referenceId && !startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
-			if (!referenceId && !endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
+			if (!partnerVal && !hasDirectSearch) missing.push('Corporate Partner');
+			if (!hasDirectSearch && !startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
+			if (!hasDirectSearch && !endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
 
 			if (missing.length > 0) {
 				showRequiredModal(missing);
@@ -1061,11 +1192,12 @@ try {
 			}
 
 			currentFilters = {
-				partner: partnerVal,
+				partner: reportPartner,
 				startDate,
 				endDate,
 				type: typeFilter ? typeFilter.value : '',
 				currency: currencyFilter ? currencyFilter.value : '',
+				agentName,
 				referenceId
 			};
 			await fetchTransactions(1);
@@ -1076,13 +1208,83 @@ try {
 			await runReport();
 		});
 
-		// View transactions click handler
-		viewBtn.addEventListener('click', async function(e) {
-			e.preventDefault();
-			await runReport();
+		// Automatically refresh active results when any optional filter changes.
+		let optionalFilterTimer = null;
+		let referenceLookupController = null;
+
+		async function populateAgentNameFromReference(referenceId) {
+			const reference = String(referenceId || '').trim();
+			if (!agentNameFilter || !reference) return;
+
+			if (referenceLookupController) referenceLookupController.abort();
+			referenceLookupController = new AbortController();
+			try {
+				const params = new URLSearchParams({
+					partner: 'MONEYGRAM',
+					reference_id: reference,
+					page: '1',
+					per_page: '1'
+				});
+				const response = await fetch(`${getAppBasePath()}/src/controllers/excelcontrol/partner-data-report.php?${params.toString()}`, {
+					signal: referenceLookupController.signal
+				});
+				const data = await response.json();
+				if (referenceIdFilter.value.trim() !== reference || !data.success) return;
+				const rows = Array.isArray(data.moneygram_rows) ? data.moneygram_rows : [];
+				agentNameFilter.value = rows.length ? String(rows[0].agent_name || '').trim() : '';
+				if (currentFilters) currentFilters.agentName = agentNameFilter.value;
+			} catch (error) {
+				if (error.name !== 'AbortError') console.error('Reference ID agent lookup error:', error);
+			}
+		}
+
+		function applyOptionalFilters() {
+			if (!currentFilters || !lastReportData) return;
+			currentFilters.type = typeFilter ? typeFilter.value : '';
+			currentFilters.currency = currencyFilter ? currencyFilter.value : '';
+			currentFilters.agentName = agentNameFilter ? agentNameFilter.value.trim() : '';
+			currentFilters.referenceId = referenceIdFilter ? referenceIdFilter.value.trim() : '';
+			fetchTransactions(1);
+		}
+
+		[typeFilter, currencyFilter].forEach(function(filter) {
+			if (filter) filter.addEventListener('change', applyOptionalFilters);
 		});
 
-		// Currency and transaction type are applied only when View transactions is clicked.
+		if (agentNameFilter) {
+			agentNameFilter.addEventListener('input', function() {
+				clearTimeout(optionalFilterTimer);
+				if (agentNameFilter.value.trim() === '') {
+					if (referenceIdFilter) referenceIdFilter.value = '';
+					if (referenceLookupController) referenceLookupController.abort();
+					hideReportData();
+					return;
+				}
+				optionalFilterTimer = setTimeout(applyOptionalFilters, 400);
+			});
+			agentNameFilter.addEventListener('change', function() {
+				clearTimeout(optionalFilterTimer);
+				applyOptionalFilters();
+			});
+		}
+
+		if (referenceIdFilter) {
+			referenceIdFilter.addEventListener('input', function() {
+				// Clear the previous derived agent so it cannot restrict the new reference lookup.
+				if (agentNameFilter) agentNameFilter.value = '';
+				clearTimeout(optionalFilterTimer);
+				const reference = referenceIdFilter.value.trim();
+				if (!reference) {
+					if (referenceLookupController) referenceLookupController.abort();
+					hideReportData();
+					return;
+				}
+				optionalFilterTimer = setTimeout(async function() {
+					await populateAgentNameFromReference(reference);
+					applyOptionalFilters();
+				}, 400);
+			});
+		}
 
 		function isWorldcomPartner(name) {
 			return /worldcom|\bwic\b/i.test(String(name || ''));
@@ -1103,9 +1305,9 @@ try {
 				if (resultsDiv.dataset) resultsDiv.dataset.reportData = '';
 			}
 			if (pagination) pagination.style.display = 'none';
-			if (hideBtn) hideBtn.style.display = 'none';
+			setClearVisible(false);
 			if (exportBtn) {
-				exportBtn.style.display = 'none';
+				setExportVisible(false);
 				exportBtn.disabled = false;
 				exportBtn.textContent = 'Export to Excel';
 			}
@@ -1403,9 +1605,9 @@ try {
 				resultsBody.innerHTML = `<tr><td colspan="${visibleColCount}" style="padding:1rem;text-align:center;color:#9ca3af">No transactions found</td></tr>`;
 				pagination.style.display = 'none';
 				resultsDiv.style.display = 'block';
-				if (hideBtn) hideBtn.style.display = '';
+				setClearVisible(true);
 				if (exportBtn) {
-					exportBtn.style.display = 'none';
+					setExportVisible(false);
 					exportBtn.disabled = true;
 				}
 				return;
@@ -1447,9 +1649,9 @@ try {
 			renderVirtualPartnerRows();
 
 			resultsDiv.style.display = 'block';
-			if (hideBtn) hideBtn.style.display = '';
+			setClearVisible(true);
 			if (exportBtn) {
-				exportBtn.style.display = '';
+				setExportVisible(true);
 				exportBtn.disabled = false;
 			}
 
@@ -1494,7 +1696,7 @@ const csvIsMoneygram = isMoneygramPartner(partner);
 
 			// Moneygram: request server-side Excel export including Legacy ID
 			if(csvIsMoneygram){
-				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '', reference_id: currentFilters && currentFilters.referenceId ? currentFilters.referenceId : '' });
+				const params = new URLSearchParams({ partner: partner, start_date: data.start_date || '', end_date: data.end_date || '', type: typeFilter ? typeFilter.value : '', settlement_currency: currencyFilter ? currencyFilter.value : '', agent_name: currentFilters && currentFilters.agentName ? currentFilters.agentName : '', reference_id: currentFilters && currentFilters.referenceId ? currentFilters.referenceId : '' });
 				const url = `${getAppBasePath()}/src/controllers/excelcontrol/partner-data-export.php?${params.toString()}`;
 				exportBtn.disabled = true;
 				exportBtn.textContent = 'Preparing...';

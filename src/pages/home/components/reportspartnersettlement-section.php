@@ -10,6 +10,16 @@ try {
 } catch (Throwable $e) {
     $settlementPartners = [];
 }
+
+$settlementAgentNames = [];
+try {
+    $settlementPdo = fileRecDbConnection();
+    $settlementAgentNames = $settlementPdo->query(
+        "SELECT DISTINCT TRIM(agent_name) FROM partner_settlement_data WHERE agent_name IS NOT NULL AND TRIM(agent_name) <> '' ORDER BY TRIM(agent_name)"
+    )->fetchAll(PDO::FETCH_COLUMN) ?: [];
+} catch (Throwable $e) {
+    $settlementAgentNames = [];
+}
 ?>
 <div class="rps-content">
     <style>
@@ -348,6 +358,10 @@ try {
             overflow-wrap: anywhere
         }
 
+        .rps-detail-list .rps-detail-spacer {
+            min-height: 10px;
+        }
+
         .rps-amounts {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -388,7 +402,7 @@ try {
 
     <h3 style="margin:0 0 .5rem;font-size:1.125rem">Partner Settlement Transactions</h3>
     <form id="rpsForm" class="rps-filter">
-        <label class="rps-field rps-field--partner">CORPORATE PARTNER
+        <label class="rps-field rps-field--partner"><span class="rps-field-label">CORPORATE PARTNER <span class="rps-required">*</span></span>
             <span class="rps-autocomplete">
                 <input id="rpsPartner" autocomplete="off" placeholder="Search corporate partner" aria-autocomplete="list" aria-controls="rpsPartnerSuggestions" aria-expanded="false">
                 <ul id="rpsPartnerSuggestions" class="rps-suggestions" role="listbox" hidden></ul>
@@ -409,6 +423,12 @@ try {
                 <option value="SEN">SENDOUT</option>
                 <option value="RSN">SENDOUT CANCELLED</option>
             </select></label>
+        <label class="rps-field" style="min-width:160px"><span class="rps-field-label">AGENT NAME</span>
+            <span class="rps-autocomplete">
+                <input id="rpsAgentName" type="text" autocomplete="off" placeholder="Enter Agent Name" aria-autocomplete="list" aria-controls="rpsAgentSuggestions" aria-expanded="false">
+                <ul id="rpsAgentSuggestions" class="rps-suggestions" role="listbox" hidden></ul>
+            </span>
+        </label>
         <label class="rps-field" style="min-width:160px">REFERENCE ID
             <input id="rpsReferenceId" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter Reference ID">
         </label>
@@ -473,7 +493,7 @@ try {
         <div class="rps-modal__shade" data-rps-close></div>
         <div class="rps-modal__dialog" role="dialog" aria-modal="true" aria-label="Settlement Details">
             <div class="rps-modal__head">
-                <h4>Settlement Details</h4><button class="rps-close" type="button" data-rps-close aria-label="Close">&times;</button>
+                <h4 id="rpsModalTitle">Partner Transaction Details</h4><button class="rps-close" type="button" data-rps-close aria-label="Close">&times;</button>
             </div>
             <div id="rpsModalBody" class="rps-modal__body"></div>
         </div>
@@ -489,10 +509,16 @@ try {
                 results = $('rpsResults'),
                 exportBtn = $('rpsExport'),
                 partnerInput = $('rpsPartner'),
-                partnerList = $('rpsPartnerSuggestions');
+                partnerList = $('rpsPartnerSuggestions'),
+                agentInput = $('rpsAgentName'),
+                agentList = $('rpsAgentSuggestions'),
+                referenceInput = $('rpsReferenceId');
             const partners = <?= json_encode(array_values($settlementPartners), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+            const agentNames = <?= json_encode(array_values($settlementAgentNames), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
             let state = null,
-                last = null;
+                last = null,
+                filterTimer = null,
+                referenceLookupController = null;
             const base = () => window.autoreconBaseUrl !== undefined ? window.autoreconBaseUrl : ('/' + location.pathname.split('/').filter(Boolean)[0]);
             const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;',
@@ -597,6 +623,64 @@ try {
             document.addEventListener('mousedown', event => {
                 if (!partnerInput.closest('.rps-autocomplete').contains(event.target)) closePartners()
             });
+
+            function attachAgentAutocomplete() {
+                let active = -1;
+                const close = () => {
+                    agentList.hidden = true;
+                    agentList.innerHTML = '';
+                    agentInput.setAttribute('aria-expanded', 'false');
+                    active = -1
+                };
+                const select = value => {
+                    agentInput.value = value;
+                    close();
+                    agentInput.dispatchEvent(new Event('change', { bubbles: true }))
+                };
+                const render = () => {
+                    const query = agentInput.value.trim().toLowerCase();
+                    if (!query) return close();
+                    const starts = agentNames.filter(value => String(value).toLowerCase().startsWith(query));
+                    const contains = agentNames.filter(value => !String(value).toLowerCase().startsWith(query) && String(value).toLowerCase().includes(query));
+                    const matches = [...starts, ...contains].slice(0, 100);
+                    agentList.innerHTML = '';
+                    if (!matches.length) return close();
+                    matches.forEach(value => {
+                        const item = document.createElement('li');
+                        item.className = 'rps-suggestion';
+                        item.role = 'option';
+                        item.textContent = value;
+                        item.addEventListener('mousedown', event => {
+                            event.preventDefault();
+                            select(value)
+                        });
+                        agentList.appendChild(item)
+                    });
+                    agentList.hidden = false;
+                    agentInput.setAttribute('aria-expanded', 'true');
+                    active = -1
+                };
+                agentInput.addEventListener('input', render);
+                agentInput.addEventListener('focus', render);
+                agentInput.addEventListener('keydown', event => {
+                    const items = [...agentList.children];
+                    if (event.key === 'Escape') return close();
+                    if (!items.length) return;
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        active = event.key === 'ArrowDown' ? (active + 1) % items.length : (active <= 0 ? items.length - 1 : active - 1);
+                        items.forEach((item, index) => item.classList.toggle('is-active', index === active));
+                        items[active].scrollIntoView({ block: 'nearest' })
+                    } else if (event.key === 'Enter' && active >= 0) {
+                        event.preventDefault();
+                        select(items[active].textContent)
+                    }
+                });
+                document.addEventListener('mousedown', event => {
+                    if (!agentInput.closest('.rps-autocomplete').contains(event.target)) close()
+                })
+            }
+            attachAgentAutocomplete();
             start.addEventListener('change', () => {
                 if (start.value) end.value = start.value
             });
@@ -662,9 +746,11 @@ try {
             form.addEventListener('submit', e => {
                 e.preventDefault();
                 const partner = $('rpsPartner').value.trim();
-                const referenceId = $('rpsReferenceId').value.trim();
-                if (!referenceId && (!partner || !start.value || !end.value)) return notify('Corporate Partner, Start date, and End date are required.');
-                if ((start.value && !end.value) || (!start.value && end.value)) return notify('Please provide both Start date and End date.');
+                const referenceId = referenceInput.value.trim();
+                const agentName = agentInput.value.trim();
+                const hasDirectSearch = referenceId !== '' || agentName !== '';
+                if (!hasDirectSearch && (!partner || !start.value || !end.value)) return notify('Corporate Partner, Start date, and End date are required.');
+                if (!hasDirectSearch && ((start.value && !end.value) || (!start.value && end.value))) return notify('Please provide both Start date and End date.');
                 if (start.value && end.value && start.value > end.value) return notify('Start date cannot be later than End date.');
                 state = {
                     partner,
@@ -672,18 +758,78 @@ try {
                     end_date: end.value,
                     currency: $('rpsCurrency').value,
                     type: $('rpsType').value,
+                    agent_name: agentName,
                     reference_id: referenceId,
                     start: start.value,
                     end: end.value
                 };
                 load()
             });
-            $('rpsClear').addEventListener('click', () => {
-                form.reset();
+
+            function clearResults() {
                 results.style.display = 'none';
                 body.innerHTML = '';
                 last = state = null;
                 exportBtn.hidden = true
+            }
+
+            function applyOptionalFilters() {
+                if (!state || !last) return;
+                state.currency = $('rpsCurrency').value;
+                state.type = $('rpsType').value;
+                state.agent_name = agentInput.value.trim();
+                state.reference_id = referenceInput.value.trim();
+                load(1)
+            }
+
+            async function populateAgentFromReference(reference) {
+                if (!reference) return;
+                if (referenceLookupController) referenceLookupController.abort();
+                referenceLookupController = new AbortController();
+                try {
+                    const q = new URLSearchParams({ reference_id: reference, page: '1', per_page: '1' });
+                    const res = await fetch(`${base()}/src/controllers/excelcontrol/partner-settlement-report.php?${q}`, { signal: referenceLookupController.signal });
+                    const d = await res.json();
+                    if (referenceInput.value.trim() !== reference || !res.ok || !d.success) return;
+                    agentInput.value = d.rows.length ? String(d.rows[0].agent_name || '').trim() : '';
+                    if (state) state.agent_name = agentInput.value
+                } catch (error) {
+                    if (error.name !== 'AbortError') console.error('Settlement reference lookup error:', error)
+                }
+            }
+
+            [$('rpsCurrency'), $('rpsType')].forEach(filter => filter.addEventListener('change', applyOptionalFilters));
+            agentInput.addEventListener('input', () => {
+                clearTimeout(filterTimer);
+                if (!agentInput.value.trim()) {
+                    referenceInput.value = '';
+                    if (referenceLookupController) referenceLookupController.abort();
+                    clearResults();
+                    return
+                }
+                filterTimer = setTimeout(applyOptionalFilters, 400)
+            });
+            agentInput.addEventListener('change', () => {
+                clearTimeout(filterTimer);
+                applyOptionalFilters()
+            });
+            referenceInput.addEventListener('input', () => {
+                agentInput.value = '';
+                clearTimeout(filterTimer);
+                const reference = referenceInput.value.trim();
+                if (!reference) {
+                    if (referenceLookupController) referenceLookupController.abort();
+                    clearResults();
+                    return
+                }
+                filterTimer = setTimeout(async () => {
+                    await populateAgentFromReference(reference);
+                    applyOptionalFilters()
+                }, 400)
+            });
+            $('rpsClear').addEventListener('click', () => {
+                form.reset();
+                clearResults()
             });
             $('rpsPrev').onclick = () => last && load(last.page - 1);
             $('rpsNext').onclick = () => last && load(last.page + 1);
@@ -697,23 +843,34 @@ try {
                     currency = String(val('transaction_currency')).toUpperCase(),
                     sign = currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : '';
                 const amount = (label, key) => `<div><strong>${esc(label)}</strong><span>${sign?sign+' ':''}${esc(num(val(key)))}</span></div>`;
-                const transactionLeft = pair('Transaction Date', date(val('tran_date'))) + pair('Transaction ID', val('transaction_id')) + pair('Reference ID', val('reference_id')) + pair('Product Type', val('product')) + pair('Transaction Type', val('tran_type'));
-                const transactionRight = pair('Account Number', val('account_number')) + pair('Agent Name', val('agent_name')) + pair('Legacy ID', val('legacy_id')) + pair('Original Country', val('orig_cntry')) + pair('Receiver Country', val('rcv_cntry')) + pair('Settlement Currency', val('settlement_currency')) + pair('Transaction Currency', val('transaction_currency'));
+                const spacer = '<dt class="rps-detail-spacer" aria-hidden="true"></dt><dd class="rps-detail-spacer" aria-hidden="true"></dd>';
+                const transactionLeft = pair('Transaction Date', date(val('tran_date'))) + pair('Transaction ID', val('transaction_id')) + pair('Reference ID', val('reference_id')) + pair('Product Type', val('product')) + pair('Transaction Type', val('tran_type')) + spacer;
+                const transactionRight = pair('Account Number', val('account_number')) + pair('Agent Name', val('agent_name')) + pair('Legacy ID', val('legacy_id')) + pair('Original Country', val('orig_cntry')) + pair('Receiver Country', val('rcv_cntry')) + pair('Settlement Currency', val('settlement_currency')) + pair('Transaction Currency', val('transaction_currency')) + spacer + pair('Uploaded By', uploadedBy) + pair('Uploaded Date', datetime(uploadedDate));
                 const forex = pair('Forex Date', date(val('fx_date_trn'))) + pair('Transaction Forex Rate', val('fx_rate_trn')) + pair('Margin', val('margin')) + pair('Fee Amount', num(val('fee_tran_amt')));
-                const upload = pair('Uploaded Date', datetime(uploadedDate)) + pair('Uploaded By', uploadedBy);
-                return `<div class="rps-detail-title">ⓘ Transaction Information</div><div class="rps-detail-grid"><dl class="rps-detail-list">${transactionLeft}</dl><dl class="rps-detail-list">${transactionRight}</dl></div><div class="rps-detail-grid"><dl class="rps-detail-list">${forex}</dl><dl class="rps-detail-list">${upload}</dl></div><div class="rps-amounts">${amount('Principal Amount','base_tran_amt')}${amount('Forex Revenue Share Amount','fx_rev_share_tran_amt')}${amount('Commission Amount','comm_tran_amt')}${amount('Total Transaction Amount','total_tran_amt')}</div>`
+                return `<div class="rps-detail-title">ⓘ Transaction Information</div><div class="rps-detail-grid"><dl class="rps-detail-list">${transactionLeft}${forex}</dl><dl class="rps-detail-list">${transactionRight}</dl></div><div class="rps-amounts">${amount('Principal Amount','base_tran_amt')}${amount('Forex Revenue Share Amount','fx_rev_share_tran_amt')}${amount('Commission Amount','comm_tran_amt')}${amount('Total Transaction Amount','total_tran_amt')}</div>`
+            }
+
+            function updateDetailTitle(transactionType = '') {
+                const labels = { REC: 'PAYOUT', RRC: 'PAYOUT CANCELLED', SEN: 'SENDOUT', RSN: 'SENDOUT CANCELLED', REF: 'SENDOUT CANCELLED' };
+                const label = labels[String(transactionType).trim().toUpperCase()];
+                const titleText = `Partner Transaction Details${label ? ` - (${label})` : ''}`;
+                $('rpsModalTitle').textContent = titleText;
+                const dialog = $('rpsModal').querySelector('.rps-modal__dialog');
+                if (dialog) dialog.setAttribute('aria-label', titleText)
             }
             body.addEventListener('click', async e => {
                 const b = e.target.closest('.rps-view');
                 if (!b) return;
                 const modal = $('rpsModal');
                 $('rpsModalBody').textContent = 'Loading...';
+                updateDetailTitle();
                 modal.style.display = 'flex';
                 modal.setAttribute('aria-hidden', 'false');
                 try {
                     const res = await fetch(`${base()}/src/controllers/recon/partner-settlement-details.php?id=${encodeURIComponent(b.dataset.id)}`),
                         j = await res.json();
                     if (!res.ok || !j.success) throw new Error(j.error || 'Details not found');
+                    updateDetailTitle(j.data.tran_type);
                     $('rpsModalBody').innerHTML = detailHtml(j.data)
                 } catch (err) {
                     $('rpsModalBody').textContent = err.message

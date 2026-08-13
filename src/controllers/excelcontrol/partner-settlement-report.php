@@ -35,10 +35,11 @@ try {
     $start = trim((string)($_GET['start_date'] ?? ''));
     $end = trim((string)($_GET['end_date'] ?? ''));
     $referenceId = trim((string)($_GET['reference_id'] ?? ''));
-    if ($referenceId === '' && ($partner === '' || $start === '' || $end === '')) {
-        throw new InvalidArgumentException('Corporate Partner, Start date, and End date are required when Reference ID is empty.');
+    $agentName = trim((string)($_GET['agent_name'] ?? ''));
+    if ($referenceId === '' && $agentName === '' && ($partner === '' || $start === '' || $end === '')) {
+        throw new InvalidArgumentException('Corporate Partner, Start date, and End date are required when Reference ID and Agent Name are empty.');
     }
-    if (($start === '') !== ($end === '')) {
+    if ($referenceId === '' && $agentName === '' && (($start === '') !== ($end === ''))) {
         throw new InvalidArgumentException('Please provide both Start date and End date.');
     }
     $pdo = fileRecDbConnection();
@@ -56,6 +57,7 @@ try {
     if ($currency !== '') { $where[] = 'UPPER(TRIM(transaction_currency)) = ?'; $params[] = $currency; }
     $type = settlementType((string)($_GET['type'] ?? ''));
     if ($type !== '') { $where[] = 'UPPER(TRIM(tran_type)) = ?'; $params[] = $type; }
+    if ($agentName !== '') { $where[] = 'LOWER(COALESCE(agent_name, "")) LIKE ?'; $params[] = '%' . strtolower($agentName) . '%'; }
     if ($referenceId !== '') { $where[] = 'TRIM(reference_id) = ?'; $params[] = $referenceId; }
     $whereSql = ' WHERE ' . implode(' AND ', $where);
     $select = 'id, partner_id, partner_name, `' . $accountColumn . '` AS account_number, agent_name, legacy_id, tran_date, transaction_id, reference_id, product, tran_type, orig_cntry, rcv_cntry, fx_rate_trn, fx_date_trn, margin, base_tran_amt, fee_tran_amt, fx_rev_share_tran_amt, comm_tran_amt, total_tran_amt, settlement_currency, transaction_currency, created_at, created_by, updated_at, updated_by';

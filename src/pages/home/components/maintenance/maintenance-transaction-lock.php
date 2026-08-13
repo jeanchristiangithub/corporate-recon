@@ -26,16 +26,16 @@ try {
         box-shadow: none;
     }
     #maintenanceLockExportPdf {
-        color: #dc3545;
+        color: #000;
         background: #fff;
         border: 1px solid #dc3545;
         border-radius: 999px;
         box-shadow: none;
     }
     #maintenanceLockExportPdf:hover:not(:disabled) {
-        color: #b91c2c;
+        color: #000;
         background: #fff1f2;
-        border-color: #b91c2c;
+        border-color: #dc3545;
     }
     #maintenanceDataUnlockSection .locked-dates-table tbody tr {
         transition: background-color .15s ease, box-shadow .15s ease;
@@ -53,9 +53,19 @@ try {
         min-height: 20px;
         padding: 2px 8px;
     }
+    #maintenanceDataUnlockSection .locked-dates-status.is-no-data {
+        color: #000;
+    }
     #maintenanceDataUnlockSection .locked-dates-action-btn {
         height: 26px;
         padding: 3px 10px;
+        color: #000;
+        border-color: #dc3545;
+    }
+    #maintenanceDataUnlockSection .locked-dates-action-btn:hover:not(:disabled),
+    #maintenanceDataUnlockSection .locked-dates-action-btn:focus-visible {
+        color: #000;
+        border-color: #dc3545;
     }
     #maintenanceDataUnlockSection .locked-dates-table-wrap {
         max-height: min(62vh, 560px);
@@ -314,7 +324,7 @@ try {
             return '<tr data-partner="' + escapeHtml(partner) + '" data-date="' + escapeHtml(date) + '">' +
                 '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
                 '<td>' + escapeHtml(displayDate(date)) + '</td>' +
-                '<td><span class="locked-dates-status"' + (isNoData ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isLocked ? 'Locked' : 'Unlocked')) + '</span></td>' +
+                '<td><span class="locked-dates-status' + (isNoData ? ' is-no-data' : '') + '"' + (isNoData ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isLocked ? 'Locked' : 'Unlocked')) + '</span></td>' +
                 '<td>' + actions + '</td>' +
                 '</tr>';
         }).join('');
@@ -603,6 +613,19 @@ try {
         load();
     });
     exportPdfButton.addEventListener('click', exportToPdf);
+    window.addEventListener('maintenance-transaction-lock-updated', function (event) {
+        const detail = event && event.detail ? event.detail : {};
+        const selectedPartner = String(partnerFilter.value || '').trim().toUpperCase();
+        const updatedPartner = String(detail.partner || '').trim().toUpperCase();
+        const updatedDates = Array.isArray(detail.dates) ? detail.dates.map(normalizeDate).filter(Boolean) : [];
+        const startDate = normalizeDate(startDateFilter.value || '');
+        const endDate = normalizeDate(endDateFilter.value || '');
+        const affectsDisplayedRange = (!updatedPartner || updatedPartner === selectedPartner)
+            && (!updatedDates.length || updatedDates.some(function (date) {
+                return (!startDate || date >= startDate) && (!endDate || date <= endDate);
+            }));
+        if (affectsDisplayedRange && !loading) load();
+    });
     pagination.addEventListener('click', function (event) {
         const button = event.target.closest('[data-unlock-page]');
         if (!button) return;

@@ -422,6 +422,12 @@
     white-space: nowrap;
 }
 
+/* Keep report data dense so more daily rows remain visible at once. */
+.cash-flow-report-table tbody td {
+    padding: 5px 8px;
+    line-height: 1.2;
+}
+
 .cash-flow-report-table th:last-child,
 .cash-flow-report-table td:last-child {
     border-right: 0;
@@ -550,7 +556,7 @@
 
 .cash-flow-report-remarks {
     min-width: 155px;
-    padding: 5px 24px 5px 10px;
+    padding: 3px 24px 3px 10px;
     border: 1px solid currentColor;
     border-radius: 999px;
     outline: none;
@@ -561,6 +567,53 @@
 .cash-flow-report-table tbody td:last-child {
     text-align: center;
     vertical-align: middle;
+}
+
+.cash-flow-report-table tbody td.cash-flow-report-remarks-cell {
+    position: relative;
+}
+
+.cash-flow-report-status-icon {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 92px);
+    display: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    transform: translateY(-50%);
+}
+
+.cash-flow-report-status-icon.is-saving,
+.cash-flow-report-status-icon.is-saved,
+.cash-flow-report-status-icon.is-error {
+    display: inline-flex;
+}
+
+.cash-flow-report-status-icon.is-saving {
+    border: 2px dotted #4b70a0;
+    animation: cash-flow-report-status-spin 0.8s linear infinite;
+}
+
+.cash-flow-report-status-icon.is-saved {
+    background: #17803d;
+}
+
+.cash-flow-report-status-icon.is-error {
+    background: #ed2947;
+}
+
+@keyframes cash-flow-report-status-spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
 }
 
 .cash-flow-report-remarks.is-not-valid {

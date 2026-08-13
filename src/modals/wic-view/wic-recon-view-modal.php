@@ -309,6 +309,9 @@
                     lockBtn.textContent = mode === 'lock' ? LOCK_LABEL : UNLOCK_LABEL;
                     return;
                 }
+                window.dispatchEvent(new CustomEvent('maintenance-transaction-lock-updated', {
+                    detail: { partner: partner, dates: dates, refs: refs, status: mode === 'lock' ? 'locked' : 'unlocked' }
+                }));
                 markRowsLocked(refs, mode === 'lock');
                 lockBtn.disabled = false;
                 lockBtn.textContent = mode === 'lock' ? UNLOCK_LABEL : LOCK_LABEL;

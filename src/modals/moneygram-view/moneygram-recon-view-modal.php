@@ -269,7 +269,6 @@ window.showConfirmModal = function(message, opts){
         cancelButtonText: (opts && opts.cancelText) ? opts.cancelText : 'Cancel',
         confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
-        reverseButtons: true,
         customClass: {
             popup: 'moneygram-swal-popup',
             confirmButton: 'moneygram-swal-confirm',
@@ -788,6 +787,9 @@ window.showSuccessToast = function(message, timeout){
                 }
                 const json = await res.json();
                 if(json && json.success){
+                    window.dispatchEvent(new CustomEvent('maintenance-transaction-lock-updated', {
+                        detail: { partner: partner, dates: dates, refs: refs, status: mode === 'lock' ? 'locked' : 'unlocked' }
+                    }));
                     if(mode === 'lock'){
                         if(modal._moneygramVirtual && Array.isArray(modal._moneygramVirtual.pairs)){
                             modal._moneygramVirtual.pairs.forEach(pair => {

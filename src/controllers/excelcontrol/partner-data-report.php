@@ -215,8 +215,15 @@ try {
     $partner = isset($_GET['partner']) ? trim((string)$_GET['partner']) : '';
     $startDate = isset($_GET['start_date']) ? trim((string)$_GET['start_date']) : '';
     $endDate = isset($_GET['end_date']) ? trim((string)$_GET['end_date']) : '';
+	$referenceIdFilter = trim((string)($_GET['reference_id'] ?? ''));
+	$agentFilter = trim((string)($_GET['agent_name'] ?? ''));
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10000;
+
+	// A reference-only lookup is a MONEYGRAM transaction search.
+	if ($partner === '' && ($referenceIdFilter !== '' || $agentFilter !== '')) {
+		$partner = 'MONEYGRAM';
+	}
 
     if ($partner === '') {
         echo json_encode(['success' => false, 'error' => 'Corporate partner is required']);
@@ -284,8 +291,7 @@ try {
         }
     }
 
-    $agentFilter = isset($_GET['agent_name']) ? trim((string)$_GET['agent_name']) : '';
-    if ($agentFilter !== '') {
+	if ($agentFilter !== '') {
         if (isset($existing['agent_name'])) {
             $whereParts[] = 'LOWER(COALESCE(agent_name, "")) LIKE ?';
             $params[] = '%' . strtolower($agentFilter) . '%';
@@ -316,8 +322,7 @@ try {
         $params[] = $currencyFilter;
     }
 
-    $referenceIdFilter = trim((string)($_GET['reference_id'] ?? ''));
-    if ($referenceIdFilter !== '' && isset($existing['reference_id'])) {
+	if ($referenceIdFilter !== '' && isset($existing['reference_id'])) {
         $whereParts[] = 'TRIM(' . quote_identifier('reference_id') . ') = ?';
         $params[] = $referenceIdFilter;
     }
