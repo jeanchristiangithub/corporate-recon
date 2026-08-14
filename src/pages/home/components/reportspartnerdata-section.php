@@ -320,6 +320,10 @@ try {
 			min-width:220px !important;
 		}
 
+		.reports-webdata-content #rpdForm {
+			align-items:flex-end !important;
+		}
+
 		.reports-webdata-content #rpdForm .rwd-duration {
 			flex:0 0 auto;
 			flex-wrap:nowrap !important;
@@ -331,7 +335,30 @@ try {
 		.reports-webdata-content label[for="rpdReferenceId"] { flex:1 1 105px; }
 		.reports-webdata-content #rpdCurrencyFilter,
 		.reports-webdata-content #rpdType { width:100%; min-width:0 !important; }
-		.reports-webdata-content #rpdForm .rwd-duration-input { width:110px; min-width:0 !important; }
+		.reports-webdata-content #rpdForm .rwd-duration-input {
+			width:145px;
+			min-width:145px !important;
+			flex:0 0 145px;
+			height:36px !important;
+			min-height:36px !important;
+			max-height:36px !important;
+			line-height:normal;
+		}
+
+		.reports-webdata-content #rpdForm input,
+		.reports-webdata-content #rpdForm select,
+		.reports-webdata-content #rpdForm button {
+			box-sizing:border-box;
+		}
+
+		.reports-webdata-content #rpdForm .rpd-primary-actions input,
+		.reports-webdata-content #rpdForm .rpd-primary-actions select,
+		.reports-webdata-content #rpdForm .rpd-primary-actions button,
+		.reports-webdata-content #rpdForm > label[for="rpdPartner"] input {
+			height:36px;
+			min-height:36px;
+			max-height:36px;
+		}
 
 		.reports-webdata-content #rpdExportBtn.is-hidden {
 			display:none;
@@ -556,7 +583,7 @@ try {
 				</label>
 				<button type="submit" id="rpdViewBtn" class="material-btn material-btn--primary" style="padding:0.55rem 1rem;border-radius:6px">View transactions</button>
 				<button type="button" id="rpdExportBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px">Export to Excel</button>
-				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" style="padding:0.55rem 1rem;border-radius:6px">Clear</button>
+				<button type="button" id="rpdHideBtn" class="material-btn material-btn--secondary is-hidden" aria-hidden="true" tabindex="-1" hidden style="padding:0.55rem 1rem;border-radius:6px">Clear</button>
 			</div>
 		</form>
 
@@ -674,6 +701,7 @@ try {
 		}
 		function setClearVisible(visible) {
 			if (!hideBtn) return;
+			hideBtn.hidden = !visible;
 			hideBtn.classList.toggle('is-hidden', !visible);
 			hideBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
 			hideBtn.tabIndex = visible ? 0 : -1;

@@ -32,10 +32,10 @@ try {
         }
 
         .rps-filter {
-            display: flex;
-            gap: .75rem;
+            display: grid;
+            grid-template-columns: minmax(240px, 1fr) 160px 14px 160px 156px 214px 200px 200px max-content;
+            gap: .5rem;
             align-items: flex-end;
-            flex-wrap: wrap;
             padding: .75rem;
             background: #fff;
             border: 1px solid #e6eef6;
@@ -47,7 +47,8 @@ try {
             flex-direction: column;
             gap: .25rem;
             font-size: .75rem;
-            color: #6b7280
+            color: #6b7280;
+            min-width: 0
         }
 
         .rps-field-label {
@@ -59,8 +60,7 @@ try {
         }
 
         .rps-field--partner {
-            flex: 1;
-            min-width: 280px
+            min-width: 0
         }
 
         .rps-autocomplete {
@@ -70,6 +70,7 @@ try {
 
         .rps-field input,
         .rps-field select {
+            width: 100%;
             height: 38px;
             padding: 8px 10px;
             border: 1px solid #e6eef6;
@@ -122,7 +123,14 @@ try {
         .rps-actions {
             display: flex;
             gap: .5rem;
-            align-items: flex-end
+            align-items: flex-end;
+            white-space: nowrap
+        }
+
+        .rps-date-separator {
+            align-self: end;
+            padding-bottom: 9px;
+            text-align: center
         }
 
         .rps-btn {
@@ -132,6 +140,22 @@ try {
             border-radius: 6px;
             font-weight: 700;
             cursor: pointer
+        }
+
+        @media (max-width: 1550px) {
+            .rps-filter {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .75rem
+            }
+
+            .rps-field--partner {
+                flex: 1 1 320px
+            }
+
+            .rps-field:not(.rps-field--partner) {
+                flex: 0 1 190px
+            }
         }
 
         .rps-btn--view {
@@ -409,7 +433,7 @@ try {
             </span>
         </label>
         <label class="rps-field"><span class="rps-field-label">Start date <span class="rps-required">*</span></span><input id="rpsStart" type="date"></label>
-        <span style="padding-bottom:9px">—</span>
+        <span class="rps-date-separator" aria-hidden="true">&mdash;</span>
         <label class="rps-field"><span class="rps-field-label">End date <span class="rps-required">*</span></span><input id="rpsEnd" type="date"></label>
         <label class="rps-field">CURRENCY<select id="rpsCurrency">
                 <option value="">Select Currency</option>
@@ -423,16 +447,16 @@ try {
                 <option value="SEN">SENDOUT</option>
                 <option value="RSN">SENDOUT CANCELLED</option>
             </select></label>
-        <label class="rps-field" style="min-width:160px"><span class="rps-field-label">AGENT NAME</span>
+        <label class="rps-field"><span class="rps-field-label">AGENT NAME</span>
             <span class="rps-autocomplete">
                 <input id="rpsAgentName" type="text" autocomplete="off" placeholder="Enter Agent Name" aria-autocomplete="list" aria-controls="rpsAgentSuggestions" aria-expanded="false">
                 <ul id="rpsAgentSuggestions" class="rps-suggestions" role="listbox" hidden></ul>
             </span>
         </label>
-        <label class="rps-field" style="min-width:160px">REFERENCE ID
+        <label class="rps-field"><span class="rps-field-label">REFERENCE ID</span>
             <input id="rpsReferenceId" type="text" inputmode="numeric" autocomplete="off" placeholder="Enter Reference ID">
         </label>
-        <div class="rps-actions"><button id="rpsView" class="rps-btn rps-btn--view" type="submit">View transactions</button><button id="rpsExport" class="rps-btn rps-btn--export" type="button" hidden>Export to Excel</button><button id="rpsClear" class="rps-btn rps-btn--clear" type="button">Clear</button></div>
+        <div class="rps-actions"><button id="rpsView" class="rps-btn rps-btn--view" type="submit">View transactions</button><button id="rpsExport" class="rps-btn rps-btn--export" type="button" hidden>Export to Excel</button><button id="rpsClear" class="rps-btn rps-btn--clear" type="button" hidden>Clear</button></div>
     </form>
 
     <section id="rpsResults" class="rps-results">
@@ -730,6 +754,7 @@ try {
                     updateSummary(d);
                     results.style.display = 'block';
                     exportBtn.hidden = !d.rows.length;
+                    $('rpsClear').hidden = false;
                     const from = d.count ? ((d.page - 1) * d.per_page) + 1 : 0,
                         to = Math.min(d.page * d.per_page, d.count);
                     $('rpsPageInfo').textContent = `Showing ${from.toLocaleString()} to ${to.toLocaleString()} of ${Number(d.count).toLocaleString()} transactions (Page ${d.page} of ${d.total_pages})`;
@@ -770,7 +795,8 @@ try {
                 results.style.display = 'none';
                 body.innerHTML = '';
                 last = state = null;
-                exportBtn.hidden = true
+                exportBtn.hidden = true;
+                $('rpsClear').hidden = true
             }
 
             function applyOptionalFilters() {

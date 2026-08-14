@@ -561,6 +561,20 @@ try {
             reconcileBtn.textContent = origText || 'Display';
         }
 
+        // Press Enter from the main reconciliation filters to run Display.
+        document.addEventListener('keydown', function(event){
+            if(event.key !== 'Enter' || event.defaultPrevented || event.repeat || event.isComposing) return;
+            if(!reconcileBtn || reconcileBtn.disabled || reconcileRunning) return;
+            if(lockedDatesModal && lockedDatesModal.classList.contains('is-open')) return;
+            if(document.querySelector('.moneygram-recon-modal[style*="display: block"], .mbtc-recon-modal[style*="display: block"], .wic-recon-modal[style*="display: block"], .skybridgepaymentinc-recon-modal[style*="display: block"]')) return;
+            const target = event.target;
+            if(target && (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.isContentEditable)) return;
+            const mainFilters = [company, document.getElementById('hsStartDate'), document.getElementById('hsEndDate')];
+            if(target && !mainFilters.includes(target)) return;
+            event.preventDefault();
+            reconcileBtn.click();
+        });
+
         function setLockedDatesMessage(message, type){
             if(!lockedDatesMessage) return;
             const text = String(message || '').trim();

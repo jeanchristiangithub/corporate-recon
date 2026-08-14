@@ -54,7 +54,8 @@ try {
         padding: 2px 8px;
     }
     #maintenanceDataUnlockSection .locked-dates-status.is-no-data {
-        color: #000;
+        color: #fff;
+        background: #dc3545;
     }
     #maintenanceDataUnlockSection .locked-dates-action-btn {
         height: 26px;
