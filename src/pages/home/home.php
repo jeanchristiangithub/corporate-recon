@@ -16,6 +16,27 @@ $showMaintenanceMenu = strcasecmp($currentRole, 'Admin') === 0
 $isPrimaryAdmin = isPrimaryAdminUser();
 $canManageUsers = $isPrimaryAdmin;
 
+// A full page request should only build the section being visited. Previously every
+// hidden section ran its PHP and database queries on every sidebar navigation.
+$requestedSection = strtolower(trim((string) ($_GET['section'] ?? 'dashboard')));
+$allowedSections = [
+    'dashboard', 'workspace', 'webdata', 'webdatacancellation', 'kpxwebdataver2',
+    'partnerdata', 'settlementdaily', 'settlementendmonth',
+    'dataentrysettlementdetail', 'reportswebdata', 'partnerdatareportdaily',
+    'partnerdatareportsettlement', 'summaryreport', 'reconreport',
+    'cashflowreport', 'edireport', 'profilesettings', 'maintenancedataunlock',
+    'uploadedfilelogs', 'origindatalogspartner', 'recon',
+];
+if ($canManageUsers) {
+    $allowedSections[] = 'users';
+}
+if ($isPrimaryAdmin) {
+    $allowedSections[] = 'maintenance';
+}
+$activeSection = in_array($requestedSection, $allowedSections, true)
+    ? $requestedSection
+    : 'dashboard';
+
 $appBasePath = autoreconBasePath();
 $appBaseUrl = $appBasePath === '' ? '' : $appBasePath;
 
@@ -300,55 +321,71 @@ if ($currentUserId !== '') {
     </nav>
 </aside>
 <main class="home-main">
-    <?php include __DIR__ . '/components/recon-section.php'; ?>
+    <?php if ($activeSection === 'workspace' || $activeSection === 'recon'): ?>
+        <?php include __DIR__ . '/components/recon-section.php'; ?>
+    <?php endif; ?>
 
-    <section id="dashboardSection" class="dashboard-section" aria-label="Dashboard" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/dashboard.php'; ?>
-    </section>
+    <?php if ($activeSection === 'dashboard'): ?>
+        <section id="dashboardSection" class="dashboard-section" aria-label="Dashboard" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/dashboard.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <?php if ($canManageUsers): ?>
+    <?php if ($canManageUsers && $activeSection === 'users'): ?>
         <section id="usersSection" class="users-section" aria-label="Users" style="display:none; padding:1rem">
             <?php include __DIR__ . '/components/all-users.php'; ?>
         </section>
     <?php endif; ?>
 
-    <section id="reportsWebDataSection" class="reports-webdata-section" aria-label="ML Web Data Report" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/reportswebdata-section.php'; ?>
-    </section>
+    <?php if ($activeSection === 'reportswebdata'): ?>
+        <section id="reportsWebDataSection" class="reports-webdata-section" aria-label="ML Web Data Report" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/reportswebdata-section.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <section id="reportsPartnerDataSection" class="reports-partnerdata-section" aria-label="Partner Data Report" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/reportspartnerdata-section.php'; ?>
-    </section>
+    <?php if ($activeSection === 'partnerdatareportdaily'): ?>
+        <section id="reportsPartnerDataSection" class="reports-partnerdata-section" aria-label="Partner Data Report" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/reportspartnerdata-section.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <section id="reportsPartnerDataSettlementSection" class="reports-partnerdata-settlement-section" aria-label="Partner Data Report Settlement" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/reportspartnersettlement-section.php'; ?>
-    </section>
+    <?php if ($activeSection === 'partnerdatareportsettlement'): ?>
+        <section id="reportsPartnerDataSettlementSection" class="reports-partnerdata-settlement-section" aria-label="Partner Data Report Settlement" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/reportspartnersettlement-section.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <section id="summaryReportSection" class="summary-report-section" aria-label="Summary Report" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/summaryreport-section.php'; ?>
-    </section>
+    <?php if ($activeSection === 'summaryreport'): ?>
+        <section id="summaryReportSection" class="summary-report-section" aria-label="Summary Report" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/summaryreport-section.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <section id="reconReportSection" class="recon-report-section" aria-label="Recon Report" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/reconreport-section.php'; ?>
-    </section>
+    <?php if ($activeSection === 'reconreport'): ?>
+        <section id="reconReportSection" class="recon-report-section" aria-label="Recon Report" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/reconreport-section.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <section id="profileSettingsSection" class="profile-settings-section" aria-label="Profile Settings" style="display:none; padding:1rem">
-        <?php include __DIR__ . '/components/profile-settings/user-profile-settings.php'; ?>
-    </section>
+    <?php if ($activeSection === 'profilesettings'): ?>
+        <section id="profileSettingsSection" class="profile-settings-section" aria-label="Profile Settings" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/profile-settings/user-profile-settings.php'; ?>
+        </section>
+    <?php endif; ?>
 
-    <?php include __DIR__ . '/components/webdata-section.php'; ?>
-    <?php include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
-    <?php include __DIR__ . '/components/data-upload/kpx-webdata-section.php'; ?>
-    <?php include __DIR__ . '/components/data-upload/settlement-detail/daily/settlementdaily-section.php'; ?>
-    <?php include __DIR__ . '/components/data-upload/settlement-detail/end-month/settlementendmonth-section.php'; ?>
-    <?php include __DIR__ . '/components/data-entry/settlement-detail/data-entry-settlement-detail-section.php'; ?>
-    <?php include __DIR__ . '/components/partnerdata-section.php'; ?>
-    <?php include __DIR__ . '/components/uploaded-file-logs.php'; ?>
-    <?php include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
-    <?php include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
-    <?php include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
-    <?php include __DIR__ . '/components/maintenance/maintenance-transaction-lock.php'; ?>
-    <?php if ($isPrimaryAdmin): ?>
+    <?php if ($activeSection === 'webdata') include __DIR__ . '/components/webdata-section.php'; ?>
+    <?php if ($activeSection === 'webdatacancellation') include __DIR__ . '/components/webdata-cancellation-section.php'; ?>
+    <?php if ($activeSection === 'kpxwebdataver2') include __DIR__ . '/components/data-upload/kpx-webdata-section.php'; ?>
+    <?php if ($activeSection === 'settlementdaily') include __DIR__ . '/components/data-upload/settlement-detail/daily/settlementdaily-section.php'; ?>
+    <?php if ($activeSection === 'settlementendmonth') include __DIR__ . '/components/data-upload/settlement-detail/end-month/settlementendmonth-section.php'; ?>
+    <?php if ($activeSection === 'dataentrysettlementdetail') include __DIR__ . '/components/data-entry/settlement-detail/data-entry-settlement-detail-section.php'; ?>
+    <?php if ($activeSection === 'partnerdata') include __DIR__ . '/components/partnerdata-section.php'; ?>
+    <?php if ($activeSection === 'uploadedfilelogs') include __DIR__ . '/components/uploaded-file-logs.php'; ?>
+    <?php if ($activeSection === 'origindatalogspartner') include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
+    <?php if ($activeSection === 'cashflowreport') include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
+    <?php if ($activeSection === 'edireport') include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
+    <?php if ($activeSection === 'maintenancedataunlock') include __DIR__ . '/components/maintenance/maintenance-transaction-lock.php'; ?>
+    <?php if ($isPrimaryAdmin && $activeSection === 'maintenance'): ?>
         <?php include __DIR__ . '/components/maintenance-section.php'; ?>
     <?php endif; ?>
 </main>
@@ -623,7 +660,7 @@ if ($currentUserId !== '') {
                 const targetId = navEl.dataset.show;
                 const sectionUrl = getSectionUrl(targetId);
                 if (sectionUrl) {
-                    window.location.assign(sectionUrl);
+                    window.location.href = sectionUrl;
                 }
             } catch (err) {
                 console.error('[sidebar] nav click handler error', err);
@@ -775,7 +812,10 @@ window.addEventListener('DOMContentLoaded', function(){
         closeMenu();
 
         if (action === 'profile-settings') {
-            if (typeof window.showHomeSection === 'function') window.showHomeSection('profileSettingsSection');
+            const url = new URL(window.location.href);
+            url.searchParams.set('section', 'profilesettings');
+            url.hash = '';
+            window.location.href = url.toString();
             return;
         }
 
