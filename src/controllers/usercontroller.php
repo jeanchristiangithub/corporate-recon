@@ -168,32 +168,19 @@ class UserController
                 u.middlename,
                 u.lastname,
                 u.role,
-                ul.status,
+                COALESCE(
+                    (
+                        SELECT ul.status
+                        FROM filerecondb.userlogs ul
+                        WHERE ul.id_number = u.id_number
+                        ORDER BY ul.datemodified DESC
+                        LIMIT 1
+                    ),
+                    \'active\'
+                ) AS status,
                 u.dateCreated
             FROM
                 filerecondb.users u
-            JOIN
-                filerecondb.userlogs ul
-            ON
-                u.id_number = ul.id_number
-            UNION
-            SELECT
-                u.id_number,
-                u.username,
-                u.firstname,
-                u.middlename,
-                u.lastname,
-                u.role,
-                \'active\' AS status,
-                u.dateCreated
-            FROM
-                filerecondb.users u
-            WHERE
-                NOT EXISTS (
-                    SELECT 1
-                    FROM filerecondb.userlogs ul
-                    WHERE ul.id_number = u.id_number
-                )
             ORDER BY dateCreated DESC'
         );
         $stmt->execute();
