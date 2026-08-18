@@ -523,15 +523,35 @@ function formatUserCreatedDate($value): string
 }
 
 .all-users-actions {
-    min-width: 230px;
+    min-width: 310px;
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .all-users-action-form {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    margin-right: 0.45rem;
+    margin: 0;
+}
+
+.all-users-edit-open {
+    width: 52px;
+}
+
+.all-users-action-form[data-action="reset"] {
+    width: 130px;
+}
+
+.all-users-action-form[data-action="status"] {
+    width: 100px;
+}
+
+.all-users-action-form[data-action="reset"] .all-users-btn,
+.all-users-action-form[data-action="status"] .all-users-btn {
+    width: 100%;
 }
 
 .edit-role-form {
@@ -674,10 +694,12 @@ function formatUserCreatedDate($value): string
     .all-users-actions {
         min-width: 0;
         white-space: normal;
+        justify-content: flex-end;
+        flex-wrap: wrap;
     }
 
     .all-users-action-form {
-        margin: 0 0.4rem 0.45rem 0;
+        margin: 0 0 0.45rem;
     }
 }
 </style>
