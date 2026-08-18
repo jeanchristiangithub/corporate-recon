@@ -195,13 +195,13 @@
 
 .recon-report-type-tab.has-result-indicator::before {
     position: absolute;
-    top: -5px;
-    left: -5px;
-    width: 10px;
-    height: 10px;
+    top: -10px;
+    left: -10px;
+    width: 20px;
+    height: 20px;
     box-sizing: border-box;
     background: #dc3545;
-    border: 2px solid #fff;
+    border: 3px solid #fff;
     border-radius: 50%;
     content: '';
     z-index: 2;
@@ -221,6 +221,42 @@
     color: #fff;
     background: #dc3545;
     border-color: #dc3545;
+}
+
+.recon-report-status-legend {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    margin-left: 10px;
+    color: #4b5563;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.recon-report-status-legend-dot {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    background: #dc3545;
+    border-radius: 50%;
+}
+
+.recon-report-tab-search {
+    flex: 0 0 330px;
+    min-width: 280px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.recon-report-tab-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 32px;
 }
 
 .recon-report-table-card {
@@ -369,6 +405,42 @@
 .recon-report-table tbody td:nth-child(4),
 .recon-report-table tbody td:nth-child(10) {
     text-align: right;
+}
+
+.recon-report-table td.recon-report-record-status-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.recon-report-lock-icon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+}
+
+.recon-report-lock-icon svg {
+    display: block;
+    width: 28px;
+    height: 28px;
+}
+
+.recon-report-lock-icon--locked {
+    color: #198754;
+}
+
+.recon-report-lock-icon--unlocked {
+    color: #1f1f1f;
+}
+
+.recon-report-lock-icon--mismatch {
+    color: #dc3545;
+}
+
+.recon-report-lock-icon--duplicate {
+    color: #d97706;
 }
 
 .recon-report-table th:last-child {

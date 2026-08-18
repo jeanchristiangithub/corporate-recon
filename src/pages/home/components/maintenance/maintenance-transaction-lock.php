@@ -331,10 +331,7 @@ try {
         }).join('');
 
         pagination.hidden = false;
-        const monthParts = String(currentGroup && currentGroup.key || '').split('-');
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthLabel = monthParts.length === 2 ? (monthNames[Number(monthParts[1]) - 1] || '') + ' ' + monthParts[0] : '';
-        pageInfo.textContent = 'Page ' + page + ' of ' + totalPages + ' (' + monthLabel + ', ' + currentRows.length + ' date' + (currentRows.length === 1 ? '' : 's') + ')';
+        pageInfo.textContent = 'Page ' + page + ' of ' + totalPages;
         pagination.querySelector('[data-unlock-page="previous"]').disabled = page <= 1;
         pagination.querySelector('[data-unlock-page="next"]').disabled = page >= totalPages;
     }

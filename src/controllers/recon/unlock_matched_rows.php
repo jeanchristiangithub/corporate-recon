@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/daycard-locks-common.php';
+require_once __DIR__ . '/../excelcontrol/moneygram/moneygram-partner-match.php';
 
 reconDaycardLocksBoot();
 header('Content-Type: application/json; charset=utf-8');
@@ -67,6 +68,13 @@ try {
         try {
             $unlockedBy = reconDaycardLocksUsername();
             reconLockedReconciliationDatesUnlock($pdo, $partner, $dates, $unlockedBy);
+            if ($partner === 'MONEYGRAM') {
+                moneygramUnlockMatchedDates(
+                    $pdo,
+                    $dates,
+                    trim((string)($_SESSION['user']['id_number'] ?? $unlockedBy))
+                );
+            }
         } catch (Throwable $e) {
             // Keep row-unlock operation successful even if optional date table is unavailable.
         }

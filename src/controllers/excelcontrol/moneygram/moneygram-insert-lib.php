@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../../../config/db.php';
 require_once __DIR__ . '/../partner-upload-user.php';
 require_once __DIR__ . '/moneygram-helper.php';
+require_once __DIR__ . '/moneygram-partner-match.php';
 require_once __DIR__ . '/../../recon/daycard-locks-common.php';
 require_once __DIR__ . '/../../../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -423,7 +424,7 @@ class MoneygramInsert {
             'account_number','agent_name','legacy_id','tran_date','transaction_id','reference_id','branch_id','product','tran_type',
             'orig_cntry','rcv_cntry','fx_rate_trn','fx_date_trn','margin','base_tran_amt','fee_tran_amt',
             'fx_rev_share_tran_amt','comm_tran_amt','total_tran_amt','settlement_currency','transaction_currency',
-            'tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt'
+            'tran_fx_rate','fx_rev_share_amt','base_amt','comm_amt','match_status','is_data_locked'
         ];
 
         $numericColumns = [
@@ -628,6 +629,15 @@ class MoneygramInsert {
 
         $pdo->beginTransaction();
         try{
+            $matchedWebIds = moneygramClassifyPartnerUploadRows($pdo, $rowsToInsert);
+            moneygramPromoteMatchedWebRows($pdo, $matchedWebIds);
+            $matchedLockDates = [];
+            foreach($rowsToInsert as $matchedRow){
+                if((int)($matchedRow['match_status'] ?? 0) === 1){
+                    $matchedLockDates[] = $matchedRow['tran_date'] ?? '';
+                }
+            }
+            moneygramUpsertMatchedLockDates($pdo, $matchedLockDates, $uploadedBy);
             $fileLogIds = [];
             $logStmt = $pdo->prepare(
                 'INSERT INTO uploaded_file_logs '

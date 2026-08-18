@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../config/session.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../config/csrf.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/moneygram/moneygram-partner-match.php';
+require_once __DIR__ . '/../recon/daycard-locks-common.php';
 
 bootSecureSession();
 
@@ -76,6 +78,7 @@ $insertColumns = [
     'receiver_country',
     'receiver_name',
     'data_status',
+    'match_status',
     'other_details',
     'ufl_file_log_id',
     'is_data_locked',
@@ -117,7 +120,106 @@ function kpxDuplicateSignature(array $row): string
     return implode("\x1F", $parts);
 }
 
-function kpxLoadDuplicateIds(PDO $pdo, array $rows): array
+function kpxNormalizedDateOnly(mixed $value): string
+{
+    $text = trim((string)$value);
+    if ($text === '') return '';
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $text, $matches)) return $matches[1];
+    $timestamp = strtotime($text);
+    return $timestamp === false ? '' : date('Y-m-d', $timestamp);
+}
+
+function kpxExpectedPartnerMatch(array $row): array
+{
+    $status = strtoupper(trim((string)($row['data_status'] ?? '')));
+    $dateCancelled = kpxNormalizedDateOnly($row['date_cancelled'] ?? null);
+    $dateClaimed = kpxNormalizedDateOnly($row['date_claimed'] ?? null);
+    $dateSend = kpxNormalizedDateOnly($row['date_send'] ?? null);
+
+    return match ($status) {
+        'PO' => $dateCancelled === '' && $dateClaimed !== ''
+            ? ['date' => $dateClaimed, 'types' => ['REC']]
+            : ['date' => '', 'types' => []],
+        'SO' => $dateCancelled === '' && $dateSend !== ''
+            ? ['date' => $dateSend, 'types' => ['SEN']]
+            : ['date' => '', 'types' => []],
+        'POC' => $dateCancelled !== '' && $dateClaimed !== ''
+            ? ['date' => $dateCancelled, 'types' => ['RRC']]
+            : ['date' => '', 'types' => []],
+        'SOC' => $dateCancelled !== '' && $dateSend !== ''
+            ? ['date' => $dateCancelled, 'types' => ['RSN', 'REF']]
+            : ['date' => '', 'types' => []],
+        default => ['date' => '', 'types' => []],
+    };
+}
+
+function kpxPartnerMatchSignature(string $referenceId, mixed $amount, mixed $date, string $transactionType): string
+{
+    $dateText = kpxNormalizedDateOnly($date);
+    $normalizedAmount = kpxNormalizedAmount($amount);
+    if ((float)$normalizedAmount < 0) {
+        $normalizedAmount = number_format(abs((float)$normalizedAmount), 2, '.', '');
+    }
+    return trim($referenceId) . "\x1F" . $normalizedAmount . "\x1F" . $dateText
+        . "\x1F" . strtoupper(trim($transactionType));
+}
+
+function kpxLoadPartnerMatches(PDO $pdo, array $rows): array
+{
+    $referenceIds = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        if (strtoupper(trim((string)($row['partnerName'] ?? ''))) !== 'MONEYGRAM') continue;
+        $referenceId = trim((string)($row['ccref_no'] ?? ''));
+        if ($referenceId !== '') $referenceIds[$referenceId] = true;
+    }
+
+    $partnerIdsBySignature = [];
+    foreach (array_chunk(array_keys($referenceIds), 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $stmt = $pdo->prepare(
+            'SELECT id, reference_id, base_amt, tran_date, tran_type FROM moneygram_partner_data '
+            . 'WHERE reference_id IN (' . $placeholders . ')'
+        );
+        $stmt->execute($chunk);
+        while ($partnerRow = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $signature = kpxPartnerMatchSignature(
+                (string)($partnerRow['reference_id'] ?? ''),
+                $partnerRow['base_amt'] ?? 0,
+                $partnerRow['tran_date'] ?? null,
+                (string)($partnerRow['tran_type'] ?? '')
+            );
+            $partnerId = (int)($partnerRow['id'] ?? 0);
+            if ($partnerId > 0) $partnerIdsBySignature[$signature][$partnerId] = true;
+        }
+    }
+
+    $matches = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)
+            || strtoupper(trim((string)($row['partnerName'] ?? ''))) !== 'MONEYGRAM') {
+            $matches[] = [];
+            continue;
+        }
+        $expected = kpxExpectedPartnerMatch($row);
+        $matchedIds = [];
+        foreach ($expected['types'] as $transactionType) {
+            $signature = kpxPartnerMatchSignature(
+                (string)($row['ccref_no'] ?? ''),
+                $row['amount'] ?? 0,
+                $expected['date'],
+                $transactionType
+            );
+            foreach (array_keys($partnerIdsBySignature[$signature] ?? []) as $partnerId) {
+                $matchedIds[(int)$partnerId] = true;
+            }
+        }
+        $matches[] = array_map('intval', array_keys($matchedIds));
+    }
+    return $matches;
+}
+
+function kpxLoadDuplicateRows(PDO $pdo, array $rows): array
 {
     $ccrefs = [];
     foreach ($rows as $row) {
@@ -126,27 +228,34 @@ function kpxLoadDuplicateIds(PDO $pdo, array $rows): array
         if ($ccref !== '') $ccrefs[$ccref] = true;
     }
 
-    $idBySignature = [];
+    $rowBySignature = [];
     foreach (array_chunk(array_keys($ccrefs), 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
         $stmt = $pdo->prepare(
-            'SELECT id, ccref_no, amount, data_status, date_cancelled, date_claimed, date_send '
+            'SELECT id, ccref_no, amount, data_status, date_cancelled, date_claimed, date_send, match_status '
             . 'FROM ml_web_data WHERE ccref_no IN (' . $placeholders . ')'
         );
         $stmt->execute($chunk);
         while ($existing = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $signature = kpxDuplicateSignature($existing);
-            if (!isset($idBySignature[$signature])) {
-                $idBySignature[$signature] = (int)$existing['id'];
+            $existingMatchStatus = (int)($existing['match_status'] ?? 0);
+            if (!isset($rowBySignature[$signature])
+                || ($existingMatchStatus === 1 && (int)($rowBySignature[$signature]['match_status'] ?? 0) !== 1)) {
+                $rowBySignature[$signature] = [
+                    'id' => (int)$existing['id'],
+                    'match_status' => $existingMatchStatus,
+                ];
             }
         }
     }
 
-    $ids = [];
+    $matches = [];
     foreach ($rows as $row) {
-        $ids[] = is_array($row) ? (int)($idBySignature[kpxDuplicateSignature($row)] ?? 0) : 0;
+        $matches[] = is_array($row)
+            ? ($rowBySignature[kpxDuplicateSignature($row)] ?? ['id' => 0, 'match_status' => 0])
+            : ['id' => 0, 'match_status' => 0];
     }
-    return $ids;
+    return $matches;
 }
 
 function kpxFileLogMetadata(array $rows, string $originalFilename): array
@@ -208,24 +317,57 @@ function kpxResolveFileLogId(PDO $pdo, array $log): int
 
 try {
     $pdo = fileRecDbConnection();
+    $moneygramRowsPresent = false;
+    foreach ($rows as $row) {
+        if (is_array($row) && strtoupper(trim((string)($row['partnerName'] ?? ''))) === 'MONEYGRAM') {
+            $moneygramRowsPresent = true;
+            break;
+        }
+    }
     $columnRows = $pdo->query('SHOW COLUMNS FROM ml_web_data')->fetchAll(PDO::FETCH_ASSOC);
     $availableColumns = [];
     foreach ($columnRows as $columnRow) {
         $availableColumns[(string)$columnRow['Field']] = true;
     }
-    $columns = array_values(array_filter($insertColumns, static fn($column) => isset($availableColumns[$column])));
+    $columns = array_values(array_filter(
+        $insertColumns,
+        static fn($column) => isset($availableColumns[$column])
+            && ($column !== 'match_status' || $moneygramRowsPresent)
+    ));
     if (empty($columns)) {
         throw new RuntimeException('No compatible ml_web_data columns found.');
     }
+    if ($moneygramRowsPresent
+        && (!isset($availableColumns['match_status']) || !isset($availableColumns['is_data_locked']))) {
+        throw new RuntimeException('The ml_web_data matching columns are missing.');
+    }
 
-    $duplicateIdByRow = kpxLoadDuplicateIds($pdo, $rows);
-    $duplicateIds = array_values(array_filter($duplicateIdByRow, static fn($id) => $id > 0));
+    $existingRowByUploadRow = kpxLoadDuplicateRows($pdo, $rows);
+    $partnerIdsByUploadRow = kpxLoadPartnerMatches($pdo, $rows);
+    if ($moneygramRowsPresent) {
+        $moneygramColumns = $pdo->query('SHOW COLUMNS FROM moneygram_partner_data')->fetchAll(PDO::FETCH_ASSOC);
+        $moneygramAvailableColumns = [];
+        foreach ($moneygramColumns as $columnRow) {
+            $moneygramAvailableColumns[(string)$columnRow['Field']] = true;
+        }
+        if (!isset($moneygramAvailableColumns['match_status']) || !isset($moneygramAvailableColumns['is_data_locked'])) {
+            throw new RuntimeException('The moneygram_partner_data matching columns are missing.');
+        }
+    }
+    $overwriteCandidateIds = [];
+    foreach ($existingRowByUploadRow as $rowIndex => $existingRow) {
+        $id = (int)($existingRow['id'] ?? 0);
+        $matchStatus = (int)($existingRow['match_status'] ?? 0);
+        $isMoneygram = is_array($rows[$rowIndex] ?? null)
+            && strtoupper(trim((string)($rows[$rowIndex]['partnerName'] ?? ''))) === 'MONEYGRAM';
+        if ($id > 0 && (!$isMoneygram || $matchStatus !== 1)) $overwriteCandidateIds[] = $id;
+    }
 
-    if (!$overwrite && count($duplicateIds) > 0) {
+    if (!$overwrite && count($overwriteCandidateIds) > 0) {
         echo json_encode([
             'success' => false,
             'duplicate' => true,
-            'duplicateCount' => count($duplicateIds),
+            'duplicateCount' => count($overwriteCandidateIds),
             'message' => 'Data with the same CCREF NO and date already exists. Do you want to overwrite the existing data?',
         ]);
         exit;
@@ -241,6 +383,31 @@ try {
     $inserted = 0;
     $updated = 0;
     $pdo->beginTransaction();
+    $matchedPartnerIds = [];
+    foreach ($partnerIdsByUploadRow as $partnerIds) {
+        foreach ($partnerIds as $partnerId) $matchedPartnerIds[(int)$partnerId] = true;
+    }
+    foreach (array_chunk(array_keys($matchedPartnerIds), 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $partnerUpdateStmt = $pdo->prepare(
+            'UPDATE moneygram_partner_data SET match_status = 1, is_data_locked = 1 '
+            . 'WHERE id IN (' . $placeholders . ')'
+        );
+        $partnerUpdateStmt->execute($chunk);
+    }
+    $matchedLockDates = [];
+    foreach ($rows as $rowIndex => $row) {
+        if (!is_array($row) || empty($partnerIdsByUploadRow[$rowIndex])) continue;
+        $existingMatchStatus = (int)($existingRowByUploadRow[$rowIndex]['match_status'] ?? 0);
+        if ($existingMatchStatus === 1) continue;
+        $expected = kpxExpectedPartnerMatch($row);
+        if ($expected['date'] !== '') $matchedLockDates[] = $expected['date'];
+    }
+    moneygramUpsertMatchedLockDates(
+        $pdo,
+        $matchedLockDates,
+        trim((string)($_SESSION['user']['id_number'] ?? ''))
+    );
     $log = kpxFileLogMetadata($rows, $originalFilename);
     if ($log['filename'] === '' || $log['filename_ext'] === '') {
         throw new RuntimeException('The uploaded filename or extension is missing.');
@@ -253,13 +420,33 @@ try {
     foreach ($rows as $rowIndex => $row) {
         if (!is_array($row)) continue;
         $row['ufl_file_log_id'] = $fileLogId;
-        $id = (int)($duplicateIdByRow[$rowIndex] ?? 0);
-        if ($id > 0 && $overwrite) {
+        $existingRow = $existingRowByUploadRow[$rowIndex] ?? ['id' => 0, 'match_status' => 0];
+        $id = (int)($existingRow['id'] ?? 0);
+        $existingMatchStatus = (int)($existingRow['match_status'] ?? 0);
+        $isMoneygram = strtoupper(trim((string)($row['partnerName'] ?? ''))) === 'MONEYGRAM';
+        $matchesPartnerData = $isMoneygram && !empty($partnerIdsByUploadRow[$rowIndex]);
+
+        if ($isMoneygram && $id > 0 && $existingMatchStatus === 1) {
+            // Preserve the original matched row and store the incoming occurrence as a duplicate.
+            $row['match_status'] = 3;
+            $row['is_data_locked'] = 0;
+            $values = array_map(static fn($column) => kpxSaveValue($row, $column), $columns);
+            $insertStmt->execute($values);
+            $inserted++;
+        } elseif ($id > 0 && $overwrite) {
+            if ($isMoneygram) {
+                $row['match_status'] = $matchesPartnerData ? 1 : 2;
+                $row['is_data_locked'] = $matchesPartnerData ? 1 : 0;
+            }
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $updateColumns);
             $values[] = $id;
             $updateStmt->execute($values);
             $updated++;
         } elseif ($id <= 0) {
+            if ($isMoneygram) {
+                $row['match_status'] = $matchesPartnerData ? 1 : 2;
+                $row['is_data_locked'] = $matchesPartnerData ? 1 : 0;
+            }
             $values = array_map(static fn($column) => kpxSaveValue($row, $column), $columns);
             $insertStmt->execute($values);
             $inserted++;

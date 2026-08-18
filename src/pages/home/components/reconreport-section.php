@@ -79,24 +79,13 @@ $reconReportControllerMap = [
             </label>
 
             <label class="recon-report-field recon-report-field--select" for="reconReportStatus">
-                <span>Show</span>
+                <span>Status</span>
                 <select id="reconReportStatus" name="status">
                     <option value="">All</option>
                     <option value="matched">Matched</option>
                     <option value="mismatch">Mismatch</option>
                     <option value="duplicate">Duplicates</option>
                 </select>
-            </label>
-
-            <label class="recon-report-field" for="reconReportSearch">
-                <span>Search</span>
-                <input
-                    id="reconReportSearch"
-                    name="search"
-                    type="search"
-                    placeholder="Search"
-                    autocomplete="off"
-                >
             </label>
 
             <div class="recon-report-actions" aria-label="Recon report actions">
@@ -111,6 +100,22 @@ $reconReportControllerMap = [
             <button class="recon-report-type-tab" type="button" data-report-type="payout-cancelled" role="tab" aria-selected="false">Payout Cancelled</button>
             <button class="recon-report-type-tab" type="button" data-report-type="sendout" role="tab" aria-selected="false">Sendout</button>
             <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancelled" role="tab" aria-selected="false">Sendout Cancelled</button>
+            <span class="recon-report-status-legend" aria-label="Red dot means mismatch or duplicates">
+                <span>LEGEND:</span>
+                <span class="recon-report-status-legend-dot" aria-hidden="true"></span>
+                <span>Mismatch / Duplicates</span>
+            </span>
+            <label class="recon-report-field recon-report-tab-search" for="reconReportSearch">
+                <span>Search</span>
+                <input
+                    id="reconReportSearch"
+                    name="search"
+                    type="search"
+                    form="reconReportFilterForm"
+                    placeholder="Search by Reference ID or CCREF No."
+                    autocomplete="off"
+                >
+            </label>
         </div>
 
         <div class="recon-report-table-card">
@@ -144,13 +149,15 @@ $reconReportControllerMap = [
                         <col class="recon-report-col--amount">
                         <col class="recon-report-col--currency">
                         <col class="recon-report-col--status">
+                        <col class="recon-report-col--status">
                         <col class="recon-report-col--remarks">
                     </colgroup>
                     <thead>
                         <tr>
                             <th colspan="6" scope="colgroup">Partners Data</th>
                             <th colspan="5" scope="colgroup">KPX Web Data</th>
-                            <th rowspan="2" scope="col">Data Status</th>
+                            <th rowspan="2" scope="col">Status</th>
+                            <th rowspan="2" scope="col">Record Status</th>
                             <th rowspan="2" scope="col">Remarks</th>
                         </tr>
                         <tr>
@@ -169,7 +176,7 @@ $reconReportControllerMap = [
                     </thead>
                     <tbody>
                         <tr class="recon-report-empty-row">
-                            <td colspan="13">No recon report data generated yet.</td>
+                            <td colspan="14">No recon report data generated yet.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -220,7 +227,6 @@ $reconReportControllerMap = [
                     item.classList.toggle('is-active', isSelected);
                     item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
                 });
-                tab.classList.remove('has-result-indicator');
                 applyFilters();
             });
         });
@@ -592,6 +598,40 @@ $reconReportControllerMap = [
         return row.web_currency || row.web_ccy || row.web_currency_code || '';
     }
 
+    function readRecordStatus(row) {
+        return row.web_record_status || row.web_status || row.partner_record_status || row.partner_status || row.record_status || '';
+    }
+
+    function readStatusNumber(value) {
+        const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function moneygramRowState(partnerRecord, webRecord) {
+        const partnerMatchStatus = partnerRecord ? partnerRecord.matchStatus : null;
+        const webMatchStatus = webRecord ? webRecord.matchStatus : null;
+        const partnerLocked = partnerRecord ? partnerRecord.isDataLocked : null;
+        const webLocked = webRecord ? webRecord.isDataLocked : null;
+
+        if (partnerRecord && webRecord
+            && partnerMatchStatus === 1 && webMatchStatus === 1
+            && partnerLocked === 1 && webLocked === 1) {
+            return { dataStatus: 'matched', recordLocked: true };
+        }
+
+        if ((!webRecord && partnerMatchStatus === 2 && partnerLocked === 0)
+            || (!partnerRecord && webMatchStatus === 2 && webLocked === 0)) {
+            return { dataStatus: 'mismatch', recordLocked: false };
+        }
+
+        if ((partnerRecord && partnerMatchStatus === 3 && partnerLocked === 0)
+            || (webRecord && webMatchStatus === 3 && webLocked === 0)) {
+            return { dataStatus: 'duplicate', recordLocked: false };
+        }
+
+        return null;
+    }
+
     function partnerReportType(row) {
         if (row.partner_report_type) return String(row.partner_report_type);
         const tranType = normalizeKey(row.partner_tran_type || row.partner_transaction_type || row.tran_type || '');
@@ -693,6 +733,7 @@ $reconReportControllerMap = [
     function flattenControllerPayload(payload) {
         const days = Array.isArray(payload && payload.days) ? payload.days : [];
         const flatRows = [];
+        const isMoneyGram = normalizeKey(selectedPartnerName()).indexOf('MONEYGRAM') !== -1;
 
         days.forEach(function (day) {
             const detailRows = Array.isArray(day.rows) ? day.rows : [];
@@ -717,6 +758,9 @@ $reconReportControllerMap = [
                         currency: readPartnerCurrency(row) || 'PHP',
                         transactionType: readPartnerTransactionType(row),
                         reportType: partnerReportType(row),
+                        matchStatus: readStatusNumber(row.partner_match_status ?? row.match_status),
+                        isDataLocked: readStatusNumber(row.partner_is_data_locked ?? row.is_data_locked),
+                        recordStatus: readRecordStatus(row),
                         remarks: remarks,
                         duplicate: isDuplicateReference(partnerRef, day),
                         insertIndex: partnerRecords.length
@@ -733,6 +777,9 @@ $reconReportControllerMap = [
                         currency: readWebCurrency(row) || 'PHP',
                         commission: row.web_ctp || row.web_commission || row.web_charge || 0,
                         reportTypes: webReportTypes(row),
+                        matchStatus: readStatusNumber(row.web_match_status ?? row.match_status),
+                        isDataLocked: readStatusNumber(row.web_is_data_locked ?? row.is_data_locked),
+                        recordStatus: readRecordStatus(row),
                         remarks: remarks,
                         duplicate: isDuplicateReference(webRef, day),
                         insertIndex: webRecords.length
@@ -754,6 +801,7 @@ $reconReportControllerMap = [
                 const webList = key && webByKey.has(key) ? webByKey.get(key) : [];
                 const webRecord = webList.find(function (candidate) {
                     if (usedWeb.has(candidate)) return false;
+                    if (isMoneyGram) return true;
                     const partnerType = String(partnerRecord.reportType || '');
                     const webTypes = Array.isArray(candidate.reportTypes) ? candidate.reportTypes : [];
                     const reportTypeMatches = !partnerType || !webTypes.length || webTypes.indexOf(partnerType) !== -1;
@@ -772,6 +820,7 @@ $reconReportControllerMap = [
                 const dataStatus = !webRecord
                     ? 'mismatch'
                     : (webRecord.cancelled ? 'matched' : (isDuplicate ? 'duplicate' : 'matched'));
+                const moneygramState = isMoneyGram ? moneygramRowState(partnerRecord, webRecord) : null;
                 flatRows.push({
                     partner_date: partnerRecord.date,
                     partner_reference_id: partnerRecord.reference_id,
@@ -787,13 +836,16 @@ $reconReportControllerMap = [
                     web_currency: webRecord ? webRecord.currency : '',
                     web_commission: webRecord ? webRecord.commission : 0,
                     web_report_types: webRecord ? webRecord.reportTypes : [],
-                    data_status: dataStatus,
+                    record_status: (webRecord && webRecord.recordStatus) || partnerRecord.recordStatus || '',
+                    data_status: moneygramState ? moneygramState.dataStatus : dataStatus,
+                    record_locked: moneygramState ? moneygramState.recordLocked : null,
                     remarks: (webRecord && webRecord.remarks) || partnerRecord.remarks || ''
                 });
             });
 
             webRecords.forEach(function (webRecord) {
                 if (usedWeb.has(webRecord)) return;
+                const moneygramState = isMoneyGram ? moneygramRowState(null, webRecord) : null;
                 flatRows.push({
                     partner_date: '',
                     partner_reference_id: '',
@@ -809,18 +861,20 @@ $reconReportControllerMap = [
                     web_currency: webRecord.currency,
                     web_commission: webRecord.commission,
                     web_report_types: webRecord.reportTypes,
-                    data_status: 'mismatch',
+                    record_status: webRecord.recordStatus,
+                    data_status: moneygramState ? moneygramState.dataStatus : 'mismatch',
+                    record_locked: moneygramState ? moneygramState.recordLocked : null,
                     remarks: webRecord.remarks || ''
                 });
             });
         });
 
-        return applyCompositeDuplicateStatuses(flatRows);
+        return isMoneyGram ? flatRows : applyCompositeDuplicateStatuses(flatRows);
     }
 
     function setEmptyRow(message) {
         if (!tbody) return;
-        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="13">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
+        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="14">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
         updateExportButtonVisibility();
     }
 
@@ -836,6 +890,23 @@ $reconReportControllerMap = [
         return 'Mismatch';
     }
 
+    function recordStatusHtml(row) {
+        if (row.record_locked === true) {
+            return '<span class="recon-report-lock-icon recon-report-lock-icon--locked" title="Locked" aria-label="Locked">'
+                + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm296.5-223.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg>'
+                + '</span>';
+        }
+        if (row.record_locked === false) {
+            const statusClass = row.data_status === 'duplicate'
+                ? 'recon-report-lock-icon--duplicate'
+                : 'recon-report-lock-icon--mismatch';
+            return '<span class="recon-report-lock-icon recon-report-lock-icon--unlocked ' + statusClass + '" title="Unlocked" aria-label="Unlocked">'
+                + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M536.5-303.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z"/></svg>'
+                + '</span>';
+        }
+        return escapeHtml(row.record_status || '');
+    }
+
     function rowReportDate(row) {
         return normalizeIsoDate(row.partner_date || row.web_date || '');
     }
@@ -845,7 +916,7 @@ $reconReportControllerMap = [
         tr.className = 'recon-report-date-row';
         tr.dataset.role = 'date-separator';
         tr.dataset.date = normalizeIsoDate(dateValue);
-        tr.innerHTML = '<td colspan="13">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
+        tr.innerHTML = '<td colspan="14">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
         return tr;
     }
 
@@ -856,10 +927,19 @@ $reconReportControllerMap = [
             return;
         }
 
+        const orderedRows = rows.slice();
+        if (!normalizeStatus(statusSelect && statusSelect.value)) {
+            orderedRows.sort(function (left, right) {
+                const leftPriority = left.data_status === 'mismatch' || left.data_status === 'duplicate' ? 0 : 1;
+                const rightPriority = right.data_status === 'mismatch' || right.data_status === 'duplicate' ? 0 : 1;
+                return leftPriority - rightPriority;
+            });
+        }
+
         const fragment = document.createDocumentFragment();
         const showDateSeparators = normalizeIsoDate(startDateInput && startDateInput.value) !== normalizeIsoDate(endDateInput && endDateInput.value);
         let currentDate = '';
-        rows.forEach(function (row) {
+        orderedRows.forEach(function (row) {
             const reportDate = rowReportDate(row);
             if (showDateSeparators && reportDate && reportDate !== currentDate) {
                 currentDate = reportDate;
@@ -878,19 +958,8 @@ $reconReportControllerMap = [
             tr.dataset.webCommission = String(toNumber(row.web_commission));
             tr.dataset.reportDate = reportDate;
             tr.dataset.search = [
-                row.partner_date,
                 row.partner_reference_id,
-                row.partner_amount,
-                row.partner_commission,
-                row.partner_currency,
-                row.partner_transaction_type,
-                row.web_date,
-                row.web_kptn,
-                row.web_ccref_no,
-                row.web_amount,
-                row.web_currency,
-                statusLabel(row.data_status),
-                row.remarks
+                row.web_ccref_no
             ].join(' ').toLowerCase();
             tr.className = 'recon-report-result-row recon-report-result-row--' + (row.data_status || 'mismatch');
             tr.innerHTML = ''
@@ -906,6 +975,7 @@ $reconReportControllerMap = [
                 + '<td>' + escapeHtml(money(row.web_amount)) + '</td>'
                 + '<td>' + escapeHtml(row.web_currency) + '</td>'
                 + '<td>' + escapeHtml(statusLabel(row.data_status)) + '</td>'
+                + '<td class="recon-report-record-status-cell">' + recordStatusHtml(row) + '</td>'
                 + '<td>' + escapeHtml(row.remarks || '') + '</td>';
             fragment.appendChild(tr);
         });
@@ -1117,6 +1187,7 @@ $reconReportControllerMap = [
     });
     if (statusSelect) statusSelect.addEventListener('change', function () {
         updateReportTypeIndicators(reportRows);
+        if (reportRows.length) renderRows(reportRows);
         applyFilters();
     });
     if (clearBtn) clearBtn.addEventListener('click', function () {

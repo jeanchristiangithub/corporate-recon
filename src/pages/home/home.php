@@ -321,7 +321,7 @@ if ($currentUserId !== '') {
     </nav>
 </aside>
 <main class="home-main">
-    <?php if ($activeSection === 'workspace' || $activeSection === 'recon'): ?>
+    <?php if ($activeSection === 'workspace' || $activeSection === 'recon' || $activeSection === 'maintenancedataunlock'): ?>
         <?php include __DIR__ . '/components/recon-section.php'; ?>
     <?php endif; ?>
 

@@ -105,6 +105,11 @@ try{
 
         $cols = $pdo->query("SHOW COLUMNS FROM moneygram_partner_data")->fetchAll(PDO::FETCH_ASSOC);
         $fields = array_map(function($c){ return strtolower($c['Field']); }, $cols);
+        // Already-matched rows must remain in place so the partner matching
+        // add-on can classify an incoming reference/date/type occurrence as 3.
+        $mutableMatchSql = in_array('match_status', $fields, true)
+            ? ' AND (match_status IS NULL OR match_status <> 1)'
+            : '';
 
         $idCol = null;
         foreach(['transaction_id','reference_id','reference_no'] as $candidate){
@@ -160,7 +165,7 @@ try{
                     $params[] = $pair[0];
                     $params[] = $pair[1];
                 }
-                $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE " . implode(' OR ', $where) . " GROUP BY {$idCol}, {$dateCol}";
+                $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE (" . implode(' OR ', $where) . "){$mutableMatchSql} GROUP BY {$idCol}, {$dateCol}";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
                 foreach($stmt->fetchAll() as $ra){
@@ -193,9 +198,9 @@ try{
             foreach(array_chunk(array_keys($looseIds), 1000) as $chunk){
                 $placeholders = implode(',', array_fill(0, count($chunk), '?'));
                 if($dateCol !== null){
-                    $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}) GROUP BY {$idCol}, {$dateCol}";
+                    $sql = "SELECT {$idCol} as idcol, {$dateCol} as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}){$mutableMatchSql} GROUP BY {$idCol}, {$dateCol}";
                 } else {
-                    $sql = "SELECT {$idCol} as idcol, NULL as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}) GROUP BY {$idCol}";
+                    $sql = "SELECT {$idCol} as idcol, NULL as dcol, COUNT(*) as cnt FROM moneygram_partner_data WHERE {$idCol} IN ({$placeholders}){$mutableMatchSql} GROUP BY {$idCol}";
                 }
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($chunk);
@@ -223,6 +228,9 @@ try{
 
         $cols = $pdo->query("SHOW COLUMNS FROM moneygram_partner_data")->fetchAll(PDO::FETCH_ASSOC);
         $fields = array_map(function($c){ return strtolower($c['Field']); }, $cols);
+        $mutableMatchSql = in_array('match_status', $fields, true)
+            ? ' AND (match_status IS NULL OR match_status <> 1)'
+            : '';
 
         $idCol = null;
         foreach(['transaction_id','reference_id','reference_no'] as $candidate){
@@ -259,13 +267,13 @@ try{
                     $params[] = $pair[1];
                 }
                 if(empty($place)) continue;
-                $sql = "DELETE FROM moneygram_partner_data WHERE ({$idCol}, {$dateCol}) IN (" . implode(',', $place) . ')';
+                $sql = "DELETE FROM moneygram_partner_data WHERE ({$idCol}, {$dateCol}) IN (" . implode(',', $place) . "){$mutableMatchSql}";
             } else {
                 foreach($chunk as $pair){
                     $place[] = '?';
                     $params[] = $pair[0];
                 }
-                $sql = "DELETE FROM moneygram_partner_data WHERE {$idCol} IN (" . implode(',', $place) . ')';
+                $sql = "DELETE FROM moneygram_partner_data WHERE {$idCol} IN (" . implode(',', $place) . "){$mutableMatchSql}";
             }
 
             $stmt = $pdo->prepare($sql);

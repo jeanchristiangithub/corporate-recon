@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/daycard-locks-common.php';
+require_once __DIR__ . '/../excelcontrol/moneygram/moneygram-partner-match.php';
 
 reconDaycardLocksBoot();
 header('Content-Type: application/json; charset=utf-8');
@@ -36,6 +37,13 @@ try {
 
     if (reconLockedReconciliationDatesTableExists($pdo)) {
         $updated += reconLockedReconciliationDatesUnlock($pdo, $partner, [$transactionDate], $unlockedBy);
+        if ($partner === 'MONEYGRAM') {
+            moneygramUnlockMatchedDates(
+                $pdo,
+                [$transactionDate],
+                trim((string)($_SESSION['user']['id_number'] ?? $unlockedBy))
+            );
+        }
     }
 
     $stmtDaycard = $pdo->prepare(
