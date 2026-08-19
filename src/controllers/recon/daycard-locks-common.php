@@ -276,11 +276,14 @@ function reconLockedReconciliationDatesUnlock(PDO $pdo, string $partner, array $
     foreach (array_chunk($dates, 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
         $sql = 'UPDATE locked_reconciliation_dates
-                SET unlocked_by = ?, unlocked_at = NOW(), updated_at = CURRENT_TIMESTAMP
+                SET locked_by = NULL,
+                    locked_at = NULL,
+                    unlocked_by = ?,
+                    unlocked_at = NOW(),
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE corporate_partner = ?
                   AND transaction_date IN (' . $placeholders . ')
-              AND locked_at IS NOT NULL
-              AND unlocked_at IS NULL';
+                  AND locked_at IS NOT NULL';
         try {
             $stmt = $pdo->prepare($sql);
             $params = array_merge([trim($unlockedBy), $partner], $chunk);

@@ -232,16 +232,23 @@ try{
 
         $dateCancelled = trim((string)($row['date_cancelled'] ?? ($row['date_cancellation'] ?? '')));
         $isCancelled = $dateCancelled !== '';
+        $cancelledDateOnly = $normalizeDate($dateCancelled);
+        $dateClaimedOnly = $normalizeDate($row['date_claimed'] ?? '');
+        $dateSendOnly = $normalizeDate($row['date_send'] ?? '');
         $dateCandidates = [
             [
-                'date' => $normalizeDate($row['date_claimed'] ?? ''),
+                // RRC pairs on TRAN DATE = KPX DATE CANCELLED, but only
+                // when the KPX payout record also has DATE CLAIMED.
+                'date' => $isCancelled && $dateClaimedOnly !== '' ? $cancelledDateOnly : $dateClaimedOnly,
                 'report_type' => $isCancelled ? 'payout-cancelled' : 'payout',
-                'date_source' => 'date_claimed',
+                'date_source' => $isCancelled ? 'date_cancelled' : 'date_claimed',
             ],
             [
-                'date' => $normalizeDate($row['date_send'] ?? ''),
+                // RSN/REF pairs on TRAN DATE = KPX DATE CANCELLED, but only
+                // when the KPX sendout record also has DATE SEND.
+                'date' => $isCancelled && $dateSendOnly !== '' ? $cancelledDateOnly : $dateSendOnly,
                 'report_type' => $isCancelled ? 'sendout-cancelled' : 'sendout',
-                'date_source' => 'date_send',
+                'date_source' => $isCancelled ? 'date_cancelled' : 'date_send',
             ],
         ];
 
@@ -296,8 +303,9 @@ try{
         $bestWebIndex = null;
         $bestDateDistance = PHP_INT_MAX;
         $bestWebDate = '';
+        $partnerMatchStatus = (int)($partnerRow['raw']['match_status'] ?? 0);
 
-        foreach(($webIndexesByRef[$partnerRow['ref']] ?? []) as $candidateIndex){
+        foreach($partnerMatchStatus === 3 ? [] : ($webIndexesByRef[$partnerRow['ref']] ?? []) as $candidateIndex){
             if(isset($usedWebIndexes[$candidateIndex])) continue;
 
             $webRow = $webRows[$candidateIndex];
@@ -307,7 +315,8 @@ try{
             // (e.g. a 04-17 web row should not match when the user requested range ends 04-16).
             if($webRow['date'] < $startDate || $webRow['date'] > $endDate) continue;
             $dateDistance = abs($dateDiffDays($partnerRow['date'], $webRow['date']));
-            if($dateDistance > 1) continue;
+            $isCancellationPair = in_array($partnerRow['report_type'] ?? '', ['payout-cancelled', 'sendout-cancelled'], true);
+            if($dateDistance > ($isCancellationPair ? 0 : 1)) continue;
             if(!$amountsEqual($partnerRow['amount'], $webRow['amount'])) continue;
             if($partnerRow['currency'] === '' || $webRow['currency'] === '' || $partnerRow['currency'] !== $webRow['currency']) continue;
 

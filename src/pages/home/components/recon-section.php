@@ -291,6 +291,15 @@ try {
             const unmatched = Number(unmatchedCount || 0);
             const duplicates = Number(duplicateCount || 0);
             const matchedLabel = matched === 1 ? 'transaction' : 'transactions';
+            if(modal && modal.id === 'moneygramReconViewModal'){
+                const forVerification = unmatched + duplicates;
+                const verificationLabel = forVerification === 1 ? 'transaction' : 'transactions';
+                summaryEl.innerHTML =
+                    '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matched.toLocaleString() + ' ' + matchedLabel + '</span>' +
+                    '<span class="recon-summary__sep">|</span>' +
+                    '<span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerification.toLocaleString() + ' ' + verificationLabel + '</span>';
+                return;
+            }
             const unmatchedLabel = unmatched === 1 ? 'transaction' : 'transactions';
             const duplicateLabel = duplicates === 1 ? 'transaction' : 'transactions';
             summaryEl.innerHTML =
@@ -1382,6 +1391,7 @@ try {
             // so missing_* fallbacks don't push the same logical row again.
             const seenPartnerOnlyKeys = new Set();
             const seenWebOnlyKeys = new Set();
+            const seenWebTransactionKeys = new Set();
 
             const pushOrderedKey = function(key){
                 if(!key) return;
@@ -1482,12 +1492,12 @@ try {
                 if(pair.partnerId) tr.dataset.partnerId = pair.partnerId;
 
                 tr.innerHTML =
-                    '<td class="moneygram-cell-center">' + partnerDate + '</td>' +
+                    '<td class="moneygram-cell-center moneygram-date-cell"><span class="moneygram-date-text">' + partnerDate + '</span></td>' +
                     '<td class="highlight-ref moneygram-cell-center"><span class="moneygram-ref-text">' + (partnerObj ? String(partnerObj.tx || '') : '') + '</span></td>' +
                     '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
                     '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerCommission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
                     '<td class="moneygram-cell-center">' + partnerCurrency + '</td>' +
-                    '<td class="moneygram-cell-center">' + webDate + '</td>' +
+                    '<td class="moneygram-cell-center moneygram-date-cell"><span class="moneygram-date-text">' + webDate + '</span></td>' +
                     '<td class="moneygram-cell-center">' + (webObj ? String(webObj.wKptn || '').trim() : '') + '</td>' +
                     '<td class="highlight-ref moneygram-cell-center">' + (webObj ? String(webObj.wRef || '') : '') + '</td>' +
                     '<td class="moneygram-cell-number">' + (webObj ? Math.abs(webAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
@@ -1596,8 +1606,17 @@ try {
                 }
                 if(wObj){
                     const key = toUpperKey(wRef);
-                    if(key){ appendBucket(webBucket, key, wObj); pushOrderedKey(key); }
-                    else webNoKey.push(wObj);
+                    const kptnKey = toUpperKey(wObj.wKptn || '');
+                    const webTransactionKey = kptnKey
+                        ? normalizeIsoDate(wObj.wDateRaw || '') + '|' + kptnKey + '|' + key
+                        : '';
+                    const isRepeatedWebTransaction = webTransactionKey && seenWebTransactionKeys.has(webTransactionKey);
+
+                    if(!isRepeatedWebTransaction){
+                        if(webTransactionKey) seenWebTransactionKeys.add(webTransactionKey);
+                        if(key){ appendBucket(webBucket, key, wObj); pushOrderedKey(key); }
+                        else webNoKey.push(wObj);
+                    }
                 }
             });
 
@@ -1678,15 +1697,18 @@ try {
             });
 
             const sortedPairs = alignedPairs.slice().sort((a, b) => {
+                // Surface every detected row at the top of the default "All"
+                // view, even when it belongs to a later transaction date.
+                // Status-specific views retain their normal date ordering because
+                // every visible row in those views has the same priority rank.
+                const aRank = (a.isMismatch || a.isDuplicate) ? 0 : 1;
+                const bRank = (b.isMismatch || b.isDuplicate) ? 0 : 1;
+                if(aRank !== bRank) return aRank - bRank;
+
                 const aDate = a.pairDateIso || '9999-12-31';
                 const bDate = b.pairDateIso || '9999-12-31';
                 if(aDate < bDate) return -1;
                 if(aDate > bDate) return 1;
-
-                // Within each date group, keep matched rows above mismatched/duplicates.
-                const aRank = (a.isMismatch || a.isDuplicate) ? 1 : 0;
-                const bRank = (b.isMismatch || b.isDuplicate) ? 1 : 0;
-                if(aRank !== bRank) return aRank - bRank;
 
                 return a.insertIndex - b.insertIndex;
             });
@@ -1826,10 +1848,10 @@ try {
             const unmatchedCount = alignedPairs.filter((p) => (p.isMismatch && !p.isDuplicate)).length;
             const duplicateCount = alignedPairs.filter((p) => p.isDuplicate).length;
             const matchedLabel = matchedCount === 1 ? 'transaction' : 'transactions';
-            const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
-            const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
+            const forVerificationCount = unmatchedCount + duplicateCount;
+            const verificationLabel = forVerificationCount === 1 ? 'transaction' : 'transactions';
             if(summaryEl){
-                summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerificationCount.toLocaleString() + ' ' + verificationLabel + '</span>';
             }
 
             const ensureEmptyRow = function(tbody, colspan = 4, message = 'No Data Found'){
@@ -1893,10 +1915,10 @@ try {
                 const unmatchedCount = alignedPairs.filter((p) => (p.isMismatch && !p.isDuplicate)).length;
                 const duplicateCount = alignedPairs.filter((p) => p.isDuplicate).length;
                 const matchedLabel = matchedCount === 1 ? 'transaction' : 'transactions';
-                const unmatchedLabel = unmatchedCount === 1 ? 'transaction' : 'transactions';
-                const duplicateLabel = duplicateCount === 1 ? 'transaction' : 'transactions';
+                const forVerificationCount = unmatchedCount + duplicateCount;
+                const verificationLabel = forVerificationCount === 1 ? 'transaction' : 'transactions';
                 if(summaryEl){
-                    summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ' + unmatchedCount.toLocaleString() + ' ' + unmatchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ' + duplicateCount.toLocaleString() + ' ' + duplicateLabel + '</span>';
+                    summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerificationCount.toLocaleString() + ' ' + verificationLabel + '</span>';
                 }
             };
 
@@ -2301,18 +2323,7 @@ try {
                     const range = getSelectedDateRange();
                     const companyName = company && company.value ? String(company.value) : '';
                     const lockedDates = await fetchLockedRangeDates(companyName, range.startDate, range.endDate);
-                    if(lockedDates.length > 0){
-                        hideDays();
-                        hideReconLoader(origText);
-                        const isMultiple = lockedDates.length > 1;
-                        const lockedDateList = lockedDates.map(formatDateLongMonth).join('\n');
-                        await showAlertModal(
-                            (isMultiple ? 'Selected Transaction Dates are already locked.' : 'Selected Transaction Date is already locked.')
-                                + (lockedDateList ? '\n' + lockedDateList : ''),
-                            { title: 'Warning', icon: 'warning' }
-                        );
-                        return;
-                    }
+                    const serverLockedView = lockedDates.length > 0;
 
                     if(isWorldInternationalCommunications(companyName)){
                         const aggregate = await fetchWicRangeAggregate(companyName, range.startDate, range.endDate);
@@ -2326,7 +2337,7 @@ try {
                             return;
                         }
 
-                        openWicRangeModal(aggregate, companyName);
+                        openWicRangeModal(aggregate, companyName, { serverLockedView: serverLockedView, lockedDates: lockedDates });
                         return;
                     }
 
@@ -2342,7 +2353,7 @@ try {
                             return;
                         }
 
-                        openMbtcReconModal(aggregate);
+                        openMbtcReconModal(aggregate, { serverLockedView: serverLockedView, lockedDates: lockedDates, partnerName: companyName });
                         return;
                     }
 
@@ -2373,7 +2384,7 @@ try {
                         return;
                     }
 
-                    openMoneygramRangeModal(aggregate, companyName, { lockedDates: lockedDates });
+                    openMoneygramRangeModal(aggregate, companyName, { serverLockedView: serverLockedView, lockedDates: lockedDates });
                 }catch(err){
                     console.warn('Reconcile failed', err);
                     hideDays();
@@ -3675,10 +3686,12 @@ try {
                             {
                                 const m = Number(dayObj.matchedCount || 0);
                                 const u = Number(dayObj.unmatchedCount || 0);
+                                const d = Number(dayObj.duplicateCount || (Array.isArray(dayObj.duplicates) ? dayObj.duplicates.length : 0));
+                                const forVerification = u + d;
                                 const mLabel = (m === 1) ? 'transaction' : 'transactions';
-                                const uLabel = (u === 1) ? 'transaction' : 'transactions';
+                                const verificationLabel = (forVerification === 1) ? 'transaction' : 'transactions';
                                 const el = modal.querySelector('[data-role="summary"]');
-                                if(el) el.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ${u.toLocaleString()} ${uLabel}</span>`;
+                                if(el) el.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ${forVerification.toLocaleString()} ${verificationLabel}</span>`;
                             }
 
                             const partnersBody = modal.querySelector('[data-role="partnersBody"]');
@@ -4004,9 +4017,9 @@ try {
                                             const u = Number(mismatchVisible || 0);
                                             const d = Number(duplicateVisible || 0);
                                             const mLabel = (m === 1) ? 'transaction' : 'transactions';
-                                            const uLabel = (u === 1) ? 'transaction' : 'transactions';
-                                            const dLabel = (d === 1) ? 'transaction' : 'transactions';
-                                            summaryEl.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Not Matched:</span> ${u.toLocaleString()} ${uLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">Duplicates:</span> ${d.toLocaleString()} ${dLabel}</span>`;
+                                            const forVerification = u + d;
+                                            const verificationLabel = (forVerification === 1) ? 'transaction' : 'transactions';
+                                            summaryEl.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ${forVerification.toLocaleString()} ${verificationLabel}</span>`;
                                         }
 
                                         const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');

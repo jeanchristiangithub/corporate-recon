@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/daycard-locks-common.php';
+require_once __DIR__ . '/../excelcontrol/moneygram/moneygram-partner-match.php';
 
 reconDaycardLocksBoot();
 header('Content-Type: application/json; charset=utf-8');
@@ -33,8 +34,14 @@ try {
         exit;
     }
 
-    $lockedBy = reconDaycardLocksUsername();
+    $lockedBy = trim((string) ($_SESSION['user']['id_number'] ?? ''));
+    if ($lockedBy === '') {
+        $lockedBy = reconDaycardLocksUsername();
+    }
     $updated = reconLockedReconciliationDatesUpsert($pdo, $partner, [$date], $lockedBy);
+    if ($partner === 'MONEYGRAM') {
+        moneygramLockMatchedDates($pdo, [$date]);
+    }
 
     $stmt = $pdo->prepare(
         'INSERT INTO recon_daycard_locks (corporate_partner, recon_date, is_locked, locked_by, locked_at, unlocked_by, unlocked_at)

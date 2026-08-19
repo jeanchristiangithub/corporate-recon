@@ -367,8 +367,8 @@ try {
             return getRowValueByAliases(row, ['Date', 'date', 'transaction_date', 'transaction date', 'date_claimed', 'date claimed', 'cover_date', 'cover date', 'payout_date', 'payout date'], fallback);
         }
 
-        function getMoneygramTransactionId(row){
-            return String(getRowValueByAliases(row, ['transaction_id', 'transaction id', 'tran_id', 'tran id', 'reference_id', 'reference id', 'reference_no', 'reference no'], '') || '').trim();
+        function getMoneygramReferenceId(row){
+            return String(getRowValueByAliases(row, ['reference_id', 'reference id', 'reference_no', 'reference no'], '') || '').trim();
         }
 
         function getMoneygramTranDate(row, payload){
@@ -1284,16 +1284,17 @@ try {
                     progressText.textContent = 'Preparing duplicate check for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's') + '...';
                     const allDuplicates = [];
                     const pairMap = new Map();
+                    let overwritePairs = [];
 
                     payloads.forEach(pl => {
                         (pl.rows||[]).forEach(r=>{
-                            const transactionId = getMoneygramTransactionId(r);
+                            const referenceId = getMoneygramReferenceId(r);
                             const rawDate = getMoneygramTranDate(r, pl);
                             const dateFull = normalizeClientDate(rawDate);
                             const dateOnly = dateFull ? dateFull.split(' ')[0] : '';
-                            if(transactionId){
-                                const pairKey = transactionId + '|' + dateOnly;
-                                pairMap.set(pairKey, { transaction_id: transactionId, tran_date: dateOnly });
+                            if(referenceId){
+                                const pairKey = referenceId + '|' + dateOnly;
+                                pairMap.set(pairKey, { reference_id: referenceId, tran_date: dateOnly });
                             }
                         });
                     });
@@ -1315,7 +1316,7 @@ try {
                     progressText.textContent = 'Duplicate check completed for ' + totalFiles + ' file' + (totalFiles === 1 ? '' : 's');
 
                     if(allDuplicates.length > 0){
-                        const msg = 'Data with the same Transaction ID and Transaction DATE already exists. Do you want to overwrite the existing data?';
+                        const msg = 'Data with the same Reference ID and Transaction DATE already exists. Do you want to overwrite the existing data?';
                         const dialogPresent = !!document.getElementById('pdDialog');
                         let confirmed = false;
                         try{
@@ -1331,10 +1332,11 @@ try {
 
                         const delPairs = allDuplicates.map(d=>(
                             {
-                                transaction_id: (d.transaction_id || d.reference_id || d.reference_no || '').toString(),
+                                reference_id: (d.reference_id || d.reference_no || d.transaction_id || '').toString(),
                                 tran_date: d.tran_date || d.date || ''
                             }
                         ));
+                        overwritePairs = delPairs.slice();
                         const delResRaw = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete_partner', pairs: delPairs }) });
                         const delTxt = await delResRaw.text();
                         throwIfUploadCancelled();
@@ -1356,6 +1358,7 @@ try {
                         action: 'insert_partner',
                         company: company.value,
                         partner_id: partnerIdInput ? partnerIdInput.value : '',
+                        duplicate_pairs: overwritePairs,
                         payloads: payloads
                     }) });
                     const insTxt = await insResRaw.text();

@@ -84,7 +84,7 @@ $reconReportControllerMap = [
                     <option value="">All</option>
                     <option value="matched">Matched</option>
                     <option value="mismatch">Mismatch</option>
-                    <option value="duplicate">Duplicates</option>
+                    <option value="duplicate">Duplicate</option>
                 </select>
             </label>
 
@@ -100,10 +100,10 @@ $reconReportControllerMap = [
             <button class="recon-report-type-tab" type="button" data-report-type="payout-cancelled" role="tab" aria-selected="false">Payout Cancelled</button>
             <button class="recon-report-type-tab" type="button" data-report-type="sendout" role="tab" aria-selected="false">Sendout</button>
             <button class="recon-report-type-tab" type="button" data-report-type="sendout-cancelled" role="tab" aria-selected="false">Sendout Cancelled</button>
-            <span class="recon-report-status-legend" aria-label="Red dot means mismatch or duplicates">
+            <span class="recon-report-status-legend" aria-label="Red dot means with mismatch or duplicate">
                 <span>LEGEND:</span>
                 <span class="recon-report-status-legend-dot" aria-hidden="true"></span>
-                <span>Mismatch / Duplicates</span>
+                <span>W/ Mismatch and Duplicate</span>
             </span>
             <label class="recon-report-field recon-report-tab-search" for="reconReportSearch">
                 <span>Search</span>
@@ -243,7 +243,18 @@ $reconReportControllerMap = [
         const webTypes = Array.isArray(row && row.web_report_types)
             ? row.web_report_types
             : String(row && row.web_report_types || '').split('|').filter(Boolean);
-        return partnerType === reportType || webTypes.indexOf(reportType) !== -1;
+        const hasPartnerSide = String(row && row.partner_reference_id || '').trim() !== ''
+            || toNumber(row && row.partner_amount)
+            || toNumber(row && row.partner_commission);
+        const hasWebSide = String(row && row.web_ccref_no || '').trim() !== ''
+            || toNumber(row && row.web_amount);
+        const partnerMatchesType = !hasPartnerSide || !partnerType || partnerType === reportType;
+        const webMatchesType = !hasWebSide || !webTypes.length || webTypes.indexOf(reportType) !== -1;
+
+        // Keep tab indicators consistent with the rows that applyFilters()
+        // can actually display. A type found on only one populated side is
+        // not enough when the other side belongs to a different report tab.
+        return partnerMatchesType && webMatchesType;
     }
 
     function updateReportTypeIndicators(rows) {
@@ -254,7 +265,6 @@ $reconReportControllerMap = [
 
         Array.from(typeTabs.querySelectorAll('.recon-report-type-tab')).forEach(function (tab) {
             const reportType = String(tab.dataset.reportType || '');
-            const isCancelledType = reportType === 'payout-cancelled' || reportType === 'sendout-cancelled';
             const hasIndicator = reportData.some(function (row) {
                 if (!rowHasReportType(row, reportType)) return false;
                 const partnerCurrency = normalizeKey(row.partner_currency);
@@ -263,7 +273,6 @@ $reconReportControllerMap = [
                     && partnerCurrency.indexOf(selectedCurrency) === -1
                     && webCurrency.indexOf(selectedCurrency) === -1) return false;
                 if (selectedStatus && row.data_status !== selectedStatus) return false;
-                if (isCancelledType) return true;
                 return row.data_status === 'mismatch' || row.data_status === 'duplicate';
             });
             tab.classList.toggle('has-result-indicator', hasIndicator);
@@ -619,8 +628,14 @@ $reconReportControllerMap = [
             return { dataStatus: 'matched', recordLocked: true };
         }
 
-        if ((!webRecord && partnerMatchStatus === 2 && partnerLocked === 0)
-            || (!partnerRecord && webMatchStatus === 2 && webLocked === 0)) {
+        if (partnerRecord && webRecord
+            && partnerMatchStatus === 1 && webMatchStatus === 1
+            && partnerLocked === 0 && webLocked === 0) {
+            return { dataStatus: 'matched', recordLocked: false };
+        }
+
+        if ((partnerRecord && partnerMatchStatus === 2 && partnerLocked === 0)
+            || (webRecord && webMatchStatus === 2 && webLocked === 0)) {
             return { dataStatus: 'mismatch', recordLocked: false };
         }
 
@@ -799,8 +814,9 @@ $reconReportControllerMap = [
             partnerRecords.forEach(function (partnerRecord) {
                 const key = matchKey(partnerRecord.reference_id, partnerRecord.date);
                 const webList = key && webByKey.has(key) ? webByKey.get(key) : [];
-                const webRecord = webList.find(function (candidate) {
+                let webRecord = webList.find(function (candidate) {
                     if (usedWeb.has(candidate)) return false;
+                    if (isMoneyGram && partnerRecord.matchStatus === 3) return false;
                     if (isMoneyGram) return true;
                     const partnerType = String(partnerRecord.reportType || '');
                     const webTypes = Array.isArray(candidate.reportTypes) ? candidate.reportTypes : [];
@@ -817,9 +833,9 @@ $reconReportControllerMap = [
                 }
 
                 const isDuplicate = partnerRecord.duplicate || (webRecord && webRecord.duplicate);
-                const dataStatus = !webRecord
-                    ? 'mismatch'
-                    : (webRecord.cancelled ? 'matched' : (isDuplicate ? 'duplicate' : 'matched'));
+                const dataStatus = isDuplicate
+                    ? 'duplicate'
+                    : (!webRecord ? 'mismatch' : 'matched');
                 const moneygramState = isMoneyGram ? moneygramRowState(partnerRecord, webRecord) : null;
                 flatRows.push({
                     partner_date: partnerRecord.date,
@@ -837,7 +853,11 @@ $reconReportControllerMap = [
                     web_commission: webRecord ? webRecord.commission : 0,
                     web_report_types: webRecord ? webRecord.reportTypes : [],
                     record_status: (webRecord && webRecord.recordStatus) || partnerRecord.recordStatus || '',
-                    data_status: moneygramState ? moneygramState.dataStatus : dataStatus,
+                    // Persisted MoneyGram match/lock state is authoritative;
+                    // calculated duplicate detection is only the fallback.
+                    data_status: moneygramState
+                        ? moneygramState.dataStatus
+                        : (isDuplicate ? 'duplicate' : dataStatus),
                     record_locked: moneygramState ? moneygramState.recordLocked : null,
                     remarks: (webRecord && webRecord.remarks) || partnerRecord.remarks || ''
                 });
@@ -862,7 +882,9 @@ $reconReportControllerMap = [
                     web_commission: webRecord.commission,
                     web_report_types: webRecord.reportTypes,
                     record_status: webRecord.recordStatus,
-                    data_status: moneygramState ? moneygramState.dataStatus : 'mismatch',
+                    data_status: moneygramState
+                        ? moneygramState.dataStatus
+                        : (webRecord.duplicate ? 'duplicate' : 'mismatch'),
                     record_locked: moneygramState ? moneygramState.recordLocked : null,
                     remarks: webRecord.remarks || ''
                 });
@@ -886,7 +908,7 @@ $reconReportControllerMap = [
 
     function statusLabel(status) {
         if (status === 'matched') return 'Matched';
-        if (status === 'duplicate') return 'Duplicates';
+        if (status === 'duplicate') return 'Duplicate';
         return 'Mismatch';
     }
 
@@ -1067,8 +1089,11 @@ $reconReportControllerMap = [
             const webTypes = String(row.dataset.webReportTypes || '');
             const partnerMatchesType = !hasPartnerSide || !partnerType || partnerType === reportType;
             const webMatchesType = !hasWebSide || !webTypes || webTypes.split('|').indexOf(reportType) !== -1;
+            const isPartnerDuplicateForTab = String(row.dataset.status || '') === 'duplicate'
+                && hasPartnerSide
+                && partnerType === reportType;
 
-            if (reportType) show = show && partnerMatchesType && webMatchesType;
+            if (reportType) show = show && (isPartnerDuplicateForTab || (partnerMatchesType && webMatchesType));
             if (query && String(row.dataset.search || '').indexOf(query) === -1) show = false;
             if (currency && currency !== 'ALL') {
                 show = show && (String(row.dataset.partnerCurrency || '').indexOf(currency) !== -1 || String(row.dataset.webCurrency || '').indexOf(currency) !== -1);

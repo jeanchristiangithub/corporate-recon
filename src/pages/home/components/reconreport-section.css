@@ -245,18 +245,25 @@
 }
 
 .recon-report-tab-search {
-    flex: 0 0 330px;
-    min-width: 280px;
+    flex: 0 0 440px;
+    min-width: 380px;
     flex-direction: row;
     align-items: center;
     gap: 8px;
     margin-left: auto;
 }
 
+.recon-report-tab-search > span {
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .recon-report-tab-search input {
     flex: 1 1 auto;
     min-width: 0;
     height: 32px;
+    font-size: 0.9rem;
 }
 
 .recon-report-table-card {
@@ -440,7 +447,7 @@
 }
 
 .recon-report-lock-icon--duplicate {
-    color: #d97706;
+    color: #dc3545;
 }
 
 .recon-report-table th:last-child {

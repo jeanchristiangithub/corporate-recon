@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/daycard-locks-common.php';
+require_once __DIR__ . '/../excelcontrol/moneygram/moneygram-partner-match.php';
 
 reconDaycardLocksBoot();
 header('Content-Type: application/json; charset=utf-8');
@@ -55,7 +56,10 @@ try {
             ON DUPLICATE KEY UPDATE is_locked = VALUES(is_locked), locked_by = VALUES(locked_by), locked_at = VALUES(locked_at)";
 
     $stmt = $pdo->prepare($sql);
-    $lockedBy = reconDaycardLocksUsername();
+    $lockedBy = trim((string) ($_SESSION['user']['id_number'] ?? ''));
+    if ($lockedBy === '') {
+        $lockedBy = reconDaycardLocksUsername();
+    }
 
     $pdo->beginTransaction();
     foreach ($refs as $r) {
@@ -72,6 +76,9 @@ try {
 
     try {
         reconLockedReconciliationDatesUpsert($pdo, $partner, $dates, $lockedBy);
+        if ($partner === 'MONEYGRAM') {
+            moneygramLockMatchedDates($pdo, $dates);
+        }
     } catch (Throwable $e) {
         // Keep row-lock operation successful even if optional date table is unavailable.
     }

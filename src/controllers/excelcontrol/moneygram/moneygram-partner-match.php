@@ -4,8 +4,9 @@
  * MoneyGram partner-upload matching add-on.
  *
  * Statuses: 1 = matched, 2 = mismatch/not found, 3 = duplicate of an
- * already-matched partner row. Matching uses reference + amount + the date
- * selected by the MoneyGram transaction type.
+ * already-matched partner row or an already matched-and-locked KPX web row.
+ * Matching uses reference + amount + the date selected by the MoneyGram
+ * transaction type.
  */
 
 function moneygramPartnerMatchAmount($value): string
@@ -50,11 +51,35 @@ function moneygramPartnerWebDateForType(array $webRow, string $tranType): string
     return '';
 }
 
+function moneygramPartnerWebValuesMatchDuplicate(array $webRow, string $referenceId, $amount, $tranDate): bool
+{
+    if (strtoupper(trim((string)($webRow['ccref_no'] ?? ''))) !== strtoupper(trim($referenceId))) {
+        return false;
+    }
+    if (moneygramPartnerMatchAmount($webRow['amount'] ?? 0) !== moneygramPartnerMatchAmount($amount)) {
+        return false;
+    }
+
+    $partnerDate = moneygramPartnerMatchDate($tranDate);
+    if ($partnerDate === '') return false;
+    foreach (['date_claimed', 'date_send', 'date_cancelled'] as $dateColumn) {
+        if (moneygramPartnerMatchDate($webRow[$dateColumn] ?? '') === $partnerDate) return true;
+    }
+    return false;
+}
+
+function moneygramPartnerLockedWebMatchesDuplicate(array $webRow, string $referenceId, $amount, $tranDate): bool
+{
+    return (int)($webRow['match_status'] ?? 0) === 1
+        && (string)($webRow['is_data_locked'] ?? '0') === '1'
+        && moneygramPartnerWebValuesMatchDuplicate($webRow, $referenceId, $amount, $tranDate);
+}
+
 /**
  * Adds match_status/is_data_locked to mapped partner rows and returns the KPX
  * row IDs that must be promoted from mismatch to matched in the same transaction.
  */
-function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows): array
+function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows, array $knownDuplicatePairs = []): array
 {
     $referenceIds = [];
     foreach ($rows as $row) {
@@ -70,25 +95,34 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows): array
         return [];
     }
 
-    $matchedPartnerKeys = [];
+    $existingPartnerDateKeys = [];
+    foreach ($knownDuplicatePairs as $pair) {
+        if (!is_array($pair)) continue;
+        $referenceId = trim((string)($pair['reference_id'] ?? ($pair['reference_no'] ?? ($pair['transaction_id'] ?? ''))));
+        $tranDate = moneygramPartnerMatchDate($pair['tran_date'] ?? ($pair['date'] ?? ''));
+        if ($referenceId !== '' && $tranDate !== '') {
+            $existingPartnerDateKeys[strtoupper($referenceId) . "\x1F" . $tranDate] = true;
+        }
+    }
     $webRowsByReference = [];
     foreach (array_chunk(array_values($referenceIds), 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
 
         $partnerStmt = $pdo->prepare(
-            'SELECT reference_id, tran_date, tran_type FROM moneygram_partner_data '
-            . 'WHERE reference_id IN (' . $placeholders . ') AND match_status = 1'
+            'SELECT reference_id, tran_date '
+            . 'FROM moneygram_partner_data WHERE reference_id IN (' . $placeholders . ')'
         );
         $partnerStmt->execute($chunk);
         foreach ($partnerStmt->fetchAll(PDO::FETCH_ASSOC) as $existing) {
-            $key = strtoupper(trim((string)$existing['reference_id'])) . "\x1F"
-                . moneygramPartnerMatchDate($existing['tran_date'] ?? '') . "\x1F"
-                . strtoupper(trim((string)($existing['tran_type'] ?? '')));
-            $matchedPartnerKeys[$key] = true;
+            $referenceKey = strtoupper(trim((string)$existing['reference_id']));
+            $dateKey = moneygramPartnerMatchDate($existing['tran_date'] ?? '');
+            if ($referenceKey !== '' && $dateKey !== '') {
+                $existingPartnerDateKeys[$referenceKey . "\x1F" . $dateKey] = true;
+            }
         }
 
         $webStmt = $pdo->prepare(
-            'SELECT id, ccref_no, amount, date_cancelled, date_claimed, date_send, match_status '
+            'SELECT id, ccref_no, amount, date_cancelled, date_claimed, date_send, match_status, is_data_locked '
             . 'FROM ml_web_data WHERE UPPER(TRIM(COALESCE(partnerName, \'\'))) = \'MONEYGRAM\' '
             . 'AND ccref_no IN (' . $placeholders . ') ORDER BY (match_status = 2) DESC, id ASC'
         );
@@ -104,19 +138,43 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows): array
         $referenceId = trim((string)($row['reference_id'] ?? ''));
         $tranDate = moneygramPartnerMatchDate($row['tran_date'] ?? '');
         $tranType = strtoupper(trim((string)($row['tran_type'] ?? '')));
-        $duplicateKey = strtoupper($referenceId) . "\x1F" . $tranDate . "\x1F" . $tranType;
-
-        if ($referenceId !== '' && isset($matchedPartnerKeys[$duplicateKey])) {
+        $dateDuplicateKey = strtoupper($referenceId) . "\x1F" . $tranDate;
+        if ($referenceId !== '' && $tranDate !== '' && isset($existingPartnerDateKeys[$dateDuplicateKey])) {
             $row['match_status'] = 3;
             $row['is_data_locked'] = '0';
             continue;
         }
 
         $wantedKey = moneygramPartnerMatchKey($referenceId, $row['base_amt'] ?? ($row['base_tran_amt'] ?? 0), $tranDate);
+        $hasLockedWebMatch = false;
+        foreach ($webRowsByReference[strtoupper($referenceId)] ?? [] as $webRow) {
+            if (moneygramPartnerLockedWebMatchesDuplicate(
+                $webRow,
+                $referenceId,
+                $row['base_amt'] ?? ($row['base_tran_amt'] ?? 0),
+                $tranDate
+            )) {
+                $hasLockedWebMatch = true;
+                break;
+            }
+        }
+        if ($hasLockedWebMatch) {
+            $row['match_status'] = 3;
+            $row['is_data_locked'] = '0';
+            continue;
+        }
+
         $matchedWeb = null;
         foreach ($webRowsByReference[strtoupper($referenceId)] ?? [] as $webRow) {
             $webId = (int)($webRow['id'] ?? 0);
             if ($webId <= 0 || isset($usedWebIds[$webId])) continue;
+            // A locked status-1 KPX row belongs to an earlier match and cannot
+            // be reused as a new match in this upload.
+            if ((int)($webRow['match_status'] ?? 0) === 1 && (string)($webRow['is_data_locked'] ?? '0') === '1') continue;
+            // A status-1 but unlocked KPX row is waiting for KPX overwrite.
+            // Partner re-upload must remain mismatch until that KPX row is
+            // uploaded again and both sides are rematched atomically.
+            if ((int)($webRow['match_status'] ?? 0) === 1 && (string)($webRow['is_data_locked'] ?? '0') === '0') continue;
             $webDate = moneygramPartnerWebDateForType($webRow, $tranType);
             if ($webDate === '') continue;
             if (moneygramPartnerMatchKey((string)$webRow['ccref_no'], $webRow['amount'] ?? 0, $webDate) === $wantedKey) {
@@ -133,6 +191,32 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows): array
         } else {
             $row['match_status'] = 2;
             $row['is_data_locked'] = '0';
+        }
+    }
+    unset($row);
+
+    // A reversal row may be encountered before the row that consumes its KPX
+    // record in this same batch. Revisit mismatches after all matches are known.
+    foreach ($rows as &$row) {
+        if ((int)($row['match_status'] ?? 0) !== 2) continue;
+        $referenceId = trim((string)($row['reference_id'] ?? ''));
+        if ($referenceId === '') continue;
+        foreach ($webRowsByReference[strtoupper($referenceId)] ?? [] as $webRow) {
+            $webId = (int)($webRow['id'] ?? 0);
+            $alreadyConsumed = isset($usedWebIds[$webId])
+                || ((int)($webRow['match_status'] ?? 0) === 1
+                    && (string)($webRow['is_data_locked'] ?? '0') === '1');
+            if (!$alreadyConsumed) continue;
+            if (moneygramPartnerWebValuesMatchDuplicate(
+                $webRow,
+                $referenceId,
+                $row['base_amt'] ?? ($row['base_tran_amt'] ?? 0),
+                $row['tran_date'] ?? ''
+            )) {
+                $row['match_status'] = 3;
+                $row['is_data_locked'] = '0';
+                break;
+            }
         }
     }
     unset($row);
@@ -174,6 +258,38 @@ function moneygramUpsertMatchedLockDates(PDO $pdo, array $dates, string $lockedB
     }
 }
 
+function moneygramLockMatchedDates(PDO $pdo, array $dates): void
+{
+    $normalizedDates = [];
+    foreach ($dates as $date) {
+        $normalized = moneygramPartnerMatchDate($date);
+        if ($normalized !== '') $normalizedDates[$normalized] = true;
+    }
+    $dates = array_keys($normalizedDates);
+    if ($dates === []) return;
+
+    foreach (array_chunk($dates, 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+
+        $webStmt = $pdo->prepare(
+            "UPDATE ml_web_data SET is_data_locked = '1' "
+            . "WHERE UPPER(TRIM(COALESCE(partnerName,''))) = 'MONEYGRAM' "
+            . "AND match_status = 1 "
+            . "AND DATE(CASE "
+            . "WHEN NULLIF(TRIM(CAST(date_cancelled AS CHAR)), '') IS NOT NULL THEN date_cancelled "
+            . "WHEN NULLIF(TRIM(CAST(date_claimed AS CHAR)), '') IS NOT NULL THEN date_claimed "
+            . "ELSE date_send END) IN ($placeholders)"
+        );
+        $webStmt->execute($chunk);
+
+        $partnerStmt = $pdo->prepare(
+            "UPDATE moneygram_partner_data SET is_data_locked = '1' "
+            . "WHERE match_status = 1 AND DATE(tran_date) IN ($placeholders)"
+        );
+        $partnerStmt->execute($chunk);
+    }
+}
+
 function moneygramUnlockMatchedDates(PDO $pdo, array $dates, string $unlockedBy): void
 {
     $normalizedDates = [];
@@ -194,25 +310,19 @@ function moneygramUnlockMatchedDates(PDO $pdo, array $dates, string $unlockedBy)
         );
         $lockStmt->execute(array_merge([trim($unlockedBy)], $chunk));
 
-        $webDateConditions = [];
-        $webParams = [];
-        foreach ($chunk as $date) {
-            $webDateConditions[] = "((UPPER(TRIM(COALESCE(data_status,''))) = 'PO' AND TRIM(COALESCE(CAST(date_cancelled AS CHAR),'')) = '' AND DATE(date_claimed) = ?)"
-                . " OR (UPPER(TRIM(COALESCE(data_status,''))) = 'SO' AND TRIM(COALESCE(CAST(date_cancelled AS CHAR),'')) = '' AND DATE(date_send) = ?)"
-                . " OR (UPPER(TRIM(COALESCE(data_status,''))) = 'POC' AND TRIM(COALESCE(CAST(date_cancelled AS CHAR),'')) <> '' AND TRIM(COALESCE(CAST(date_claimed AS CHAR),'')) <> '' AND DATE(date_cancelled) = ?)"
-                . " OR (UPPER(TRIM(COALESCE(data_status,''))) = 'SOC' AND TRIM(COALESCE(CAST(date_cancelled AS CHAR),'')) <> '' AND TRIM(COALESCE(CAST(date_send AS CHAR),'')) <> '' AND DATE(date_cancelled) = ?))";
-            array_push($webParams, $date, $date, $date, $date);
-        }
         $webStmt = $pdo->prepare(
-            "UPDATE ml_web_data SET match_status = 2, is_data_locked = '0' "
+            "UPDATE ml_web_data SET is_data_locked = '0' "
             . "WHERE UPPER(TRIM(COALESCE(partnerName,''))) = 'MONEYGRAM' "
-            . "AND match_status = 1 AND (" . implode(' OR ', $webDateConditions) . ')'
+            . "AND DATE(CASE "
+            . "WHEN NULLIF(TRIM(CAST(date_cancelled AS CHAR)), '') IS NOT NULL THEN date_cancelled "
+            . "WHEN NULLIF(TRIM(CAST(date_claimed AS CHAR)), '') IS NOT NULL THEN date_claimed "
+            . "ELSE date_send END) IN ($placeholders)"
         );
-        $webStmt->execute($webParams);
+        $webStmt->execute($chunk);
 
         $partnerStmt = $pdo->prepare(
-            "UPDATE moneygram_partner_data SET match_status = 2, is_data_locked = '0' "
-            . "WHERE match_status = 1 AND DATE(tran_date) IN ($placeholders)"
+            "UPDATE moneygram_partner_data SET is_data_locked = '0' "
+            . "WHERE DATE(tran_date) IN ($placeholders)"
         );
         $partnerStmt->execute($chunk);
     }

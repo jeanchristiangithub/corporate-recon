@@ -66,13 +66,16 @@ try {
 
     if (!empty($dates)) {
         try {
-            $unlockedBy = reconDaycardLocksUsername();
+            $unlockedBy = trim((string) ($_SESSION['user']['id_number'] ?? ''));
+            if ($unlockedBy === '') {
+                $unlockedBy = reconDaycardLocksUsername();
+            }
             reconLockedReconciliationDatesUnlock($pdo, $partner, $dates, $unlockedBy);
             if ($partner === 'MONEYGRAM') {
                 moneygramUnlockMatchedDates(
                     $pdo,
                     $dates,
-                    trim((string)($_SESSION['user']['id_number'] ?? $unlockedBy))
+                    $unlockedBy
                 );
             }
         } catch (Throwable $e) {

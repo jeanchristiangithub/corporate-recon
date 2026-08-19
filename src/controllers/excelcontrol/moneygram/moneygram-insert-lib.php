@@ -382,7 +382,7 @@ class MoneygramInsert {
         return ['success'=>true,'inserted'=>$inserted];
     }
 
-    public function insertPartnerData(string $company, array $payloads, string $partnerId = ''): array{
+    public function insertPartnerData(string $company, array $payloads, string $partnerId = '', array $duplicatePairs = []): array{
         $pdo = $this->pdo;
         $uploadedBy = partnerUploadAuthenticatedIdNumber($pdo);
         $partnerId = trim($partnerId);
@@ -629,13 +629,30 @@ class MoneygramInsert {
 
         $pdo->beginTransaction();
         try{
-            $matchedWebIds = moneygramClassifyPartnerUploadRows($pdo, $rowsToInsert);
+            $matchedWebIds = moneygramClassifyPartnerUploadRows($pdo, $rowsToInsert, $duplicatePairs);
             moneygramPromoteMatchedWebRows($pdo, $matchedWebIds);
-            $matchedLockDates = [];
+            $matchedTypesByDate = [];
             foreach($rowsToInsert as $matchedRow){
-                if((int)($matchedRow['match_status'] ?? 0) === 1){
-                    $matchedLockDates[] = $matchedRow['tran_date'] ?? '';
+                if((int)($matchedRow['match_status'] ?? 0) !== 1) continue;
+                $matchedDate = moneygramPartnerMatchDate($matchedRow['tran_date'] ?? '');
+                $matchedType = strtoupper(trim((string)($matchedRow['tran_type'] ?? '')));
+                if($matchedDate === '') continue;
+                if($matchedType === 'REC') $matchedTypesByDate[$matchedDate]['payout'] = true;
+                elseif($matchedType === 'SEN') $matchedTypesByDate[$matchedDate]['sendout'] = true;
+                elseif($matchedType === 'RRC') $matchedTypesByDate[$matchedDate]['payout_cancelled'] = true;
+                elseif($matchedType === 'RSN' || $matchedType === 'REF') $matchedTypesByDate[$matchedDate]['sendout_cancelled'] = true;
+            }
+            $matchedLockDates = [];
+            $requiredMatchedTypes = ['payout', 'sendout', 'payout_cancelled', 'sendout_cancelled'];
+            foreach($matchedTypesByDate as $matchedDate => $matchedTypes){
+                $hasAllMatchedTypes = true;
+                foreach($requiredMatchedTypes as $requiredMatchedType){
+                    if(empty($matchedTypes[$requiredMatchedType])){
+                        $hasAllMatchedTypes = false;
+                        break;
+                    }
                 }
+                if($hasAllMatchedTypes) $matchedLockDates[] = $matchedDate;
             }
             moneygramUpsertMatchedLockDates($pdo, $matchedLockDates, $uploadedBy);
             $fileLogIds = [];

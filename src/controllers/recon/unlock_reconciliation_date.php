@@ -32,7 +32,10 @@ if ($partner === '' || $transactionDate === '') {
 
 try {
     $pdo = reconDaycardLocksDb();
-    $unlockedBy = reconDaycardLocksUsername();
+    $unlockedBy = trim((string) ($_SESSION['user']['id_number'] ?? ''));
+    if ($unlockedBy === '') {
+        $unlockedBy = reconDaycardLocksUsername();
+    }
     $updated = 0;
 
     if (reconLockedReconciliationDatesTableExists($pdo)) {
@@ -41,7 +44,7 @@ try {
             moneygramUnlockMatchedDates(
                 $pdo,
                 [$transactionDate],
-                trim((string)($_SESSION['user']['id_number'] ?? $unlockedBy))
+                $unlockedBy
             );
         }
     }

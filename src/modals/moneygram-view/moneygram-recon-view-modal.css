@@ -1639,6 +1639,89 @@ line-height: 1;
 }
 
 /* Reduce left padding only for Web table first column (aligns Date with Partners) */
+/* Compact square header actions with readable wrapped labels. */
+.moneygram-recon-modal__action-row .moneygram-lock-all-btn {
+    flex: 0 0 140px;
+    width: 140px;
+    min-width: 140px;
+    height: 112px;
+    min-height: 112px;
+    padding: 12px;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+}
+
+/* Keep large PHP/USD labels readable while allowing their values to fit. */
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-section-metrics {
+    gap: 12px;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-metric-breakdown {
+    gap: 5px;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-metric-breakdown [data-part="usd"] {
+    margin-left: 8px;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-metric-breakdown p {
+    font-size: 0.84rem;
+    line-height: 1.3;
+}
+
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-metric-label,
+.moneygram-recon-modal__tables .moneygram-section-header--combined .moneygram-currency-label,
+.moneygram-recon-modal__tables .moneygram-section-header--combined [data-part="value"] {
+    font-size: 0.84rem;
+}
+
+/* Use a lighter Partner Data tint and extend it across verification rows. */
+.moneygram-table--combined thead tr:first-child th:nth-child(1),
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(-n+5),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(-n+5) {
+    background: rgba(253, 226, 229, 0.55);
+}
+
+.moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]) td,
+.moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]) td {
+    background: rgba(253, 226, 229, 0.55) !important;
+}
+
+.moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]):hover td,
+.moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]):hover td {
+    background: rgba(249, 203, 209, 0.62) !important;
+}
+
+/* Keep both Date headers and their row values on one uniform center line. */
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(1),
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(6),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(1),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(6) {
+    padding-left: 6px;
+    padding-right: 6px;
+    text-align: center !important;
+    vertical-align: middle;
+    font-variant-numeric: tabular-nums;
+}
+
+.moneygram-table--combined tbody td.moneygram-date-cell {
+    position: relative;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.moneygram-table--combined .moneygram-date-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+}
+
 .moneygram-table--web.moneygram-table--body tbody td:first-child {
   padding-left: 10px; /* adjust (8–16px) to taste for perfect visual parity */
 }

@@ -4,6 +4,9 @@
 
 require_once __DIR__ . '/moneygram-insert-lib.php';
 require_once __DIR__ . '/../../../config/db.php';
+require_once __DIR__ . '/../../../config/session.php';
+
+bootSecureSession();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -96,7 +99,7 @@ try{
         echo json_encode(['success'=>true,'deleted'=>$cnt]); exit;
     }
 
-    // partner duplicate check (supports modern moneygram schema: transaction_id + tran_date,
+    // partner duplicate check (MoneyGram uses reference_id + tran_date,
     // and legacy schema: reference_no + date)
     if($action === 'check_partner'){
         $pairs = isset($data['pairs']) && is_array($data['pairs']) ? $data['pairs'] : [];
@@ -108,11 +111,13 @@ try{
         // Already-matched rows must remain in place so the partner matching
         // add-on can classify an incoming reference/date/type occurrence as 3.
         $mutableMatchSql = in_array('match_status', $fields, true)
-            ? ' AND (match_status IS NULL OR match_status <> 1)'
+            ? (in_array('is_data_locked', $fields, true)
+                ? " AND NOT (COALESCE(match_status, 0) = 1 AND COALESCE(is_data_locked, '0') = '1')"
+                : ' AND (match_status IS NULL OR match_status <> 1)')
             : '';
 
         $idCol = null;
-        foreach(['transaction_id','reference_id','reference_no'] as $candidate){
+        foreach(['reference_id','reference_no','transaction_id'] as $candidate){
             if(in_array($candidate, $fields, true)){ $idCol = $candidate; break; }
         }
         if($idCol === null){ echo json_encode(['success'=>false,'error'=>'No supported ID column found in moneygram_partner_data']); exit; }
@@ -229,11 +234,13 @@ try{
         $cols = $pdo->query("SHOW COLUMNS FROM moneygram_partner_data")->fetchAll(PDO::FETCH_ASSOC);
         $fields = array_map(function($c){ return strtolower($c['Field']); }, $cols);
         $mutableMatchSql = in_array('match_status', $fields, true)
-            ? ' AND (match_status IS NULL OR match_status <> 1)'
+            ? (in_array('is_data_locked', $fields, true)
+                ? " AND NOT (COALESCE(match_status, 0) = 1 AND COALESCE(is_data_locked, '0') = '1')"
+                : ' AND (match_status IS NULL OR match_status <> 1)')
             : '';
 
         $idCol = null;
-        foreach(['transaction_id','reference_id','reference_no'] as $candidate){
+        foreach(['reference_id','reference_no','transaction_id'] as $candidate){
             if(in_array($candidate, $fields, true)){ $idCol = $candidate; break; }
         }
         if($idCol === null){ echo json_encode(['success'=>false,'error'=>'No supported ID column found in moneygram_partner_data']); exit; }
@@ -280,6 +287,16 @@ try{
             $stmt->execute($params);
             $cnt += $stmt->rowCount();
         }
+        // Keep the server-confirmed overwrite keys across the delete and insert
+        // requests. The deleted row can no longer be discovered by the insert
+        // classifier, so these keys are required to mark its replacement as a
+        // duplicate (3/0).
+        $_SESSION['moneygram_partner_overwrite_pairs'] = array_map(
+            static function(array $pair): array {
+                return ['reference_id' => $pair[0], 'tran_date' => $pair[1]];
+            },
+            $validPairs
+        );
         echo json_encode(['success'=>true,'deleted'=>$cnt]); exit;
     }
 
@@ -301,9 +318,19 @@ try{
     if($action === 'insert_partner'){
         $company = isset($data['company']) ? $data['company'] : 'MONEYGRAM';
         $partnerId = isset($data['partner_id']) ? trim((string)$data['partner_id']) : '';
+        $duplicatePairs = isset($_SESSION['moneygram_partner_overwrite_pairs'])
+            && is_array($_SESSION['moneygram_partner_overwrite_pairs'])
+            ? $_SESSION['moneygram_partner_overwrite_pairs']
+            : [];
+        // Accept the request copy as a compatibility fallback for an upload
+        // started before this endpoint version was loaded.
+        if(empty($duplicatePairs) && isset($data['duplicate_pairs']) && is_array($data['duplicate_pairs'])){
+            $duplicatePairs = $data['duplicate_pairs'];
+        }
         $payloads = isset($data['payloads']) && is_array($data['payloads']) ? $data['payloads'] : [];
         $ins = new MoneygramInsert();
-        $res = $ins->insertPartnerData($company, $payloads, $partnerId);
+        $res = $ins->insertPartnerData($company, $payloads, $partnerId, $duplicatePairs);
+        if(!empty($res['success'])) unset($_SESSION['moneygram_partner_overwrite_pairs']);
         echo json_encode($res); exit;
     }
 
