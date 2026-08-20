@@ -101,6 +101,7 @@ $html = '<!doctype html><html><head><meta charset="UTF-8"><style>
 body { margin: 0; font-family: DejaVu Sans, sans-serif; color: #000; font-size: 9px; }
 .header { text-align: center; }
 .logo { width: 330px; max-height: 86px; object-fit: contain; margin: 8px auto 24px; }
+.division { margin: 0 0 8px; font-size: 20px; font-weight: bold; }
 h1 { margin: 0 0 17px; font-size: 14px; }
 h2 { margin: 0 0 24px; font-size: 13px; }
 table.report { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -119,7 +120,7 @@ table.report { width: 100%; border-collapse: collapse; table-layout: fixed; }
 </style></head><body>
 <div class="header">'
     . ($logoUri !== '' ? '<img class="logo" src="' . $logoUri . '" alt="M Lhuillier">' : '')
-    . '<h1>ERROR DETECTION MONITORING</h1><h2>' . $escape(strtoupper($partnerName)) . '</h2></div>
+    . '<div class="division">CENTRAL ACCOUNTING DIVISION</div><h1>INCIDENT REPORT</h1><h2>' . $escape(strtoupper($partnerName)) . '</h2></div>
 <table class="report"><colgroup>
 <col style="width:15%"><col style="width:13%"><col style="width:16%"><col style="width:12%"><col style="width:10%"><col style="width:14%"><col style="width:20%">
 </colgroup><thead><tr>
@@ -138,4 +139,4 @@ $dompdf = new Dompdf($options);
 $dompdf->setPaper('letter', 'portrait');
 $dompdf->loadHtml($html, 'UTF-8');
 $dompdf->render();
-$dompdf->stream("MONEYGRAM-ERROR-DETECTED-MONITORING[{$filenameDateLabel}].pdf", ['Attachment' => true]);
+$dompdf->stream("MONEYGRAM-ERROR-MONITORING-REPORT[{$filenameDateLabel}].pdf", ['Attachment' => true]);

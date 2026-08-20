@@ -24,7 +24,7 @@
                 </div>
                 <div class="moneygram-recon-modal__action-row">
                     <button id="moneygramLockAllMatchedBtn" class="moneygram-lock-all-btn" type="button">LOCK MATCHED TRANSACTIONS</button>
-                    <button id="moneygramViewDataDetectedBtn" class="moneygram-lock-all-btn moneygram-detected-count-btn" type="button"><span class="moneygram-detected-count-btn__badge" data-role="dataDetectedCount">0</span><span>VIEW ERROR DETECTED</span></button>
+                    <button id="moneygramViewDataDetectedBtn" class="moneygram-lock-all-btn moneygram-detected-count-btn" type="button"><span class="moneygram-detected-count-btn__badge" data-role="dataDetectedCount">0</span><span>VIEW<br>ERROR</span></button>
                 </div>
             </div>
 
@@ -77,6 +77,7 @@
                                 <col class="moneygram-col-amount">
                                 <col class="moneygram-col-commission">
                                 <col class="moneygram-col-currency">
+                                <col class="moneygram-col-tran-type">
                                 <col class="moneygram-col-date">
                                 <col class="moneygram-col-kptn">
                                 <col class="moneygram-col-ref">
@@ -87,10 +88,10 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th colspan="5">PARTNER DATA</th>
+                                    <th colspan="6">PARTNER DATA</th>
                                     <th colspan="5">KPX WEB DATA</th>
-                                    <th class="moneygram-status-header moneygram-status-header--group"></th>
-                                    <th class="moneygram-lock-header moneygram-status-header--group"></th>
+                                    <th rowspan="2" class="moneygram-status-header">MATCH</th>
+                                    <th rowspan="2" class="moneygram-lock-header"></th>
                                 </tr>
                                 <tr>
                                     <th>DATE</th>
@@ -98,13 +99,12 @@
                                     <th>AMOUNT</th>
                                     <th>COMMISSION</th>
                                     <th>CURRENCY</th>
+                                    <th>TRANSACTION TYPE</th>
                                     <th>DATE</th>
                                     <th>KPTN</th>
                                     <th>CCREF NO</th>
                                     <th>AMOUNT</th>
                                     <th>CURRENCY</th>
-                                    <th class="moneygram-status-header">MATCH</th>
-                                    <th class="moneygram-lock-header"></th>
                                 </tr>
                             </thead>
                             <tbody data-role="partnersBody"></tbody>
@@ -205,7 +205,7 @@
     <div class="moneygram-data-detected-modal__overlay" data-action="close-moneygram-data-detected"></div>
     <div class="moneygram-data-detected-modal__dialog">
         <div class="moneygram-data-detected-modal__header">
-            <h3>VIEW ERROR DETECTED</h3>
+            <h3>VIEW ERROR</h3>
             <div class="moneygram-data-detected-modal__actions">
                 <button type="button" class="moneygram-data-detected-modal__pdf" data-action="export-moneygram-data-detected-pdf">Export to PDF</button>
                 <button type="button" class="moneygram-data-detected-modal__close" data-action="close-moneygram-data-detected" aria-label="Close">×</button>

@@ -139,11 +139,6 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows, array $known
         $tranDate = moneygramPartnerMatchDate($row['tran_date'] ?? '');
         $tranType = strtoupper(trim((string)($row['tran_type'] ?? '')));
         $dateDuplicateKey = strtoupper($referenceId) . "\x1F" . $tranDate;
-        if ($referenceId !== '' && $tranDate !== '' && isset($existingPartnerDateKeys[$dateDuplicateKey])) {
-            $row['match_status'] = 3;
-            $row['is_data_locked'] = '0';
-            continue;
-        }
 
         $wantedKey = moneygramPartnerMatchKey($referenceId, $row['base_amt'] ?? ($row['base_tran_amt'] ?? 0), $tranDate);
         $hasLockedWebMatch = false;
@@ -171,10 +166,9 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows, array $known
             // A locked status-1 KPX row belongs to an earlier match and cannot
             // be reused as a new match in this upload.
             if ((int)($webRow['match_status'] ?? 0) === 1 && (string)($webRow['is_data_locked'] ?? '0') === '1') continue;
-            // A status-1 but unlocked KPX row is waiting for KPX overwrite.
-            // Partner re-upload must remain mismatch until that KPX row is
-            // uploaded again and both sides are rematched atomically.
-            if ((int)($webRow['match_status'] ?? 0) === 1 && (string)($webRow['is_data_locked'] ?? '0') === '0') continue;
+            // Maintenance Unlock changes the prior KPX match to 1/0. It is
+            // eligible to match the replacement Partner row and return both
+            // sides to 1/1.
             $webDate = moneygramPartnerWebDateForType($webRow, $tranType);
             if ($webDate === '') continue;
             if (moneygramPartnerMatchKey((string)$webRow['ccref_no'], $webRow['amount'] ?? 0, $webDate) === $wantedKey) {
@@ -187,7 +181,12 @@ function moneygramClassifyPartnerUploadRows(PDO $pdo, array &$rows, array $known
         if ($matchedWeb !== null) {
             $row['match_status'] = 1;
             $row['is_data_locked'] = '1';
-            if ((int)($matchedWeb['match_status'] ?? 0) === 2) $promoteWebIds[] = (int)$matchedWeb['id'];
+            $promoteWebIds[] = (int)$matchedWeb['id'];
+        } elseif ($referenceId !== '' && $tranDate !== '' && isset($existingPartnerDateKeys[$dateDuplicateKey])) {
+            // No KPX match was available, but this reference/date existed
+            // before overwrite (or still exists in Partner Data).
+            $row['match_status'] = 3;
+            $row['is_data_locked'] = '0';
         } else {
             $row['match_status'] = 2;
             $row['is_data_locked'] = '0';
@@ -231,7 +230,8 @@ function moneygramPromoteMatchedWebRows(PDO $pdo, array $webIds): void
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
         $stmt = $pdo->prepare(
             'UPDATE ml_web_data SET match_status = 1, is_data_locked = \'1\' '
-            . 'WHERE id IN (' . $placeholders . ') AND match_status = 2'
+            . 'WHERE id IN (' . $placeholders . ') '
+            . "AND NOT (match_status = 1 AND COALESCE(is_data_locked, '0') = '1')"
         );
         $stmt->execute($chunk);
     }
@@ -303,12 +303,17 @@ function moneygramUnlockMatchedDates(PDO $pdo, array $dates, string $unlockedBy)
     foreach (array_chunk($dates, 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
 
-        $lockStmt = $pdo->prepare(
-            'UPDATE locked_reconciliation_dates '
-            . 'SET locked_by = NULL, locked_at = NULL, unlocked_by = ?, unlocked_at = NOW(), updated_at = NOW() '
-            . "WHERE corporate_partner = 'MONEYGRAM' AND transaction_date IN ($placeholders)"
-        );
-        $lockStmt->execute(array_merge([trim($unlockedBy)], $chunk));
+        try {
+            $lockStmt = $pdo->prepare(
+                'UPDATE locked_reconciliation_dates '
+                . 'SET locked_by = NULL, locked_at = NULL, unlocked_by = ?, unlocked_at = NOW(), updated_at = NOW() '
+                . "WHERE corporate_partner = 'MONEYGRAM' AND transaction_date IN ($placeholders)"
+            );
+            $lockStmt->execute(array_merge([trim($unlockedBy)], $chunk));
+        } catch (Throwable $e) {
+            // This audit table is optional on older installations. Row-level
+            // MoneyGram locks below are still authoritative for re-upload.
+        }
 
         $webStmt = $pdo->prepare(
             "UPDATE ml_web_data SET is_data_locked = '0' "

@@ -25,7 +25,8 @@ $allowedSections = [
     'dataentrysettlementdetail', 'reportswebdata', 'partnerdatareportdaily',
     'partnerdatareportsettlement', 'summaryreport', 'reconreport',
     'cashflowreport', 'edireport', 'profilesettings', 'maintenancedataunlock',
-    'uploadedfilelogs', 'origindatalogspartner', 'recon',
+    'branchstatusposting',
+    'uploadedfilelogs', 'origindatalogspartner', 'branchstatuslogs', 'recon',
 ];
 if ($canManageUsers) {
     $allowedSections[] = 'users';
@@ -256,7 +257,7 @@ if ($currentUserId !== '') {
                     <ul id="reconciliationMenu" class="nav-group-menu" style="display:none;">
                            <li><a href="#" id="navWorkspace" data-show="homeSection">
                 <span class="icon material-icons" aria-hidden="true">compare_arrows</span>
-                <span class="label">Process Recon</span>
+                <span class="label">Data Reconciliation</span>
             </a></li>
                     </ul>
                 </li>
@@ -284,6 +285,10 @@ if ($currentUserId !== '') {
                                 </a></li>
                             </ul>
                         </li>
+                        <li><a href="#" id="navBranchStatusLogs" data-show="branchStatusLogsSection">
+                            <span class="icon material-icons" aria-hidden="true">fact_check</span>
+                            <span class="label">Branch Status Logs</span>
+                        </a></li>
                     </ul>
                 </li>
             <?php if ($showMaintenanceMenu): ?>
@@ -297,6 +302,10 @@ if ($currentUserId !== '') {
                         <li><a href="#" id="navDataUnlock" data-show="maintenanceDataUnlockSection">
                             <span class="icon material-icons" aria-hidden="true">lock_open</span>
                             <span class="label">Transaction Lock</span>
+                        </a></li>
+                        <li><a href="#" id="navBranchStatusPosting" data-show="branchStatusPostingSection">
+                            <span class="icon material-icons" aria-hidden="true">published_with_changes</span>
+                            <span class="label">Branch Status Posting</span>
                         </a></li>
                         <?php if ($isPrimaryAdmin): ?>
                             <!-- <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
@@ -382,9 +391,11 @@ if ($currentUserId !== '') {
     <?php if ($activeSection === 'partnerdata') include __DIR__ . '/components/partnerdata-section.php'; ?>
     <?php if ($activeSection === 'uploadedfilelogs') include __DIR__ . '/components/uploaded-file-logs.php'; ?>
     <?php if ($activeSection === 'origindatalogspartner') include __DIR__ . '/components/history-logs/origin-data-logs/origin-data-logs-partner.php'; ?>
+    <?php if ($activeSection === 'branchstatuslogs') include __DIR__ . '/components/history-logs/branch-status-logs.php'; ?>
     <?php if ($activeSection === 'cashflowreport') include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
     <?php if ($activeSection === 'edireport') include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
     <?php if ($activeSection === 'maintenancedataunlock') include __DIR__ . '/components/maintenance/maintenance-transaction-lock.php'; ?>
+    <?php if ($activeSection === 'branchstatusposting') include __DIR__ . '/components/maintenance/branch-status-posting.php'; ?>
     <?php if ($isPrimaryAdmin && $activeSection === 'maintenance'): ?>
         <?php include __DIR__ . '/components/maintenance-section.php'; ?>
     <?php endif; ?>
@@ -560,6 +571,7 @@ if ($currentUserId !== '') {
                 settlementendmonth: 'settlementEndMonthSection',
                 dataentrysettlementdetail: 'dataEntrySettlementDetailSection',
                 origindatalogspartner: 'originDataLogsPartnerSection',
+                branchstatuslogs: 'branchStatusLogsSection',
                 partnerdata: 'partnerdataSection',
                 partnerdatareportdaily: 'reportsPartnerDataSection',
                 partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
@@ -569,6 +581,7 @@ if ($currentUserId !== '') {
                 reconreport: 'reconReportSection',
                 profilesettings: 'profileSettingsSection',
                 maintenancedataunlock: 'maintenanceDataUnlockSection',
+                branchstatusposting: 'branchStatusPostingSection',
                 <?php if ($isPrimaryAdmin): ?>
                 maintenance: 'maintenanceSection',
                 <?php endif; ?>
@@ -597,7 +610,9 @@ if ($currentUserId !== '') {
         'navWebDataCancellation',
         // 'navDataEntrySettlementDetail',
         // 'navEdiReport',
+        'navBranchStatusLogs',
         'navMaintenance',
+        'navBranchStatusPosting'
     ];
 
     const sectionRoutes = {
@@ -619,9 +634,11 @@ if ($currentUserId !== '') {
         cashFlowReportSection: 'cashflowreport',
         ediReportSection: 'edireport',
         maintenanceDataUnlockSection: 'maintenancedataunlock',
+        branchStatusPostingSection: 'branchstatusposting',
         maintenanceSection: 'maintenance',
         uploadedFileLogsSection: 'uploadedfilelogs',
-        originDataLogsPartnerSection: 'origindatalogspartner'
+        originDataLogsPartnerSection: 'origindatalogspartner',
+        branchStatusLogsSection: 'branchstatuslogs'
     };
 
     function getSectionUrl(sectionId){
@@ -634,7 +651,7 @@ if ($currentUserId !== '') {
     }
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navBranchStatusPosting','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner','navBranchStatusLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){

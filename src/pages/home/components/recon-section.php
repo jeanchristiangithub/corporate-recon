@@ -28,7 +28,7 @@ try {
 <section id="homeSection" class="home-section" aria-label="Process Recon" style="display:none;">
     <div class="home-section__inner">
         <div class="home-section__header">
-            <h2 class="home-section__title">Process Reconciliation</h2>
+            <h2 class="home-section__title">Data Reconciliation</h2>
         </div>
         <div class="home-section__sticky">
             <div class="filters">
@@ -297,7 +297,7 @@ try {
                 summaryEl.innerHTML =
                     '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matched.toLocaleString() + ' ' + matchedLabel + '</span>' +
                     '<span class="recon-summary__sep">|</span>' +
-                    '<span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerification.toLocaleString() + ' ' + verificationLabel + '</span>';
+                    '<span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> <b class="recon-summary__verification-count">' + forVerification.toLocaleString() + '</b> ' + verificationLabel + '</span>';
                 return;
             }
             const unmatchedLabel = unmatched === 1 ? 'transaction' : 'transactions';
@@ -336,9 +336,9 @@ try {
 
         function renderMoneygramLockIcon(isLocked){
             if(isLocked){
-                return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--locked" title="Locked" aria-label="Locked"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#1f1f1f" aria-hidden="true" focusable="false"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm296.5-223.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg></span>';
+                return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--locked" title="Locked" aria-label="Locked"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true" focusable="false"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm296.5-223.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z"/></svg></span>';
             }
-            return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--unlock" title="Unlock" aria-label="Unlock"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#1f1f1f" aria-hidden="true" focusable="false"><path d="M536.5-303.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z"/></svg></span>';
+            return '<span class="moneygram-status-lock-icon moneygram-status-lock-icon--unlock" title="Unlocked" aria-label="Unlocked"><svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" aria-hidden="true" focusable="false"><path d="M536.5-303.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z"/></svg></span>';
         }
         window.renderMoneygramLockIcon = renderMoneygramLockIcon;
 
@@ -1393,6 +1393,21 @@ try {
             const seenWebOnlyKeys = new Set();
             const seenWebTransactionKeys = new Set();
 
+            const moneygramReportTypeFromTransaction = function(transactionType){
+                const type = toUpperKey(transactionType || '');
+                if(type === 'REC') return 'PAYOUT';
+                if(type === 'SEN') return 'SENDOUT';
+                if(type === 'RRC') return 'PAYOUT-CANCELLED';
+                if(type === 'RSN' || type === 'REF') return 'SENDOUT-CANCELLED';
+                return '';
+            };
+
+            const moneygramPairingKey = function(reference, reportType){
+                const refKey = toUpperKey(reference || '');
+                if(!refKey) return '';
+                return refKey + '|' + toUpperKey(reportType || '');
+            };
+
             const pushOrderedKey = function(key){
                 if(!key) return;
                 if(orderedKeys.indexOf(key) === -1) orderedKeys.push(key);
@@ -1463,6 +1478,7 @@ try {
                 const partnerAmount = partnerObj ? toMoneygramAmount(partnerObj.pAmt) : 0;
                 const partnerCommission = partnerObj ? toMoneygramAmount(partnerObj.pComm) : 0;
                 const partnerCurrency = partnerObj ? String(partnerObj.pCoin || '').trim() : '';
+                const partnerTransactionType = partnerObj ? String(partnerObj.pType || '').trim() : '';
                 const webDate = webObj ? formatDateLongMonth(normalizeIsoDate(webObj.wDateRaw || '') || webObj.wDateRaw || '') : '';
                 const webAmount = webObj ? toMoneygramAmount(webObj.wAmt) : 0;
                 const webCurrency = webObj ? String(webObj.wCurrency || '').trim() : '';
@@ -1497,6 +1513,7 @@ try {
                     '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
                     '<td class="moneygram-cell-number">' + (partnerObj ? Math.abs(partnerCommission).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '') + '</td>' +
                     '<td class="moneygram-cell-center">' + partnerCurrency + '</td>' +
+                    '<td class="moneygram-cell-center">' + partnerTransactionType + '</td>' +
                     '<td class="moneygram-cell-center moneygram-date-cell"><span class="moneygram-date-text">' + webDate + '</span></td>' +
                     '<td class="moneygram-cell-center">' + (webObj ? String(webObj.wKptn || '').trim() : '') + '</td>' +
                     '<td class="highlight-ref moneygram-cell-center">' + (webObj ? String(webObj.wRef || '') : '') + '</td>' +
@@ -1515,8 +1532,8 @@ try {
                 tr.setAttribute('data-date', isoDate || '');
                 const label = formatDateLongMonth(isoDate || '') || 'NO DATE';
                 const notice = showDetailsNotice ? ' <span style="margin-left:12px;color:#64748b;font-weight:600;font-size:0.78rem;"><span class="material-icons" aria-hidden="true" style="font-size:0.9rem;vertical-align:-2px;margin-right:4px;color:#f59e0b;">info</span>Double click row to show transaction details</span>' : '';
-                if((colspan || 4) === 12){
-                    tr.innerHTML = '<td colspan="11" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;text-align:center;">' + label + notice + '</td><td class="moneygram-date-lock-cell"></td>';
+                if((colspan || 4) === 13){
+                    tr.innerHTML = '<td colspan="12" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;text-align:center;">' + label + notice + '</td><td class="moneygram-date-lock-cell"></td>';
                 } else {
                     const lockIcon = showLockIcon ? '<span class="moneygram-date-lock" title="Locked" aria-label="Locked">&#128274;</span>' : '';
                     tr.innerHTML = '<td colspan="' + (colspan || 4) + '" style="font-weight:700;color:#334155;background:#f8fafc;border-top:1px solid #dbe3ef;border-bottom:1px solid #dbe3ef;padding:6px 8px;">' + label + (lockIcon ? ' ' + lockIcon : '') + notice + '</td>';
@@ -1576,10 +1593,12 @@ try {
                     tx: tx,
                     pAmt: toMoneygramAmount(row.partner_principal || row.partner_base_amt || 0),
                     pComm: toMoneygramAmount(row.partner_commission || row.partner_comm_amt || row.partner_comm_tran_amt || row.partner_fee_tran_amt || 0),
-                    pCoin: row.partner_settlement_currency || row.partner_transaction_currency || row.partner_base_cncy || row.partner_currency || row.partner_coin || ''
+                    pCoin: row.partner_settlement_currency || row.partner_transaction_currency || row.partner_base_cncy || row.partner_currency || row.partner_coin || '',
+                    pType: row.partner_tran_type || row.partner_transaction_type || row.tran_type || '',
+                    pReportType: row.partner_report_type || moneygramReportTypeFromTransaction(row.partner_tran_type || row.partner_transaction_type || row.tran_type || '')
                 } : null;
                 const wObj = wRef ? {
-                    wDateRaw: row.web_date_claimed || row.web_date_send || row.web_tran_date || row.web_date || '',
+                    wDateRaw: row.web_report_date || row.web_date_claimed || row.web_date_send || row.web_cancelled_date || row.web_date_cancelled || row.web_tran_date || row.web_date || '',
                     wKptn: row.web_kptn || row.kptn || '',
                     wBranch: row.web_branch || '',
                     wBranchId: row.web_branch_id || '',
@@ -1587,7 +1606,8 @@ try {
                     legacyDetectionRemark: row.legacy_detection_remark || '',
                     wRef: wRef,
                     wAmt: toMoneygramAmount(row.web_amount || row.web_amt || 0),
-                    wCurrency: row.web_currency || row.web_ccy || row.web_currency_code || ''
+                    wCurrency: row.web_currency || row.web_ccy || row.web_currency_code || '',
+                    wReportType: row.web_report_type || ''
                 } : null;
 
                 if(pObj && !wObj){
@@ -1600,15 +1620,16 @@ try {
                 }
 
                 if(pObj){
-                    const key = toUpperKey(tx);
+                    const key = moneygramPairingKey(tx, pObj.pReportType);
                     if(key){ appendBucket(partnerBucket, key, pObj); pushOrderedKey(key); }
                     else partnerNoKey.push(pObj);
                 }
                 if(wObj){
-                    const key = toUpperKey(wRef);
+                    const refKey = toUpperKey(wRef);
+                    const key = moneygramPairingKey(wRef, wObj.wReportType);
                     const kptnKey = toUpperKey(wObj.wKptn || '');
                     const webTransactionKey = kptnKey
-                        ? normalizeIsoDate(wObj.wDateRaw || '') + '|' + kptnKey + '|' + key
+                        ? normalizeIsoDate(wObj.wDateRaw || '') + '|' + kptnKey + '|' + refKey
                         : '';
                     const isRepeatedWebTransaction = webTransactionKey && seenWebTransactionKeys.has(webTransactionKey);
 
@@ -1655,12 +1676,13 @@ try {
                         tx: ref,
                         pAmt: toMoneygramAmount(source.partner_principal || source.partner_base_amt || 0),
                         pComm: toMoneygramAmount(source.partner_commission || source.partner_comm_amt || source.partner_comm_tran_amt || source.partner_fee_tran_amt || 0),
-                        pCoin: source.partner_settlement_currency || source.partner_transaction_currency || source.partner_base_cncy || source.partner_currency || source.partner_coin || ''
+                        pCoin: source.partner_settlement_currency || source.partner_transaction_currency || source.partner_base_cncy || source.partner_currency || source.partner_coin || '',
+                        pType: source.partner_tran_type || source.partner_transaction_type || source.tran_type || ''
                     };
                     seenPartnerOnlyKeys.add(normalizeIsoDate(pObj.pDate || '') + '|' + toUpperKey(pObj.tx || ''));
                     addAlignedPair(pObj, null);
                 } else {
-                    const pObj = { pDate: item && item.date || aggregate.startDate || '', tx: ref, pAmt: 0, pComm: 0, pCoin: '' };
+                    const pObj = { pDate: item && item.date || aggregate.startDate || '', tx: ref, pAmt: 0, pComm: 0, pCoin: '', pType: '' };
                     seenPartnerOnlyKeys.add(normalizeIsoDate(pObj.pDate || '') + '|' + toUpperKey(pObj.tx || ''));
                     addAlignedPair(pObj, null);
                 }
@@ -1784,7 +1806,7 @@ try {
                     if(virtualRows.length === 0){
                         const emptyPartner = document.createElement('tr');
                         emptyPartner.className = 'empty-row';
-                        emptyPartner.innerHTML = '<td colspan="' + (isCombinedMoneygramTable ? 12 : 5) + '" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
+                        emptyPartner.innerHTML = '<td colspan="' + (isCombinedMoneygramTable ? 13 : 5) + '" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
                         const emptyWeb = document.createElement('tr');
                         emptyWeb.className = 'empty-row';
                         emptyWeb.innerHTML = '<td colspan="5" style="text-align:center;color:var(--muted);padding:20px 8px;">No Data Found</td>';
@@ -1798,14 +1820,14 @@ try {
                     const partnerFrag = document.createDocumentFragment();
                     const webFrag = document.createDocumentFragment();
                     if(topHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(topHeight, isCombinedMoneygramTable ? 12 : 5));
+                        partnerFrag.appendChild(createSpacerRow(topHeight, isCombinedMoneygramTable ? 13 : 5));
                         if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(topHeight, 5));
                     }
 
                     for(let i = start; i < end; i++){
                         const item = virtualRows[i];
                         if(item.type === 'date'){
-                            partnerFrag.appendChild(createDateSeparatorRow(item.date, isCombinedMoneygramTable ? 12 : 5, item.hasDuplicate, item.locked));
+                            partnerFrag.appendChild(createDateSeparatorRow(item.date, isCombinedMoneygramTable ? 13 : 5, item.hasDuplicate, item.locked));
                             if(!isCombinedMoneygramTable) webFrag.appendChild(createDateSeparatorRow(item.date, 5, item.hasDuplicate, item.locked));
                             continue;
                         }
@@ -1824,7 +1846,7 @@ try {
                     }
 
                     if(bottomHeight > 0){
-                        partnerFrag.appendChild(createSpacerRow(bottomHeight, isCombinedMoneygramTable ? 12 : 5));
+                        partnerFrag.appendChild(createSpacerRow(bottomHeight, isCombinedMoneygramTable ? 13 : 5));
                         if(!isCombinedMoneygramTable) webFrag.appendChild(createSpacerRow(bottomHeight, 5));
                     }
 
@@ -1851,7 +1873,7 @@ try {
             const forVerificationCount = unmatchedCount + duplicateCount;
             const verificationLabel = forVerificationCount === 1 ? 'transaction' : 'transactions';
             if(summaryEl){
-                summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerificationCount.toLocaleString() + ' ' + verificationLabel + '</span>';
+                summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> <b class="recon-summary__verification-count">' + forVerificationCount.toLocaleString() + '</b> ' + verificationLabel + '</span>';
             }
 
             const ensureEmptyRow = function(tbody, colspan = 4, message = 'No Data Found'){
@@ -1918,7 +1940,7 @@ try {
                 const forVerificationCount = unmatchedCount + duplicateCount;
                 const verificationLabel = forVerificationCount === 1 ? 'transaction' : 'transactions';
                 if(summaryEl){
-                    summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ' + forVerificationCount.toLocaleString() + ' ' + verificationLabel + '</span>';
+                    summaryEl.innerHTML = '<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ' + matchedCount.toLocaleString() + ' ' + matchedLabel + '</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> <b class="recon-summary__verification-count">' + forVerificationCount.toLocaleString() + '</b> ' + verificationLabel + '</span>';
                 }
             };
 
@@ -3691,7 +3713,7 @@ try {
                                 const mLabel = (m === 1) ? 'transaction' : 'transactions';
                                 const verificationLabel = (forVerification === 1) ? 'transaction' : 'transactions';
                                 const el = modal.querySelector('[data-role="summary"]');
-                                if(el) el.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ${forVerification.toLocaleString()} ${verificationLabel}</span>`;
+                                if(el) el.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> <b class="recon-summary__verification-count">${forVerification.toLocaleString()}</b> ${verificationLabel}</span>`;
                             }
 
                             const partnersBody = modal.querySelector('[data-role="partnersBody"]');
@@ -4019,7 +4041,7 @@ try {
                                             const mLabel = (m === 1) ? 'transaction' : 'transactions';
                                             const forVerification = u + d;
                                             const verificationLabel = (forVerification === 1) ? 'transaction' : 'transactions';
-                                            summaryEl.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> ${forVerification.toLocaleString()} ${verificationLabel}</span>`;
+                                            summaryEl.innerHTML = `<span class="recon-summary__item"><span class="recon-summary__label">Matched:</span> ${m.toLocaleString()} ${mLabel}</span><span class="recon-summary__sep">|</span><span class="recon-summary__item"><span class="recon-summary__label">For Verification:</span> <b class="recon-summary__verification-count">${forVerification.toLocaleString()}</b> ${verificationLabel}</span>`;
                                         }
 
                                         const partnersVolumeEl = modal.querySelector('[data-role="partnersVolume"]');

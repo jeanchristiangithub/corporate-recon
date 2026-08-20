@@ -631,30 +631,17 @@ class MoneygramInsert {
         try{
             $matchedWebIds = moneygramClassifyPartnerUploadRows($pdo, $rowsToInsert, $duplicatePairs);
             moneygramPromoteMatchedWebRows($pdo, $matchedWebIds);
-            $matchedTypesByDate = [];
+            $matchedLockDates = [];
             foreach($rowsToInsert as $matchedRow){
                 if((int)($matchedRow['match_status'] ?? 0) !== 1) continue;
                 $matchedDate = moneygramPartnerMatchDate($matchedRow['tran_date'] ?? '');
-                $matchedType = strtoupper(trim((string)($matchedRow['tran_type'] ?? '')));
                 if($matchedDate === '') continue;
-                if($matchedType === 'REC') $matchedTypesByDate[$matchedDate]['payout'] = true;
-                elseif($matchedType === 'SEN') $matchedTypesByDate[$matchedDate]['sendout'] = true;
-                elseif($matchedType === 'RRC') $matchedTypesByDate[$matchedDate]['payout_cancelled'] = true;
-                elseif($matchedType === 'RSN' || $matchedType === 'REF') $matchedTypesByDate[$matchedDate]['sendout_cancelled'] = true;
+                // A status-1 Partner row already proves that Partner and KPX
+                // data matched on this date. Store each matching date once;
+                // the database unique key handles subsequent re-uploads.
+                $matchedLockDates[$matchedDate] = true;
             }
-            $matchedLockDates = [];
-            $requiredMatchedTypes = ['payout', 'sendout', 'payout_cancelled', 'sendout_cancelled'];
-            foreach($matchedTypesByDate as $matchedDate => $matchedTypes){
-                $hasAllMatchedTypes = true;
-                foreach($requiredMatchedTypes as $requiredMatchedType){
-                    if(empty($matchedTypes[$requiredMatchedType])){
-                        $hasAllMatchedTypes = false;
-                        break;
-                    }
-                }
-                if($hasAllMatchedTypes) $matchedLockDates[] = $matchedDate;
-            }
-            moneygramUpsertMatchedLockDates($pdo, $matchedLockDates, $uploadedBy);
+            moneygramUpsertMatchedLockDates($pdo, array_keys($matchedLockDates), $uploadedBy);
             $fileLogIds = [];
             $logStmt = $pdo->prepare(
                 'INSERT INTO uploaded_file_logs '

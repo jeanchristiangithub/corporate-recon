@@ -403,6 +403,7 @@ try {
         throw new RuntimeException('Unable to create or update the uploaded file log.');
     }
 
+    $matchedLockDates = [];
     foreach ($rows as $rowIndex => $row) {
         if (!is_array($row)) continue;
         $row['ufl_file_log_id'] = $fileLogId;
@@ -450,8 +451,17 @@ try {
             foreach (array_slice($partnerMatchIds, 1) as $duplicatePartnerId) {
                 $duplicatePartnerStmt->execute([$duplicatePartnerId]);
             }
+            $expectedMatch = kpxExpectedPartnerMatch($row);
+            if ($expectedMatch['date'] !== '') {
+                $matchedLockDates[$expectedMatch['date']] = true;
+            }
         }
     }
+    moneygramUpsertMatchedLockDates(
+        $pdo,
+        array_keys($matchedLockDates),
+        trim((string)($_SESSION['user']['id_number'] ?? ''))
+    );
     $pdo->commit();
 
     echo json_encode([

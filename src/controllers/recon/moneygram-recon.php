@@ -121,6 +121,14 @@ try{
     $normalizeCurrency = function($value) use ($normalizeKey){
         return $normalizeKey($value);
     };
+    $firstNonEmpty = function(array $row, array $keys){
+        foreach($keys as $key){
+            if(!array_key_exists($key, $row)) continue;
+            $value = trim((string)$row[$key]);
+            if($value !== '') return $value;
+        }
+        return '';
+    };
     $amountsEqual = function($left, $right){
         return abs(abs((float)$left) - abs((float)$right)) < 0.00001;
     };
@@ -201,7 +209,7 @@ try{
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
-        $tranType = $normalizeKey($row['tran_type'] ?? ($row['transaction_type'] ?? ''));
+        $tranType = $normalizeKey($firstNonEmpty($row, ['tran_type', 'transaction_type']));
         $reportType = '';
         if($tranType === 'REC') $reportType = 'payout';
         elseif($tranType === 'SEN') $reportType = 'sendout';
@@ -226,31 +234,50 @@ try{
 
     $webRows = [];
     foreach($webRowsRaw as $index => $row){
-        $rawRef = (string)($row['ccref_no'] ?? ($row['cc_ref'] ?? ''));
+        $rawRef = $firstNonEmpty($row, ['ccref_id', 'cc_ref_id', 'ccref_no', 'cc_ref']);
         $ref = $normalizeKey($rawRef);
         if($ref === '') continue;
 
-        $dateCancelled = trim((string)($row['date_cancelled'] ?? ($row['date_cancellation'] ?? '')));
+        $dateCancelled = $firstNonEmpty($row, ['cancelled_date', 'date_cancelled', 'date_cancellation']);
         $isCancelled = $dateCancelled !== '';
         $cancelledDateOnly = $normalizeDate($dateCancelled);
         $dateClaimedOnly = $normalizeDate($row['date_claimed'] ?? '');
         $dateSendOnly = $normalizeDate($row['date_send'] ?? '');
-        $dateCandidates = [
-            [
-                // RRC pairs on TRAN DATE = KPX DATE CANCELLED, but only
-                // when the KPX payout record also has DATE CLAIMED.
-                'date' => $isCancelled && $dateClaimedOnly !== '' ? $cancelledDateOnly : $dateClaimedOnly,
-                'report_type' => $isCancelled ? 'payout-cancelled' : 'payout',
-                'date_source' => $isCancelled ? 'date_cancelled' : 'date_claimed',
-            ],
-            [
-                // RSN/REF pairs on TRAN DATE = KPX DATE CANCELLED, but only
-                // when the KPX sendout record also has DATE SEND.
-                'date' => $isCancelled && $dateSendOnly !== '' ? $cancelledDateOnly : $dateSendOnly,
-                'report_type' => $isCancelled ? 'sendout-cancelled' : 'sendout',
-                'date_source' => $isCancelled ? 'date_cancelled' : 'date_send',
-            ],
-        ];
+        $hasDateClaimed = $dateClaimedOnly !== '';
+        $hasDateSend = $dateSendOnly !== '';
+        $dateCandidates = [];
+
+        // Match KPX records to the Partner Data transaction type only when
+        // their date-field pattern is unambiguous:
+        // REC     = no cancellation + claimed date + no send date
+        // SEN     = no cancellation + no claimed date + send date
+        // RRC     = cancellation + claimed date + no send date
+        // RSN/REF = cancellation + no claimed date + send date
+        if(!$isCancelled && $hasDateClaimed && !$hasDateSend){
+            $dateCandidates[] = [
+                'date' => $dateClaimedOnly,
+                'report_type' => 'payout',
+                'date_source' => 'date_claimed',
+            ];
+        } elseif(!$isCancelled && !$hasDateClaimed && $hasDateSend){
+            $dateCandidates[] = [
+                'date' => $dateSendOnly,
+                'report_type' => 'sendout',
+                'date_source' => 'date_send',
+            ];
+        } elseif($isCancelled && $hasDateClaimed && !$hasDateSend){
+            $dateCandidates[] = [
+                'date' => $cancelledDateOnly,
+                'report_type' => 'payout-cancelled',
+                'date_source' => 'cancelled_date',
+            ];
+        } elseif($isCancelled && !$hasDateClaimed && $hasDateSend){
+            $dateCandidates[] = [
+                'date' => $cancelledDateOnly,
+                'report_type' => 'sendout-cancelled',
+                'date_source' => 'cancelled_date',
+            ];
+        }
 
         $candidateOffset = 0;
         foreach($dateCandidates as $candidate){
@@ -303,9 +330,7 @@ try{
         $bestWebIndex = null;
         $bestDateDistance = PHP_INT_MAX;
         $bestWebDate = '';
-        $partnerMatchStatus = (int)($partnerRow['raw']['match_status'] ?? 0);
-
-        foreach($partnerMatchStatus === 3 ? [] : ($webIndexesByRef[$partnerRow['ref']] ?? []) as $candidateIndex){
+        foreach(($webIndexesByRef[$partnerRow['ref']] ?? []) as $candidateIndex){
             if(isset($usedWebIndexes[$candidateIndex])) continue;
 
             $webRow = $webRows[$candidateIndex];
@@ -500,6 +525,7 @@ try{
                     foreach(($web['raw'] ?? []) as $col => $val){
                         $row['web_'.$col] = $val;
                     }
+                    $row['web_ccref_no'] = (string)($web['raw_ref'] ?? '');
                     $row['web_kptn'] = (string)($web['kptn'] ?? '');
                     $row['web_branch'] = (string)($web['branch'] ?? '');
                     $row['web_branch_id'] = (string)($web['branch_id'] ?? '');

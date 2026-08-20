@@ -40,13 +40,19 @@ try {
 
     if (reconLockedReconciliationDatesTableExists($pdo)) {
         $updated += reconLockedReconciliationDatesUnlock($pdo, $partner, [$transactionDate], $unlockedBy);
-        if ($partner === 'MONEYGRAM') {
-            moneygramUnlockMatchedDates(
-                $pdo,
-                [$transactionDate],
-                $unlockedBy
-            );
-        }
+    }
+
+    // MoneyGram data locking is stored on the transaction rows themselves.
+    // Always unlock those rows for the selected date, even when the optional
+    // locked_reconciliation_dates table is missing or has no matching record.
+    // The upload overwrite check can then remove the old reference/date row
+    // before inserting its replacement.
+    if ($partner === 'MONEYGRAM') {
+        moneygramUnlockMatchedDates(
+            $pdo,
+            [$transactionDate],
+            $unlockedBy
+        );
     }
 
     $stmtDaycard = $pdo->prepare(

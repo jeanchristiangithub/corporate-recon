@@ -151,6 +151,10 @@
 .moneygram-recon-modal__summary .recon-summary__sep{ display:inline-flex; align-items:center; align-self:stretch; opacity:0.6; margin:0 2px; }
 .moneygram-recon-modal__summary .recon-summary__item{ white-space:nowrap; }
 .moneygram-recon-modal__summary .recon-summary__label{ font-weight:700; }
+.moneygram-recon-modal__summary .recon-summary__verification-count {
+    color: #dc3545;
+    font-weight: 700;
+}
 
 .moneygram-recon-modal__metrics {
     display: flex;
@@ -371,23 +375,23 @@
     text-transform: uppercase;
 }
 
-.moneygram-table--combined thead tr:nth-child(2) th:nth-child(-n+5) {
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(-n+6) {
     background: #fde2e5;
 }
 
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(-n+5) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(-n+6) {
     background: #fde2e5;
 }
 
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(-n+5) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(-n+6) {
     background: #f9cbd1;
 }
 
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(n+6):nth-child(-n+10) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(n+7):nth-child(-n+11) {
     background: #f8d6da;
 }
 
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(n+11) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]):hover td:nth-child(n+12) {
     background: #eef2f7;
 }
 
@@ -462,12 +466,12 @@
     text-align: right;
 }
 
-.moneygram-table--combined tbody tr:nth-child(even) td:nth-child(n+11) {
+.moneygram-table--combined tbody tr:nth-child(even) td:nth-child(n+12) {
     background: rgba(240, 244, 247, 0.5);
 }
 
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(11),
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(12) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(12),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(13) {
     background: #f1f3f5;
 }
 
@@ -497,11 +501,26 @@
     text-align: center;
     white-space: nowrap;
     padding-left: 6px !important;
+    border-left: 1px solid #dbe3ef;
 }
 
 .moneygram-lock-cell {
     text-align: center;
     white-space: nowrap;
+    border-left: 1px solid #dbe3ef;
+}
+
+.moneygram-table--combined thead .moneygram-lock-header {
+    border-left: 1px solid #dbe3ef;
+}
+
+.moneygram-table--combined thead .moneygram-status-header {
+    border-left: 1px solid #dbe3ef;
+}
+
+.moneygram-table--combined thead tr:first-child th:nth-child(2),
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(7),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(7) {
     border-left: 1px solid #dbe3ef;
 }
 
@@ -536,7 +555,11 @@
 }
 
 .moneygram-status-lock-icon--unlock {
-    color: #64748b;
+    color: #dc3545;
+}
+
+.moneygram-status-lock-icon--locked {
+    color: #198754;
 }
 
 .moneygram-status-lock-icon--locked svg,
@@ -605,6 +628,7 @@
 .moneygram-col-ref, .moneygram-col-ccref { width: 180px; }
 .moneygram-col-amount, .moneygram-col-commission { width: 140px; }
 .moneygram-col-currency { width: 120px; }
+.moneygram-col-tran-type { width: 140px; }
 
 .moneygram-table--head {
     border-spacing: 0;
@@ -1677,28 +1701,42 @@ line-height: 1;
     font-size: 0.84rem;
 }
 
+/* Keep the grouped Partner Data heading unfilled. */
+.moneygram-table--combined thead tr:first-child th:nth-child(1) {
+    background: #ffffff;
+}
+
 /* Use a lighter Partner Data tint and extend it across verification rows. */
-.moneygram-table--combined thead tr:first-child th:nth-child(1),
-.moneygram-table--combined thead tr:nth-child(2) th:nth-child(-n+5),
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(-n+5) {
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(-n+6),
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(-n+6) {
     background: rgba(253, 226, 229, 0.55);
 }
 
 .moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]) td,
 .moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]) td {
-    background: rgba(253, 226, 229, 0.55) !important;
+    background: rgba(249, 203, 209, 0.62) !important;
+}
+
+.moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]) td:nth-child(n+12),
+.moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]) td:nth-child(n+12) {
+    background: #f1f3f5 !important;
 }
 
 .moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]):hover td,
 .moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]):hover td {
-    background: rgba(249, 203, 209, 0.62) !important;
+    background: rgba(220, 53, 69, 0.32) !important;
+}
+
+.moneygram-table--combined tbody tr.mismatch-row:not([data-role="date-separator"]):hover td:nth-child(n+12),
+.moneygram-table--combined tbody tr.dup-row:not([data-role="date-separator"]):hover td:nth-child(n+12) {
+    background: #f1f3f5 !important;
 }
 
 /* Keep both Date headers and their row values on one uniform center line. */
 .moneygram-table--combined thead tr:nth-child(2) th:nth-child(1),
-.moneygram-table--combined thead tr:nth-child(2) th:nth-child(6),
+.moneygram-table--combined thead tr:nth-child(2) th:nth-child(7),
 .moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(1),
-.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(6) {
+.moneygram-table--combined tbody tr:not([data-role="date-separator"]) td:nth-child(7) {
     padding-left: 6px;
     padding-right: 6px;
     text-align: center !important;

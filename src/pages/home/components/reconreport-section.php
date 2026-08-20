@@ -1015,12 +1015,18 @@ $reconReportControllerMap = [
 
     function updateDateSeparatorVisibility() {
         if (!tbody) return;
-        const rows = Array.from(tbody.querySelectorAll('tr.recon-report-result-row'));
         Array.from(tbody.querySelectorAll('tr.recon-report-date-row')).forEach(function (separator) {
-            const date = String(separator.dataset.date || '');
-            const hasVisibleRows = rows.some(function (row) {
-                return row.style.display !== 'none' && String(row.dataset.reportDate || '') === date;
-            });
+            let nextRow = separator.nextElementSibling;
+            let hasVisibleRows = false;
+
+            while (nextRow && !nextRow.classList.contains('recon-report-date-row')) {
+                if (nextRow.classList.contains('recon-report-result-row') && nextRow.style.display !== 'none') {
+                    hasVisibleRows = true;
+                    break;
+                }
+                nextRow = nextRow.nextElementSibling;
+            }
+
             separator.style.display = hasVisibleRows ? '' : 'none';
         });
     }
