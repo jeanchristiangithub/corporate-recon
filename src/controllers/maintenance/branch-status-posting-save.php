@@ -19,6 +19,10 @@ if (!isAuthenticated()) {
     branchStatusPostingRespond(401, ['success' => false, 'error' => 'Your session has expired. Please log in again.']);
 }
 
+if (strcasecmp(trim((string) ($_SESSION['user']['role'] ?? '')), 'Admin') !== 0) {
+    branchStatusPostingRespond(403, ['success' => false, 'error' => 'Administrator access is required.']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     branchStatusPostingRespond(405, ['success' => false, 'error' => 'Method not allowed.']);
 }

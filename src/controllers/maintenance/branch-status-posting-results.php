@@ -14,6 +14,12 @@ if (empty($_SESSION['user'])) {
     exit;
 }
 
+if (strcasecmp(trim((string) ($_SESSION['user']['role'] ?? '')), 'Admin') !== 0) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Administrator access is required.']);
+    exit;
+}
+
 try {
     $statement = masterDataConnection()->query(
         "SELECT

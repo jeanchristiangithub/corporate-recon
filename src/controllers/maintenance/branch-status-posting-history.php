@@ -18,6 +18,10 @@ if (!isAuthenticated()) {
     branchStatusHistoryRespond(401, ['success' => false, 'error' => 'Your session has expired. Please log in again.']);
 }
 
+if (strcasecmp(trim((string) ($_SESSION['user']['role'] ?? '')), 'Admin') !== 0) {
+    branchStatusHistoryRespond(403, ['success' => false, 'error' => 'Administrator access is required.']);
+}
+
 $month = trim((string)($_GET['month'] ?? ''));
 if ($month !== '' && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
     branchStatusHistoryRespond(422, ['success' => false, 'error' => 'A valid month is required.']);

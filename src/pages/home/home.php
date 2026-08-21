@@ -11,6 +11,7 @@ requireAuth();
 requireAdminRoleOrShowConstruction();
 
 $currentRole = (string) ($_SESSION['user']['role'] ?? '');
+$isAdmin = strcasecmp($currentRole, 'Admin') === 0;
 $showMaintenanceMenu = strcasecmp($currentRole, 'Admin') === 0
     || strcasecmp($currentRole, 'Public') === 0;
 $isPrimaryAdmin = isPrimaryAdminUser();
@@ -25,9 +26,11 @@ $allowedSections = [
     'dataentrysettlementdetail', 'reportswebdata', 'partnerdatareportdaily',
     'partnerdatareportsettlement', 'summaryreport', 'reconreport',
     'cashflowreport', 'edireport', 'profilesettings', 'maintenancedataunlock',
-    'branchstatusposting',
     'uploadedfilelogs', 'origindatalogspartner', 'branchstatuslogs', 'recon',
 ];
+if ($isAdmin) {
+    $allowedSections[] = 'branchstatusposting';
+}
 if ($canManageUsers) {
     $allowedSections[] = 'users';
 }
@@ -304,10 +307,12 @@ if ($currentUserId !== '') {
                             <span class="icon material-icons" aria-hidden="true">lock_open</span>
                             <span class="label">Transaction Lock</span>
                         </a></li>
-                        <li><a href="#" id="navBranchStatusPosting" data-show="branchStatusPostingSection">
-                            <span class="icon material-icons" aria-hidden="true">published_with_changes</span>
-                            <span class="label">Branch Status Posting</span>
-                        </a></li>
+                        <?php if ($isAdmin): ?>
+                            <li><a href="#" id="navBranchStatusPosting" data-show="branchStatusPostingSection">
+                                <span class="icon material-icons" aria-hidden="true">published_with_changes</span>
+                                <span class="label">Branch Status Posting</span>
+                            </a></li>
+                        <?php endif; ?>
                         <?php if ($isPrimaryAdmin): ?>
                             <!-- <li><a href="#" id="navMaintenance" data-show="maintenanceSection">
                                 <span class="icon material-icons" aria-hidden="true">handshake</span>
@@ -396,7 +401,7 @@ if ($currentUserId !== '') {
     <?php if ($activeSection === 'cashflowreport') include __DIR__ . '/components/data-reports/data-reports-cashflow-report.php'; ?>
     <?php if ($activeSection === 'edireport') include __DIR__ . '/components/data-reports/data-reports-edi-report.php'; ?>
     <?php if ($activeSection === 'maintenancedataunlock') include __DIR__ . '/components/maintenance/maintenance-transaction-lock.php'; ?>
-    <?php if ($activeSection === 'branchstatusposting') include __DIR__ . '/components/maintenance/branch-status-posting.php'; ?>
+    <?php if ($isAdmin && $activeSection === 'branchstatusposting') include __DIR__ . '/components/maintenance/branch-status-posting.php'; ?>
     <?php if ($isPrimaryAdmin && $activeSection === 'maintenance'): ?>
         <?php include __DIR__ . '/components/maintenance-section.php'; ?>
     <?php endif; ?>
