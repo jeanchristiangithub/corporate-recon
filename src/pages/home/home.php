@@ -85,6 +85,7 @@ if ($currentUserId !== '') {
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/reconreport-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/partnerdata-section.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance-section.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/maintenance/branch-status-posting.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/uploaded-file-logs.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/profile-settings/user-profile-settings.css">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBaseUrl, ENT_QUOTES, 'UTF-8') ?>/src/pages/home/components/data-reports/data-reports-cashflow-report.css">
@@ -612,7 +613,7 @@ if ($currentUserId !== '') {
         // 'navEdiReport',
         'navBranchStatusLogs',
         'navMaintenance',
-        'navBranchStatusPosting'
+        //'navBranchStatusPosting'
     ];
 
     const sectionRoutes = {
