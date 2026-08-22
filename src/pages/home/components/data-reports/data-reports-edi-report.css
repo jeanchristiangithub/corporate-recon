@@ -179,6 +179,189 @@
     outline-offset: 2px;
 }
 
+.edi-report-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 16px;
+    border-bottom: 1px solid #d5deeb;
+}
+
+.edi-report-tab {
+    position: relative;
+    padding: 10px 18px;
+    border: 0;
+    background: transparent;
+    color: #667085;
+    font: 600 13px "Poppins", sans-serif;
+    cursor: pointer;
+}
+
+.edi-report-tab:hover {
+    color: #ed2947;
+}
+
+.edi-report-tab.is-active {
+    color: #ed2947;
+}
+
+.edi-report-tab.is-active::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    background: #ed2947;
+    content: "";
+}
+
+.edi-report-tab:focus-visible {
+    border-radius: 5px;
+    outline: 3px solid rgba(239, 41, 73, 0.2);
+}
+
+.edi-report-tab-panel[hidden] {
+    display: none;
+}
+
+.edi-report-volume-summary-card {
+    width: 100%;
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #d5deeb;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.edi-report-volume-summary-wrap {
+    width: 100%;
+    overflow: auto;
+    border: 1px solid #17213c;
+    box-sizing: border-box;
+}
+
+.edi-report-volume-summary-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    color: #000;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    text-align: center;
+}
+
+.edi-report-summary-partner-column {
+    width: 202px;
+}
+
+.edi-report-summary-value-column {
+    width: 86px;
+}
+
+.edi-report-volume-summary-table th,
+.edi-report-volume-summary-table td {
+    height: 21px;
+    padding: 3px 5px;
+    border-right: 1px solid #17213c;
+    border-bottom: 1px solid #17213c;
+    box-sizing: border-box;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.edi-report-volume-summary-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+.edi-report-volume-summary-table th {
+    background: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.edi-report-volume-summary-table .edi-report-summary-header-spacer {
+    height: 20px;
+    padding: 0;
+}
+
+.edi-report-volume-summary-table .edi-report-summary-variance-heading {
+    position: relative;
+    z-index: 1;
+    background-clip: padding-box;
+    vertical-align: middle;
+}
+
+.edi-report-volume-summary-table .edi-report-summary-web-heading {
+    position: relative;
+    z-index: 1;
+    background-clip: padding-box;
+    vertical-align: middle;
+}
+
+.edi-report-volume-summary-table .edi-report-summary-web-heading::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -1px;
+    width: 1px;
+    background: #17213c;
+    content: "";
+}
+
+.edi-report-volume-summary-table .edi-report-summary-variance-heading::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -1px;
+    width: 1px;
+    background: #17213c;
+    content: "";
+}
+
+.edi-report-volume-summary-table tr > :last-child {
+    border-right: 0;
+}
+
+.edi-report-volume-summary-table tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.edi-report-volume-summary-table tr[hidden] {
+    display: none;
+}
+
+.edi-report-volume-summary-table tbody th {
+    text-align: left;
+}
+
+.edi-report-volume-summary-table tbody td:nth-child(3),
+.edi-report-volume-summary-table tbody td:nth-child(4),
+.edi-report-volume-summary-table tbody td:nth-child(5),
+.edi-report-volume-summary-table tbody td:nth-child(7),
+.edi-report-volume-summary-table tbody td:nth-child(8),
+.edi-report-volume-summary-table tbody td:nth-child(9),
+.edi-report-volume-summary-table tbody td:nth-child(11),
+.edi-report-volume-summary-table tbody td:nth-child(12),
+.edi-report-volume-summary-table tbody td:nth-child(13),
+.edi-report-volume-summary-table tbody td:nth-child(15),
+.edi-report-volume-summary-table tbody td:nth-child(16),
+.edi-report-volume-summary-table tbody td:nth-child(18),
+.edi-report-volume-summary-table tbody td:nth-child(19),
+.edi-report-volume-summary-table tbody td:nth-child(21),
+.edi-report-volume-summary-table tbody td:nth-child(22),
+.edi-report-volume-summary-table tbody td:nth-child(23) {
+    text-align: right;
+}
+
+.edi-report-volume-summary-table tbody tr:not(.edi-report-summary-spacer-row):hover > * {
+    background: #f1f6fd;
+}
+
+.edi-report-volume-summary-table .edi-report-summary-total-row th {
+    text-align: right;
+}
+
 .edi-report-table-card {
     width: 100%;
     margin-top: 16px;

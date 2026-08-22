@@ -26,7 +26,7 @@ try {
         <header class="settlement-daily-header">
             <div>
                 <h2>Settlement Detail - Per Daily Uploader</h2>
-                <p>Import daily settlement detail files for a corporate partner.</p>
+                <!-- <p>Import daily settlement detail files for a corporate partner.</p> -->
             </div>
         </header>
 

@@ -97,7 +97,7 @@ try {
                         <th scope="col">Total Tran Amt</th>
                         <th scope="col">Settlement Currency</th>
                         <th scope="col">Transaction Currency</th>
-                        <th scope="col">Actions</th>
+                        <th scope="col">Action</th>
                     </tr>
                 </thead>
                 <tbody id="originDataLogsSettlementTableBody">
@@ -142,6 +142,47 @@ try {
                     </thead>
                     <tbody id="originDataLogsSettlementViewDetails"></tbody>
                 </table>
+
+                <section class="origin-data-logs-documents" aria-labelledby="originDataLogsSettlementDocumentsTitle">
+                    <div class="origin-data-logs-documents__heading">
+                        <h4 id="originDataLogsSettlementDocumentsTitle">Supporting Documents</h4>
+                        <button
+                            id="originDataLogsSettlementDocumentsNotice"
+                            class="origin-data-logs-documents__notice"
+                            type="button"
+                            aria-label="Go to supporting documents"
+                            title="Supporting documents are available"
+                            hidden
+                        >!</button>
+                    </div>
+                    <div class="origin-data-logs-documents__wrap">
+                        <table class="origin-data-logs-documents__table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">File Name</th>
+                                    <th scope="col">Uploaded Date</th>
+                                    <th scope="col">Uploaded By</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="originDataLogsSettlementDocumentsBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <div id="originDataLogsDocumentPreview" class="origin-data-logs-preview" role="dialog" aria-modal="true" aria-labelledby="originDataLogsDocumentPreviewTitle" hidden>
+            <div class="origin-data-logs-preview__dialog">
+                <header class="origin-data-logs-preview__header">
+                    <h3 id="originDataLogsDocumentPreviewTitle">Supporting Document</h3>
+                    <div class="origin-data-logs-preview__actions">
+                        <button id="originDataLogsDocumentPreviewClose" type="button" aria-label="Close document preview">
+                            <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                    </div>
+                </header>
+                <iframe id="originDataLogsDocumentPreviewFrame" title="Supporting document preview"></iframe>
             </div>
         </div>
     </div>
@@ -462,6 +503,206 @@ try {
         font-weight: 600;
     }
 
+    .origin-data-logs-documents {
+        margin-top: 1.25rem;
+    }
+
+    .origin-data-logs-documents h4 {
+        margin: 0;
+        color: #172033;
+        font-size: 1rem;
+    }
+
+    .origin-data-logs-documents__heading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.625rem;
+    }
+
+    .origin-data-logs-documents__notice[hidden] {
+        display: none;
+    }
+
+    .origin-data-logs-documents__notice {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: #dc3545;
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.35);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .origin-data-logs-documents__notice.is-floating {
+        position: fixed;
+        z-index: 100002;
+        right: max(1.5rem, calc((100vw - min(58rem, calc(100vw - 2rem))) / 2 + 1.25rem));
+        bottom: 1.5rem;
+        width: 2.75rem;
+        height: 2.75rem;
+        font-size: 1.35rem;
+        animation: origin-data-logs-document-pulse 1.8s infinite;
+    }
+
+    @keyframes origin-data-logs-document-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.35); }
+        50% { box-shadow: 0 0 0 0.5rem rgba(220, 53, 69, 0); }
+    }
+
+    .origin-data-logs-documents__wrap {
+        overflow-x: auto;
+        border: 1px solid #cbd8e6;
+        border-radius: 0.5rem;
+    }
+
+    .origin-data-logs-documents__table {
+        width: 100%;
+        min-width: 42rem;
+        border-collapse: collapse;
+        color: #172033;
+        font-size: 0.8125rem;
+    }
+
+    .origin-data-logs-documents__table th,
+    .origin-data-logs-documents__table td {
+        padding: 0.625rem 0.75rem;
+        border-right: 1px solid #cbd8e6;
+        border-bottom: 1px solid #cbd8e6;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .origin-data-logs-documents__table th {
+        background: #f1f5f9;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .origin-data-logs-documents__table th:last-child,
+    .origin-data-logs-documents__table td:last-child {
+        border-right: 0;
+        text-align: center;
+    }
+
+    .origin-data-logs-documents__table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .origin-data-logs-documents__empty {
+        color: #64748b;
+        text-align: center !important;
+    }
+
+    .origin-data-logs-document-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        margin: 0 0.1875rem;
+        border: 1px solid #f43f5e;
+        border-radius: 0.4rem;
+        color: #e11d48;
+        text-decoration: none;
+    }
+
+    .origin-data-logs-document-action:hover {
+        background: #fff1f2;
+    }
+
+    .origin-data-logs-document-action .material-icons {
+        font-size: 1.125rem;
+    }
+
+    .origin-data-logs-preview[hidden] {
+        display: none;
+    }
+
+    .origin-data-logs-preview {
+        position: fixed;
+        z-index: 100003;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .origin-data-logs-preview__dialog {
+        display: flex;
+        flex-direction: column;
+        width: min(72rem, 100%);
+        height: min(52rem, calc(100dvh - 2rem));
+        overflow: hidden;
+        border-radius: 0.75rem;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.4);
+    }
+
+    .origin-data-logs-preview__header {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        background: #e52f47;
+        color: #fff;
+    }
+
+    .origin-data-logs-preview__header h3 {
+        margin: 0;
+        overflow: hidden;
+        font-size: 1rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .origin-data-logs-preview__actions {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .origin-data-logs-preview__actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #fff;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .origin-data-logs-preview__actions button:hover {
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .origin-data-logs-preview iframe {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+        border: 0;
+        background: #525659;
+    }
+
     #originDataLogsPartnerSection .origin-data-logs-filter-field input.is-invalid {
         border-color: #f43f5e;
         box-shadow: 0 0 0 3px #ffe4e6;
@@ -540,9 +781,20 @@ try {
     const viewModal = document.getElementById('originDataLogsSettlementViewModal');
     const viewModalClose = document.getElementById('originDataLogsSettlementViewClose');
     const viewModalDetails = document.getElementById('originDataLogsSettlementViewDetails');
+    const documentsTitle = document.getElementById('originDataLogsSettlementDocumentsTitle');
+    const documentsBody = document.getElementById('originDataLogsSettlementDocumentsBody');
+    const documentsSection = documentsTitle && documentsTitle.closest('.origin-data-logs-documents');
+    const documentsNotice = document.getElementById('originDataLogsSettlementDocumentsNotice');
+    const modalBody = viewModal && viewModal.querySelector('.origin-data-logs-modal__body');
+    const documentPreview = document.getElementById('originDataLogsDocumentPreview');
+    const documentPreviewTitle = document.getElementById('originDataLogsDocumentPreviewTitle');
+    const documentPreviewFrame = document.getElementById('originDataLogsDocumentPreviewFrame');
+    const documentPreviewClose = document.getElementById('originDataLogsDocumentPreviewClose');
 
     if (!form || !input || !month || !suggestions || !generateButton || !tableBody ||
-        !viewModal || !viewModalClose || !viewModalDetails) return;
+        !viewModal || !viewModalClose || !viewModalDetails || !documentsTitle || !documentsBody ||
+        !documentsSection || !documentsNotice || !modalBody || !documentPreview ||
+        !documentPreviewTitle || !documentPreviewFrame || !documentPreviewClose) return;
 
     // Escape the page content's stacking context so the modal stays above the fixed app header.
     document.body.appendChild(viewModal);
@@ -585,6 +837,45 @@ try {
         ['modified_by', 'Modified By']
     ];
     let viewTrigger = null;
+    let documentPreviewTrigger = null;
+    const dateOnlyFields = new Set(['tran_date', 'fx_date_trn']);
+    const formattedDateFields = new Set([
+        'created_at',
+        'updated_at',
+        'modified_at'
+    ]);
+
+    const formatDateTime = value => {
+        const rawValue = String(value ?? '').trim();
+        if (!rawValue) return '—';
+
+        const match = rawValue.match(
+            /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/
+        );
+        if (!match) return rawValue;
+
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthIndex = Number(match[2]) - 1;
+        const day = Number(match[3]);
+        const hour24 = Number(match[4] || 0);
+        const minute = String(match[5] || '00').padStart(2, '0');
+        const second = String(match[6] || '00').padStart(2, '0');
+
+        if (!monthNames[monthIndex] || day < 1 || day > 31 || hour24 > 23) return rawValue;
+
+        const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+        const hour12 = hour24 % 12 || 12;
+        return `${monthNames[monthIndex]} ${String(day).padStart(2, '0')}, ${match[1]} `
+            + `${String(hour12).padStart(2, '0')}:${minute}:${second} ${meridiem}`;
+    };
+
+    const formatDateOnly = value => {
+        const formatted = formatDateTime(value);
+        return formatted === '—' ? formatted : formatted.replace(/ \d{2}:\d{2}:\d{2} (?:AM|PM)$/, '');
+    };
 
     const closeSuggestions = () => {
         suggestions.hidden = true;
@@ -671,10 +962,35 @@ try {
     };
 
     const closeViewModal = () => {
+        closeDocumentPreview(false);
         viewModal.hidden = true;
+        documentsNotice.classList.remove('is-floating');
         document.body.style.removeProperty('overflow');
         if (viewTrigger) viewTrigger.focus();
         viewTrigger = null;
+    };
+
+    const closeDocumentPreview = (restoreFocus = true) => {
+        documentPreview.hidden = true;
+        documentPreviewFrame.removeAttribute('src');
+        if (restoreFocus && documentPreviewTrigger) documentPreviewTrigger.focus();
+        documentPreviewTrigger = null;
+    };
+
+    const openDocumentPreview = (previewUrl, filename, trigger) => {
+        documentPreviewTrigger = trigger;
+        documentPreviewTitle.textContent = filename || 'Supporting Document';
+        documentPreviewFrame.src = previewUrl;
+        documentPreview.hidden = false;
+        documentPreviewClose.focus();
+    };
+
+    const updateDocumentsNoticePosition = () => {
+        if (documentsNotice.hidden || viewModal.hidden) return;
+        const sectionRect = documentsSection.getBoundingClientRect();
+        const bodyRect = modalBody.getBoundingClientRect();
+        const sectionIsBelowView = sectionRect.top >= bodyRect.bottom;
+        documentsNotice.classList.toggle('is-floating', sectionIsBelowView);
     };
 
     const openViewModal = (rowData, trigger) => {
@@ -691,8 +1007,16 @@ try {
 
             fieldHeader.scope = 'row';
             fieldHeader.textContent = `${label}:`;
-            originCell.textContent = originValue === '' ? '—' : originValue;
-            modifiedCell.textContent = modifiedValue === '' ? '—' : modifiedValue;
+            originCell.textContent = dateOnlyFields.has(field)
+                ? formatDateOnly(originValue)
+                : (formattedDateFields.has(field)
+                    ? formatDateTime(originValue)
+                    : (originValue === '' ? '—' : originValue));
+            modifiedCell.textContent = dateOnlyFields.has(field)
+                ? formatDateOnly(modifiedValue)
+                : (formattedDateFields.has(field)
+                    ? formatDateTime(modifiedValue)
+                    : (modifiedValue === '' ? '—' : modifiedValue));
             modifiedCell.classList.toggle(
                 'is-changed',
                 String(originValue ?? '') !== String(modifiedValue ?? '')
@@ -702,9 +1026,73 @@ try {
             viewModalDetails.appendChild(row);
         });
 
+        const documents = Array.isArray(rowData.supporting_documents)
+            ? rowData.supporting_documents
+            : [];
+        documentsTitle.textContent = documents.length === 1
+            ? 'Supporting Document'
+            : 'Supporting Documents';
+        documentsNotice.hidden = documents.length === 0;
+        documentsNotice.classList.remove('is-floating');
+        documentsBody.innerHTML = '';
+
+        if (!documents.length) {
+            const emptyRow = document.createElement('tr');
+            const emptyCell = document.createElement('td');
+            emptyCell.colSpan = 4;
+            emptyCell.className = 'origin-data-logs-documents__empty';
+            emptyCell.textContent = 'No supporting documents found.';
+            emptyRow.appendChild(emptyCell);
+            documentsBody.appendChild(emptyRow);
+        } else {
+            documents.forEach(documentData => {
+                const documentRow = document.createElement('tr');
+                const filenameCell = document.createElement('td');
+                const dateCell = document.createElement('td');
+                const userCell = document.createElement('td');
+                const actionsCell = document.createElement('td');
+                const fullName = [documentData.filename, documentData.filename_ext]
+                    .filter(Boolean)
+                    .join('.');
+                const baseEndpoint = typeof window.autoreconUrl === 'function'
+                    ? window.autoreconUrl('src/controllers/data-entry/settlement-supporting-documents.php')
+                    : 'src/controllers/data-entry/settlement-supporting-documents.php';
+                const baseQuery = new URLSearchParams({
+                    settlement_id: documentData.psd_datarows_id,
+                    document_id: documentData.id
+                });
+
+                filenameCell.textContent = fullName || 'Document';
+                dateCell.textContent = formatDateTime(documentData.uploaded_date);
+                userCell.textContent = documentData.uploaded_by_name || documentData.uploaded_by || '—';
+
+                const previewUrl = `${baseEndpoint}?${baseQuery.toString()}&view=1`;
+                const downloadUrl = `${baseEndpoint}?${baseQuery.toString()}`;
+                const viewButton = document.createElement('button');
+                viewButton.type = 'button';
+                viewButton.className = 'origin-data-logs-document-action';
+                viewButton.setAttribute('aria-label', `View ${fullName || 'supporting document'}`);
+                viewButton.innerHTML = '<span class="material-icons" aria-hidden="true">visibility</span>';
+                viewButton.addEventListener('click', () => {
+                    openDocumentPreview(previewUrl, fullName, viewButton);
+                });
+
+                const downloadLink = document.createElement('a');
+                downloadLink.className = 'origin-data-logs-document-action';
+                downloadLink.href = downloadUrl;
+                downloadLink.setAttribute('aria-label', `Download ${fullName || 'supporting document'}`);
+                downloadLink.innerHTML = '<span class="material-icons" aria-hidden="true">download</span>';
+
+                actionsCell.append(viewButton, downloadLink);
+                documentRow.append(filenameCell, dateCell, userCell, actionsCell);
+                documentsBody.appendChild(documentRow);
+            });
+        }
+
         viewModal.hidden = false;
         document.body.style.overflow = 'hidden';
         viewModalClose.focus();
+        requestAnimationFrame(updateDocumentsNoticePosition);
     };
 
     const renderRows = rows => {
@@ -744,11 +1132,26 @@ try {
     };
 
     viewModalClose.addEventListener('click', closeViewModal);
+    documentPreviewClose.addEventListener('click', () => closeDocumentPreview());
+    documentPreview.addEventListener('mousedown', event => {
+        if (event.target === documentPreview) closeDocumentPreview();
+    });
+    modalBody.addEventListener('scroll', updateDocumentsNoticePosition, { passive: true });
+    documentsNotice.addEventListener('click', () => {
+        const sectionRect = documentsSection.getBoundingClientRect();
+        const bodyRect = modalBody.getBoundingClientRect();
+        modalBody.scrollTo({
+            top: modalBody.scrollTop + sectionRect.top - bodyRect.top,
+            behavior: 'smooth'
+        });
+    });
     viewModal.addEventListener('mousedown', event => {
         if (event.target === viewModal) closeViewModal();
     });
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && !viewModal.hidden) closeViewModal();
+        if (event.key !== 'Escape') return;
+        if (!documentPreview.hidden) closeDocumentPreview();
+        else if (!viewModal.hidden) closeViewModal();
     });
 
     form.addEventListener('submit', async event => {

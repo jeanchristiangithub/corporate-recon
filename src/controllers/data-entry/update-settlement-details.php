@@ -75,6 +75,67 @@ function settlementUpdateDecimal(?int $cents): ?string
     return $sign . intdiv($absolute, 100) . '.' . str_pad((string)($absolute % 100), 2, '0', STR_PAD_LEFT);
 }
 
+function settlementUploadedDocumentsForRow(int $rowId): array
+{
+    $key = 'supporting_documents_' . $rowId;
+    if (!isset($_FILES[$key]) || !is_array($_FILES[$key])) {
+        return [];
+    }
+
+    $upload = $_FILES[$key];
+    $names = is_array($upload['name'] ?? null) ? $upload['name'] : [$upload['name'] ?? ''];
+    $temporaryNames = is_array($upload['tmp_name'] ?? null) ? $upload['tmp_name'] : [$upload['tmp_name'] ?? ''];
+    $errors = is_array($upload['error'] ?? null) ? $upload['error'] : [$upload['error'] ?? UPLOAD_ERR_NO_FILE];
+    $sizes = is_array($upload['size'] ?? null) ? $upload['size'] : [$upload['size'] ?? 0];
+    $documents = [];
+
+    foreach ($names as $index => $name) {
+        $error = (int)($errors[$index] ?? UPLOAD_ERR_NO_FILE);
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        if ($error !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException('A supporting document could not be uploaded.');
+        }
+
+        $temporaryName = (string)($temporaryNames[$index] ?? '');
+        $size = (int)($sizes[$index] ?? 0);
+        if ($temporaryName === '' || !is_uploaded_file($temporaryName)) {
+            throw new InvalidArgumentException('An invalid supporting-document upload was received.');
+        }
+        if ($size <= 0 || $size > 25 * 1024 * 1024) {
+            throw new InvalidArgumentException('Each supporting document must be between 1 byte and 25 MB.');
+        }
+
+        $safeOriginalName = trim(basename(str_replace('\\', '/', (string)$name)));
+        $safeOriginalName = preg_replace('/[\x00-\x1F\x7F]/u', '', $safeOriginalName) ?? '';
+        if ($safeOriginalName === '' || mb_strlen($safeOriginalName) > 545) {
+            throw new InvalidArgumentException('A supporting document has an invalid filename.');
+        }
+        $extension = strtolower((string)pathinfo($safeOriginalName, PATHINFO_EXTENSION));
+        $filename = (string)pathinfo($safeOriginalName, PATHINFO_FILENAME);
+        if ($filename === '') {
+            $filename = $safeOriginalName;
+        }
+        if (mb_strlen($filename) > 500 || mb_strlen($extension) > 45) {
+            throw new InvalidArgumentException('A supporting-document filename or extension is too long.');
+        }
+
+        $hash = hash_file('sha256', $temporaryName);
+        if (!is_string($hash) || $hash === '') {
+            throw new RuntimeException('Unable to hash a supporting document.');
+        }
+        $documents[] = [
+            'filename' => $filename,
+            'extension' => $extension,
+            'temporary_name' => $temporaryName,
+            'hash' => $hash,
+        ];
+    }
+
+    return $documents;
+}
+
 if (!isAuthenticated()) {
     settlementUpdateRespond(401, ['success' => false, 'message' => 'Your session has expired. Please log in again.']);
 }
@@ -100,6 +161,15 @@ if (count($rows) > 500) {
 try {
     $pdo = fileRecDbConnection();
     $pdo->beginTransaction();
+    $storageRoot = env(
+        'SUPPORTING_DOCUMENT_STORAGE_PATH',
+        dirname(__DIR__, 5) . DIRECTORY_SEPARATOR . 'corporate-recon-storage' . DIRECTORY_SEPARATOR . 'supporting-documents'
+    );
+    $storageRoot = rtrim((string)$storageRoot, '/\\');
+    if ($storageRoot === '') {
+        throw new RuntimeException('Supporting-document storage is not configured.');
+    }
+    $createdDocumentPaths = [];
 
     $selectRow = $pdo->prepare(
         'SELECT *
@@ -138,10 +208,18 @@ try {
              settlement_currency = ?, transaction_currency = ?, modified_at = NOW(), modified_by = ?
          WHERE id = ? AND partner_name = ?'
     );
+    $insertDocumentLog = $pdo->prepare(
+        'INSERT INTO uploaded_documentation_file_logs
+        (uploaded_date, filename, filename_ext, partner_id, partner_name, filehash_path,
+         uploaded_by, ufl_file_log_id, psd_datarows_id)
+        VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
 
     $updatedIds = [];
     $archivedCount = 0;
     $archiveSkippedCount = 0;
+    $uploadedDocumentCount = 0;
+    $totalDocumentCount = 0;
     foreach ($rows as $row) {
         if (!is_array($row)) {
             throw new InvalidArgumentException('Invalid modified row payload.');
@@ -150,6 +228,12 @@ try {
         $values = $row['values'] ?? null;
         if ($id === false || !is_array($values)) {
             throw new InvalidArgumentException('Each modified row requires a valid settlement ID and values.');
+        }
+
+        $documents = settlementUploadedDocumentsForRow((int)$id);
+        $totalDocumentCount += count($documents);
+        if ($totalDocumentCount > 50) {
+            throw new InvalidArgumentException('A maximum of 50 supporting documents can be uploaded at once.');
         }
 
         $selectRow->execute([$id, $partner]);
@@ -247,6 +331,39 @@ try {
             $archiveSkippedCount++;
         }
         $updateRow->execute($parameters);
+
+        foreach ($documents as $document) {
+            $relativeDirectory = 'sha256/' . substr($document['hash'], 0, 2) . '/' . substr($document['hash'], 2, 2);
+            $absoluteDirectory = $storageRoot . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, $relativeDirectory);
+            if (!is_dir($absoluteDirectory)
+                && !mkdir($absoluteDirectory, 0750, true)
+                && !is_dir($absoluteDirectory)) {
+                throw new RuntimeException('Unable to prepare supporting-document storage.');
+            }
+
+            $storedFilename = $document['hash'] . ($document['extension'] !== '' ? '.' . $document['extension'] : '');
+            $relativePath = $relativeDirectory . '/' . $storedFilename;
+            $absolutePath = $absoluteDirectory . DIRECTORY_SEPARATOR . $storedFilename;
+            if (!is_file($absolutePath)) {
+                if (!move_uploaded_file($document['temporary_name'], $absolutePath)) {
+                    throw new RuntimeException('Unable to store a supporting document.');
+                }
+                $createdDocumentPaths[] = $absolutePath;
+            }
+
+            $insertDocumentLog->execute([
+                $document['filename'],
+                $document['extension'] !== '' ? $document['extension'] : null,
+                $existingRow['partner_id'] ?? null,
+                $existingRow['partner_name'] ?? $partner,
+                $relativePath,
+                $userId,
+                $existingRow['ufl_file_log_id'] ?? null,
+                $id,
+            ]);
+            $uploadedDocumentCount++;
+        }
         $updatedIds[] = (int)$id;
     }
 
@@ -257,10 +374,18 @@ try {
         'updated_ids' => $updatedIds,
         'archived_count' => $archivedCount,
         'archive_skipped_count' => $archiveSkippedCount,
+        'uploaded_document_count' => $uploadedDocumentCount,
     ]);
 } catch (Throwable $exception) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
+    }
+    if (isset($createdDocumentPaths) && is_array($createdDocumentPaths)) {
+        foreach ($createdDocumentPaths as $createdDocumentPath) {
+            if (is_string($createdDocumentPath) && is_file($createdDocumentPath)) {
+                @unlink($createdDocumentPath);
+            }
+        }
     }
     $status = $exception instanceof InvalidArgumentException ? 422 : 500;
     settlementUpdateRespond($status, [

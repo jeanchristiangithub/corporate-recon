@@ -25,7 +25,7 @@ try {
 ?>
 <section id="dataEntrySettlementDetailSection" class="data-entry-settlement-detail-section" aria-label="Data Entry Settlement Detail" style="display:none; padding:1rem">
     <h2 class="data-entry-settlement-title">Settlement Detail - Data Entry</h2>
-    <p class="data-entry-settlement-subtitle">Settlement transactions for the selected corporate partner and month.</p>
+    <!-- <p class="data-entry-settlement-subtitle">Settlement transactions for the selected corporate partner and month.</p> -->
 
     <form id="dataEntrySettlementFilters" class="data-entry-settlement-filters" novalidate>
         <label class="data-entry-settlement-field data-entry-settlement-field--partner">
@@ -87,7 +87,7 @@ try {
                         <th scope="col">Total Tran Amt</th>
                         <th scope="col">Settlement Currency</th>
                         <th scope="col">Transaction Currency</th>
-                        <th scope="col">Actions</th>
+                        <th scope="col">Action</th>
                     </tr>
                 </thead>
                 <tbody id="dataEntrySettlementTableBody">
@@ -109,6 +109,7 @@ try {
             </header>
             <div class="data-entry-settlement-modal-body">
                 <input id="dataEntrySettlementEditId" type="hidden">
+                <div class="data-entry-settlement-modal-summary">
                 <dl class="data-entry-settlement-upload-details">
                     <div>
                         <dt>Partner Name:</dt>
@@ -131,6 +132,19 @@ try {
                         <dd id="dataEntrySettlementEditUploadedBy">—</dd>
                     </div>
                 </dl>
+
+                <section class="data-entry-settlement-support" aria-labelledby="dataEntrySettlementSupportTitle">
+                    <h4 id="dataEntrySettlementSupportTitle">Supporting Documents</h4>
+                    <div id="dataEntrySettlementSupportDropzone" class="data-entry-settlement-support-dropzone" role="button" tabindex="0" aria-controls="dataEntrySettlementSupportFiles">
+                        <span class="material-icons-outlined" aria-hidden="true">upload_file</span>
+                        <strong>Drag and drop files here</strong>
+                        <span>or click to browse</span>
+                        <small>All file types are allowed</small>
+                        <input id="dataEntrySettlementSupportFiles" type="file" multiple hidden>
+                    </div>
+                    <ul id="dataEntrySettlementSupportList" class="data-entry-settlement-support-list" aria-live="polite"></ul>
+                </section>
+                </div>
 
                 <div class="data-entry-settlement-edit-divider"></div>
 
@@ -243,6 +257,18 @@ try {
         </div>
     </div>
 
+    <div id="dataEntrySettlementPdfModal" class="data-entry-settlement-pdf-modal" role="dialog" aria-modal="true" aria-labelledby="dataEntrySettlementPdfTitle" hidden>
+        <div class="data-entry-settlement-pdf-dialog">
+            <header class="data-entry-settlement-pdf-header">
+                <h3 id="dataEntrySettlementPdfTitle">Supporting Document</h3>
+                <button id="dataEntrySettlementPdfClose" type="button" aria-label="Close PDF preview">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                </button>
+            </header>
+            <iframe id="dataEntrySettlementPdfFrame" title="PDF supporting document preview"></iframe>
+        </div>
+    </div>
+
     <script>
     (function () {
         const root = document.getElementById('dataEntrySettlementDetailSection');
@@ -263,6 +289,10 @@ try {
         const tableBody = document.getElementById('dataEntrySettlementTableBody');
         const editModal = document.getElementById('dataEntrySettlementEditModal');
         const editModalClose = document.getElementById('dataEntrySettlementEditModalClose');
+        const pdfModal = document.getElementById('dataEntrySettlementPdfModal');
+        const pdfTitle = document.getElementById('dataEntrySettlementPdfTitle');
+        const pdfClose = document.getElementById('dataEntrySettlementPdfClose');
+        const pdfFrame = document.getElementById('dataEntrySettlementPdfFrame');
         const editId = document.getElementById('dataEntrySettlementEditId');
         const editPartner = document.getElementById('dataEntrySettlementEditPartner');
         const editFilename = document.getElementById('dataEntrySettlementEditFilename');
@@ -273,6 +303,9 @@ try {
         const editUploadedBy = document.getElementById('dataEntrySettlementEditUploadedBy');
         const editForm = document.getElementById('dataEntrySettlementEditForm');
         const settledDateRequiredMarker = document.getElementById('dataEntryEditSettledDateRequired');
+        const supportDropzone = document.getElementById('dataEntrySettlementSupportDropzone');
+        const supportInput = document.getElementById('dataEntrySettlementSupportFiles');
+        const supportList = document.getElementById('dataEntrySettlementSupportList');
         const editFields = {
             account_number: document.getElementById('dataEntryEditAccountNumber'),
             agent_name: document.getElementById('dataEntryEditAgentName'),
@@ -321,6 +354,9 @@ try {
         let loadedRows = [];
         const modifiedRows = new Map();
         let editTrigger = null;
+        let supportingFiles = [];
+        let persistedSupportingDocuments = [];
+        let activeSupportingRowId = '';
         let allowPageUnload = false;
         let pendingWarningOpen = false;
 
@@ -405,6 +441,182 @@ try {
 
         function displayValue(value) {
             return isEmptyCell(value) ? '—' : String(value);
+        }
+
+        function supportingFileKey(file) {
+            return [file.name, file.size, file.lastModified].join(':');
+        }
+
+        function formatSupportingFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function renderSupportingFiles() {
+            supportList.innerHTML = '';
+            persistedSupportingDocuments.forEach(documentData => {
+                const item = document.createElement('li');
+                item.className = 'is-persisted';
+                const details = document.createElement('span');
+                const link = document.createElement('a');
+                const meta = document.createElement('small');
+                const actions = document.createElement('div');
+                const preview = document.createElement('a');
+                const download = document.createElement('a');
+                const remove = document.createElement('button');
+                const extension = String(documentData.filename_ext || '').trim();
+                const fullName = String(documentData.filename || 'document') + (extension ? '.' + extension : '');
+                link.textContent = fullName;
+                link.href = window.autoreconUrl('src/controllers/data-entry/settlement-supporting-documents.php')
+                    + '?' + new URLSearchParams({
+                        settlement_id: activeSupportingRowId,
+                        document_id: String(documentData.id || '')
+                    }).toString();
+                link.title = 'Download ' + fullName;
+                download.className = 'data-entry-settlement-support-download';
+                download.href = link.href;
+                download.title = 'Download ' + fullName;
+                download.setAttribute('aria-label', 'Download ' + fullName);
+                download.innerHTML = '<span class="material-icons-outlined" aria-hidden="true">download</span>';
+                if (extension.toLowerCase() === 'pdf') {
+                    preview.className = 'data-entry-settlement-support-preview';
+                    preview.href = link.href + '&view=1';
+                    preview.target = '_blank';
+                    preview.rel = 'noopener noreferrer';
+                    preview.title = 'View ' + fullName;
+                    preview.setAttribute('aria-label', 'View ' + fullName + ' in a preview window');
+                    preview.innerHTML = '<span class="material-icons-outlined" aria-hidden="true">visibility</span>';
+                    preview.addEventListener('click', event => {
+                        event.preventDefault();
+                        openPdfPreview(preview.href, fullName);
+                    });
+                }
+                meta.textContent = 'Uploaded ' + formatUploadedDate(documentData.uploaded_date)
+                    + ' by ' + displayValue(documentData.uploaded_by_name || documentData.uploaded_by);
+                remove.type = 'button';
+                remove.className = 'data-entry-settlement-support-delete';
+                remove.title = 'Delete ' + fullName;
+                remove.setAttribute('aria-label', 'Delete ' + fullName);
+                remove.innerHTML = '<span class="material-icons" aria-hidden="true">close</span>';
+                remove.addEventListener('click', () => deletePersistedSupportingDocument(documentData, fullName));
+                details.append(link, meta);
+                actions.className = 'data-entry-settlement-support-actions';
+                if (extension.toLowerCase() === 'pdf') actions.appendChild(preview);
+                actions.append(download, remove);
+                item.append(details, actions);
+                supportList.appendChild(item);
+            });
+            supportingFiles.forEach((file, index) => {
+                const item = document.createElement('li');
+                const details = document.createElement('span');
+                const name = document.createElement('strong');
+                const size = document.createElement('small');
+                const remove = document.createElement('button');
+                name.textContent = file.name;
+                size.textContent = formatSupportingFileSize(file.size);
+                details.append(name, size);
+                remove.type = 'button';
+                remove.title = 'Remove ' + file.name;
+                remove.setAttribute('aria-label', 'Remove ' + file.name);
+                remove.innerHTML = '<span class="material-icons" aria-hidden="true">close</span>';
+                remove.addEventListener('click', () => {
+                    supportingFiles.splice(index, 1);
+                    supportInput.value = '';
+                    renderSupportingFiles();
+                });
+                item.append(details, remove);
+                supportList.appendChild(item);
+            });
+        }
+
+        async function loadPersistedSupportingDocuments(rowId) {
+            activeSupportingRowId = String(rowId || '');
+            persistedSupportingDocuments = [];
+            renderSupportingFiles();
+            if (!activeSupportingRowId) return;
+            try {
+                const response = await fetch(
+                    window.autoreconUrl('src/controllers/data-entry/settlement-supporting-documents.php')
+                        + '?' + new URLSearchParams({ settlement_id: activeSupportingRowId }).toString(),
+                    { headers: { Accept: 'application/json' } }
+                );
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload || !payload.success) {
+                    throw new Error(payload && payload.message ? payload.message : 'Unable to load supporting documents.');
+                }
+                if (activeSupportingRowId !== String(rowId)) return;
+                persistedSupportingDocuments = Array.isArray(payload.documents) ? payload.documents : [];
+                renderSupportingFiles();
+            } catch (error) {
+                if (activeSupportingRowId !== String(rowId)) return;
+                persistedSupportingDocuments = [];
+                renderSupportingFiles();
+            }
+        }
+
+        async function deletePersistedSupportingDocument(documentData, fullName) {
+            let confirmed = false;
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const result = await window.Swal.fire({
+                    title: 'Delete Supporting Document?',
+                    text: 'Delete ' + fullName + '? This action cannot be undone.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Delete',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#dc3545',
+                    allowOutsideClick: false
+                });
+                confirmed = result.isConfirmed;
+            } else {
+                confirmed = window.confirm('Delete ' + fullName + '?');
+            }
+            if (!confirmed) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('csrf_token', csrfToken);
+                formData.append('action', 'delete');
+                formData.append('settlement_id', activeSupportingRowId);
+                formData.append('document_id', String(documentData.id || ''));
+                const response = await fetch(
+                    window.autoreconUrl('src/controllers/data-entry/settlement-supporting-documents.php'),
+                    { method: 'POST', body: formData, headers: { Accept: 'application/json' } }
+                );
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload || !payload.success) {
+                    throw new Error(payload && payload.message ? payload.message : 'Unable to delete supporting document.');
+                }
+                persistedSupportingDocuments = persistedSupportingDocuments.filter(
+                    item => String(item.id || '') !== String(documentData.id || '')
+                );
+                renderSupportingFiles();
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unable to delete supporting document.';
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    await window.Swal.fire({
+                        title: 'Delete Failed',
+                        text: message,
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
+                } else {
+                    window.alert(message);
+                }
+            }
+        }
+
+        function addSupportingFiles(fileList) {
+            const existing = new Set(supportingFiles.map(supportingFileKey));
+            Array.from(fileList || []).forEach(file => {
+                const key = supportingFileKey(file);
+                if (!existing.has(key)) {
+                    supportingFiles.push(file);
+                    existing.add(key);
+                }
+            });
+            renderSupportingFiles();
         }
 
         function formatUploadedDate(value) {
@@ -497,6 +709,18 @@ try {
             editTrigger = null;
         }
 
+        function openPdfPreview(url, filename) {
+            pdfTitle.textContent = filename || 'Supporting Document';
+            pdfFrame.src = url;
+            pdfModal.hidden = false;
+            pdfClose.focus();
+        }
+
+        function closePdfPreview() {
+            pdfModal.hidden = true;
+            pdfFrame.src = 'about:blank';
+        }
+
         function updateModifiedChangesButton() {
             const count = modifiedRows.size;
             updateChangesButton.textContent = 'Modified Changes (' + count + ')';
@@ -558,6 +782,13 @@ try {
             editRemark.textContent = modified ? 'Modified' : (overwritten ? 'Overwritten' : 'Success');
             editRemark.classList.toggle('is-modified', modified);
             editRemark.classList.toggle('is-overwritten', !modified && overwritten);
+            const stagedRow = modifiedRows.get(String(rowData.id || ''));
+            supportingFiles = stagedRow && Array.isArray(stagedRow.supportingDocuments)
+                ? stagedRow.supportingDocuments.slice()
+                : [];
+            supportInput.value = '';
+            renderSupportingFiles();
+            loadPersistedSupportingDocuments(rowData.id);
             populateEditFields(rowData);
             editModal.hidden = false;
             document.body.classList.add('data-entry-settlement-modal-open');
@@ -681,6 +912,27 @@ try {
             monthInput.classList.remove('is-invalid');
         });
         searchInput.addEventListener('input', filterLoadedRows);
+        supportDropzone.addEventListener('click', () => supportInput.click());
+        supportDropzone.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                supportInput.click();
+            }
+        });
+        supportInput.addEventListener('change', () => addSupportingFiles(supportInput.files));
+        ['dragenter', 'dragover'].forEach(eventName => {
+            supportDropzone.addEventListener(eventName, event => {
+                event.preventDefault();
+                supportDropzone.classList.add('is-dragging');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            supportDropzone.addEventListener(eventName, event => {
+                event.preventDefault();
+                supportDropzone.classList.remove('is-dragging');
+            });
+        });
+        supportDropzone.addEventListener('drop', event => addSupportingFiles(event.dataTransfer.files));
         amountFieldNames.forEach(fieldName => {
             editFields[fieldName].addEventListener('input', calculateTotal);
         });
@@ -724,7 +976,11 @@ try {
                 bubbles: true,
                 detail: { id: editId.value, values: values }
             }));
-            modifiedRows.set(editId.value, { id: editId.value, values: values });
+            modifiedRows.set(editId.value, {
+                id: editId.value,
+                values: values,
+                supportingDocuments: supportingFiles.slice()
+            });
             const loadedRowIndex = loadedRows.findIndex(row => String(row.id || '') === editId.value);
             if (loadedRowIndex >= 0) {
                 loadedRows[loadedRowIndex] = Object.assign({}, loadedRows[loadedRowIndex], values);
@@ -760,7 +1016,8 @@ try {
             }
             if (!confirmed) return;
 
-            const rows = Array.from(modifiedRows.values());
+            const stagedRows = Array.from(modifiedRows.values());
+            const rows = stagedRows.map(row => ({ id: row.id, values: row.values }));
             updateChangesButton.disabled = true;
             if (window.Swal && typeof window.Swal.fire === 'function') {
                 window.Swal.fire({
@@ -778,6 +1035,11 @@ try {
                 formData.append('csrf_token', csrfToken);
                 formData.append('partner', exactPartner());
                 formData.append('payload', JSON.stringify({ rows: rows }));
+                stagedRows.forEach(row => {
+                    (row.supportingDocuments || []).forEach(file => {
+                        formData.append('supporting_documents_' + row.id + '[]', file, file.name);
+                    });
+                });
                 const response = await fetch(
                     window.autoreconUrl('src/controllers/data-entry/update-settlement-details.php'),
                     { method: 'POST', body: formData, headers: { Accept: 'application/json' } }
@@ -833,11 +1095,20 @@ try {
             showPendingModificationWarning();
         });
         editModalClose.addEventListener('click', closeEditModal);
+        pdfClose.addEventListener('click', closePdfPreview);
+        pdfModal.addEventListener('mousedown', event => {
+            if (event.target === pdfModal) closePdfPreview();
+        });
         editModal.addEventListener('mousedown', event => {
             if (event.target === editModal) closeEditModal();
         });
         document.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && !editModal.hidden) closeEditModal();
+            if (event.key !== 'Escape') return;
+            if (!pdfModal.hidden) {
+                closePdfPreview();
+                return;
+            }
+            if (!editModal.hidden) closeEditModal();
         });
         document.addEventListener('click', event => {
             if (!event.target.closest('.data-entry-settlement-autocomplete')) closeSuggestions();

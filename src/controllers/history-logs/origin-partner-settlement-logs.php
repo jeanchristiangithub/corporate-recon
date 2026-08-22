@@ -42,7 +42,7 @@ try {
     $endDate = $startDate->modify('first day of next month');
     $pdo = fileRecDbConnection();
     $statement = $pdo->prepare(
-        'SELECT logs.id, logs.partner_name, logs.account_number, logs.agent_name, logs.legacy_id,
+        'SELECT logs.id, logs.psd_datarows_id, logs.partner_name, logs.account_number, logs.agent_name, logs.legacy_id,
                 logs.tran_date, logs.settled_date, logs.transaction_id, logs.reference_id,
                 logs.product, logs.tran_type, logs.orig_cntry, logs.rcv_cntry, logs.fx_rate_trn,
                 logs.fx_date_trn, logs.margin, logs.base_tran_amt, logs.fee_tran_amt,
@@ -147,6 +147,46 @@ try {
         }
         unset($row);
     }
+
+    $settlementIds = [];
+    foreach ($rows as $row) {
+        $settlementId = (int)($row['psd_datarows_id'] ?? 0);
+        if ($settlementId > 0) {
+            $settlementIds[$settlementId] = true;
+        }
+    }
+
+    $documentsBySettlementId = [];
+    if ($settlementIds !== []) {
+        $ids = array_keys($settlementIds);
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+        $documentStatement = $pdo->prepare(
+            "SELECT documents.id, documents.psd_datarows_id, documents.filename,
+                    documents.filename_ext, documents.uploaded_date, documents.uploaded_by,
+                    TRIM(CONCAT_WS(' ',
+                        NULLIF(TRIM(users.firstname), ''),
+                        NULLIF(TRIM(users.middlename), ''),
+                        NULLIF(TRIM(users.lastname), '')
+                    )) AS uploaded_by_name
+             FROM uploaded_documentation_file_logs documents
+             LEFT JOIN users
+               ON CONVERT(users.id_number USING utf8mb4) COLLATE utf8mb4_unicode_ci
+                = CONVERT(documents.uploaded_by USING utf8mb4) COLLATE utf8mb4_unicode_ci
+             WHERE documents.psd_datarows_id IN ($placeholders)
+             ORDER BY documents.uploaded_date DESC, documents.id DESC"
+        );
+        $documentStatement->execute($ids);
+        foreach ($documentStatement->fetchAll(PDO::FETCH_ASSOC) as $document) {
+            $settlementId = (int)($document['psd_datarows_id'] ?? 0);
+            $documentsBySettlementId[$settlementId][] = $document;
+        }
+    }
+
+    foreach ($rows as &$row) {
+        $settlementId = (int)($row['psd_datarows_id'] ?? 0);
+        $row['supporting_documents'] = $documentsBySettlementId[$settlementId] ?? [];
+    }
+    unset($row);
 
     originPartnerSettlementLogsRespond(200, [
         'success' => true,

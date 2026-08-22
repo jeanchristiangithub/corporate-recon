@@ -20,60 +20,99 @@ try {
         throw new InvalidArgumentException('A valid Month is required.');
     }
     $monthStart = $month . '-01';
+    $nextMonthStart = (new DateTimeImmutable($monthStart))->modify('first day of next month')->format('Y-m-d');
     $monthEnd = (new DateTimeImmutable($monthStart))->modify('last day of this month')->format('Y-m-d');
 
-    $sql = "SELECT DISTINCT
+    $isTboStatus = strcasecmp($status, 'TBO') === 0;
+    if ($isTboStatus) {
+        $sql = "SELECT DISTINCT
+                h.posted_date AS payroll_date,
+                h.mbp_mainzone AS mainzone,
+                h.mbp_branch_id AS branch_id,
+                h.mbp_code AS code,
+                COALESCE(
+                    NULLIF(TRIM(h.mbp_mlmatic_branch_name), ''),
+                    NULLIF(TRIM(h.mkpxbm_branch_name), ''),
+                    NULLIF(TRIM(h.mbp_branch_name_description), ''),
+                    ''
+                ) AS branch_name,
+                h.mbp_gl_region AS region_description,
+                h.mbp_mlmatic_region AS ml_matic_region,
+                h.mbp_mlmatic_status AS ml_matic_status,
+                h.posted_at AS posted_date
+            FROM filerecondb.corporate_branch_status_history h
+            WHERE h.posted_date >= ?
+              AND h.posted_date < ?
+              AND TRIM(UPPER(h.mbp_mlmatic_status)) = TRIM(UPPER(?))";
+        $parameters = [$monthStart, $nextMonthStart, $status];
+        $mainzoneColumn = 'h.mbp_mainzone';
+        $zoneColumn = 'h.mbp_zone';
+        $regionColumn = 'h.mbp_region_code';
+    } else {
+        $sql = "SELECT DISTINCT
                 e.payroll_date,
                 e.mainzone,
-                b.branch_id,
-                e.branch_code AS code,
+                h.mbp_branch_id AS branch_id,
+                h.mbp_code AS code,
                 COALESCE(
-                    NULLIF(TRIM(b.ml_matic_branch_name), ''),
-                    NULLIF(TRIM(b.branch_name), ''),
-                    e.branch_name
+                    NULLIF(TRIM(h.mbp_mlmatic_branch_name), ''),
+                    NULLIF(TRIM(h.mkpxbm_branch_name), ''),
+                    NULLIF(TRIM(h.mbp_branch_name_description), ''),
+                    ''
                 ) AS branch_name,
-                b.gl_region AS region_description,
+                h.mbp_gl_region AS region_description,
                 e.ml_matic_region,
-                e.ml_matic_status,
+                h.mbp_mlmatic_status AS ml_matic_status,
                 e.posted_date
             FROM edi.payroll_edi_report e
-            LEFT JOIN masterdata.branch_profile b
-                ON TRIM(e.branch_code) = TRIM(b.code)
-                AND TRIM(UPPER(e.ml_matic_region)) = TRIM(UPPER(b.ml_matic_region))
+            LEFT JOIN filerecondb.corporate_branch_status_history h
+                ON TRIM(e.branch_code) = TRIM(h.mbp_code)
+                AND TRIM(UPPER(e.ml_matic_region)) = TRIM(UPPER(h.mbp_mlmatic_region))
+                AND h.posted_date >= ?
+                AND h.posted_date < ?
             WHERE DATE(e.payroll_date) = ?
-              AND TRIM(UPPER(e.ml_matic_status)) = TRIM(UPPER(?))
+              AND TRIM(UPPER(h.mbp_mlmatic_status)) = TRIM(UPPER(?))
               AND TRIM(LOWER(e.description)) = 'payroll'";
-    $parameters = [$monthEnd, $status];
+        $parameters = [$monthStart, $nextMonthStart, $monthEnd, $status];
+        $mainzoneColumn = 'e.mainzone';
+        $zoneColumn = 'e.zone';
+        $regionColumn = 'e.region_code';
+    }
 
     if ($mainzone !== '') {
-        $sql .= ' AND TRIM(UPPER(e.mainzone)) = TRIM(UPPER(?))';
+        $sql .= " AND TRIM(UPPER({$mainzoneColumn})) = TRIM(UPPER(?))";
         $parameters[] = $mainzone;
     }
 
     $isShowroomRegion = $zone === '' && in_array(strtoupper($regionCode), ['LZN', 'NCR', 'VIS', 'MIN'], true);
     if (strcasecmp($zone, 'Showroom') === 0 || $isShowroomRegion) {
-        $sql .= " AND TRIM(UPPER(b.branch_type)) = 'SHOWROOM'";
+        $sql .= " AND UPPER(TRIM(COALESCE(
+            NULLIF(h.mbp_mlmatic_branch_name, ''),
+            NULLIF(h.mkpxbm_branch_name, ''),
+            h.mbp_branch_name_description,
+            ''
+        ))) LIKE '%SHOWROOM%'";
         if ($regionCode !== '') {
-            $sql .= ' AND TRIM(UPPER(e.zone)) = TRIM(UPPER(?))';
+            $sql .= " AND TRIM(UPPER({$zoneColumn})) = TRIM(UPPER(?))";
             $parameters[] = $regionCode;
         }
     } else {
         if ($zone !== '') {
-            $sql .= ' AND TRIM(UPPER(e.zone)) = TRIM(UPPER(?))';
+            $sql .= " AND TRIM(UPPER({$zoneColumn})) = TRIM(UPPER(?))";
             $parameters[] = $zone;
         }
         if ($regionCode !== '') {
-            $sql .= ' AND TRIM(UPPER(e.region_code)) = TRIM(UPPER(?))';
+            $sql .= " AND TRIM(UPPER({$regionColumn})) = TRIM(UPPER(?))";
             $parameters[] = $regionCode;
         }
     }
 
     if ($branchId !== '') {
-        $sql .= ' AND TRIM(b.branch_id) = TRIM(?)';
+        $sql .= ' AND TRIM(h.mbp_branch_id) = TRIM(?)';
         $parameters[] = $branchId;
     }
 
-    $sql .= ' ORDER BY branch_name, b.branch_id';
+    $sql .= ' ORDER BY branch_name, h.mbp_branch_id';
     $statement = masterDataConnection()->prepare($sql);
     $statement->execute($parameters);
 

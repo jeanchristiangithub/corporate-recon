@@ -162,6 +162,35 @@ try {
         <button id="ediReportExportExcel" class="edi-report-export" type="button" disabled>Export to Excel</button>
     </form>
 
+    <div class="edi-report-tabs" role="tablist" aria-label="EDI report views">
+        <button
+            id="ediReportBranchDetailsTab"
+            class="edi-report-tab is-active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="ediReportBranchDetailsPanel"
+            data-edi-tab="branch-details"
+        >Branch Details</button>
+        <button
+            id="ediReportVolumeSummaryTab"
+            class="edi-report-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="ediReportVolumeSummaryPanel"
+            data-edi-tab="volume-summary"
+            tabindex="-1"
+        >Volume Summary</button>
+    </div>
+
+    <section
+        id="ediReportBranchDetailsPanel"
+        class="edi-report-tab-panel"
+        role="tabpanel"
+        aria-labelledby="ediReportBranchDetailsTab"
+        data-edi-panel="branch-details"
+    >
     <section id="ediReportMoneygramTableCard" class="edi-report-table-card" aria-label="MoneyGram EDI report results" hidden>
         <div class="edi-report-table-wrap">
             <table class="edi-report-table">
@@ -203,6 +232,95 @@ try {
             </table>
         </div>
     </section>
+    </section>
+
+    <section
+        id="ediReportVolumeSummaryPanel"
+        class="edi-report-tab-panel edi-report-volume-summary-card"
+        role="tabpanel"
+        aria-labelledby="ediReportVolumeSummaryTab"
+        data-edi-panel="volume-summary"
+        hidden
+    >
+        <div class="edi-report-volume-summary-wrap">
+            <table class="edi-report-volume-summary-table">
+                <colgroup>
+                    <col class="edi-report-summary-partner-column">
+                    <?php for ($ediSummaryColumn = 0; $ediSummaryColumn < 22; $ediSummaryColumn++): ?>
+                        <col class="edi-report-summary-value-column">
+                    <?php endfor; ?>
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th rowspan="3" scope="col">Corporate Partner</th>
+                        <th colspan="4" scope="colgroup">Web Report</th>
+                        <th colspan="8" scope="colgroup">EDI</th>
+                        <th colspan="6" scope="colgroup">Additional</th>
+                        <th colspan="4" scope="colgroup">Variance</th>
+                    </tr>
+                    <tr>
+                        <?php foreach (['Volume', 'Principal', 'Charge', 'FX Share'] as $ediSummaryHeading): ?>
+                            <th class="edi-report-summary-web-heading" rowspan="2" scope="col"><?= $ediSummaryHeading ?></th>
+                        <?php endforeach; ?>
+                        <th colspan="4" scope="colgroup">VISMIN</th>
+                        <th colspan="4" scope="colgroup">LNCR</th>
+                        <th colspan="3" scope="colgroup">VISMIN</th>
+                        <th colspan="3" scope="colgroup">LNCR</th>
+                        <?php foreach (['Volume', 'Principal', 'Charge', 'FX Share'] as $ediSummaryHeading): ?>
+                            <th class="edi-report-summary-variance-heading" rowspan="2" scope="col"><?= $ediSummaryHeading ?></th>
+                        <?php endforeach; ?>
+                    </tr>
+                    <tr>
+                        <?php for ($ediSummaryGroup = 0; $ediSummaryGroup < 2; $ediSummaryGroup++): ?>
+                            <?php foreach (['Volume', 'Principal', 'Charge', 'FX Share'] as $ediSummaryHeading): ?>
+                                <th scope="col"><?= $ediSummaryHeading ?></th>
+                            <?php endforeach; ?>
+                        <?php endfor; ?>
+                        <?php for ($ediSummaryGroup = 0; $ediSummaryGroup < 2; $ediSummaryGroup++): ?>
+                            <?php foreach (['Volume', 'Principal', 'Charge'] as $ediSummaryHeading): ?>
+                                <th scope="col"><?= $ediSummaryHeading ?></th>
+                            <?php endforeach; ?>
+                        <?php endfor; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $ediMoneygramSummaryRows = [
+                        ['MONEYGRAM PAYOUT - PHP', 'payout', 'PHP'],
+                        ['MONEYGRAM PAYOUT - USD', 'payout', 'USD'],
+                        ['MONEYGRAM SENDOUT - PHP', 'sendout', 'PHP'],
+                        ['MONEYGRAM SENDOUT - USD', 'sendout', 'USD'],
+                    ];
+                    ?>
+                    <?php foreach ($ediMoneygramSummaryRows as [$ediSummaryRowLabel, $ediSummaryFlow, $ediSummaryCurrency]): ?>
+                        <tr
+                            class="edi-report-volume-partner-row"
+                            data-summary-partner="MONEYGRAM"
+                            data-summary-flow="<?= $ediSummaryFlow ?>"
+                            data-summary-currency="<?= $ediSummaryCurrency ?>"
+                            hidden
+                        >
+                            <th scope="row"><?= $ediSummaryRowLabel ?></th>
+                            <?php for ($ediSummaryColumn = 0; $ediSummaryColumn < 22; $ediSummaryColumn++): ?>
+                                <td>&nbsp;</td>
+                            <?php endfor; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    <tr class="edi-report-summary-spacer-row">
+                        <?php for ($ediSummaryColumn = 0; $ediSummaryColumn < 23; $ediSummaryColumn++): ?>
+                            <td>&nbsp;</td>
+                        <?php endfor; ?>
+                    </tr>
+                    <tr class="edi-report-summary-total-row">
+                        <th scope="row">Grand Total:</th>
+                        <?php for ($ediSummaryColumn = 0; $ediSummaryColumn < 22; $ediSummaryColumn++): ?>
+                            <td>&nbsp;</td>
+                        <?php endfor; ?>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </section>
 
 <script>
@@ -227,6 +345,102 @@ try {
     ) ?>;
     const exportButton = document.getElementById('ediReportExportExcel');
     let latestReportRows = [];
+
+    const formatSummaryCount = (value) => {
+        const number = Number(value || 0);
+        return number === 0 ? '' : new Intl.NumberFormat('en-US', {
+            maximumFractionDigits: 0
+        }).format(number);
+    };
+    const formatSummaryAmount = (value) => {
+        const number = Number(value || 0);
+        return Math.abs(number) < 0.005 ? '' : new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(number);
+    };
+    const updateEdiVolumeSummary = (rows = []) => {
+        const totals = {
+            VISMIN: {},
+            LNCR: {}
+        };
+        ['VISMIN', 'LNCR'].forEach((mainzone) => {
+            ['payout', 'sendout'].forEach((flow) => {
+                ['PHP', 'USD'].forEach((currency) => {
+                    totals[mainzone][`${flow}-${currency}`] = [0, 0, 0, 0];
+                });
+            });
+        });
+
+        rows.forEach((record) => {
+            const mainzone = String(record.mainzone || '').trim().toLocaleUpperCase();
+            if (!Object.hasOwn(totals, mainzone)) return;
+            ['PHP', 'USD'].forEach((currency) => {
+                const metrics = record.metrics?.[currency] || {};
+                ['payout', 'sendout'].forEach((flow) => {
+                    const values = totals[mainzone][`${flow}-${currency}`];
+                    values[0] += Number(metrics[`${flow}_count`] || 0);
+                    values[1] += Number(metrics[`${flow}_principal`] || 0);
+                    values[2] += Number(metrics[`${flow}_charge`] || 0);
+                    values[3] += Number(metrics[`${flow}_fx_share`] || 0);
+                });
+            });
+        });
+
+        document.querySelectorAll('[data-summary-flow][data-summary-currency]').forEach((summaryRow) => {
+            const flow = summaryRow.dataset.summaryFlow;
+            const currency = summaryRow.dataset.summaryCurrency;
+            const cells = Array.from(summaryRow.querySelectorAll('td'));
+            ['VISMIN', 'LNCR'].forEach((mainzone, mainzoneIndex) => {
+                const values = totals[mainzone][`${flow}-${currency}`] || [0, 0, 0, 0];
+                const ediStartIndex = 4 + (mainzoneIndex * 4);
+                values.forEach((value, metricIndex) => {
+                    const cell = cells[ediStartIndex + metricIndex];
+                    if (!cell) return;
+                    cell.textContent = metricIndex === 0
+                        ? formatSummaryCount(value)
+                        : formatSummaryAmount(value);
+                });
+            });
+        });
+
+        const grandTotalCells = Array.from(document.querySelectorAll(
+            '.edi-report-summary-total-row td'
+        ));
+        ['VISMIN', 'LNCR'].forEach((mainzone, mainzoneIndex) => {
+            const grandTotals = [0, 0, 0, 0];
+            Object.values(totals[mainzone]).forEach((values) => {
+                values.forEach((value, metricIndex) => {
+                    grandTotals[metricIndex] += Number(value || 0);
+                });
+            });
+            const ediStartIndex = 4 + (mainzoneIndex * 4);
+            grandTotals.forEach((value, metricIndex) => {
+                const cell = grandTotalCells[ediStartIndex + metricIndex];
+                if (!cell) return;
+                cell.textContent = metricIndex === 0
+                    ? formatSummaryCount(value)
+                    : formatSummaryAmount(value);
+            });
+        });
+    };
+
+    const tabButtons = Array.from(document.querySelectorAll('[data-edi-tab]'));
+    const tabPanels = Array.from(document.querySelectorAll('[data-edi-panel]'));
+    const activateTab = (tabName) => {
+        tabButtons.forEach((button) => {
+            const isActive = button.dataset.ediTab === tabName;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            button.tabIndex = isActive ? 0 : -1;
+        });
+        tabPanels.forEach((panel) => {
+            panel.hidden = panel.dataset.ediPanel !== tabName;
+        });
+    };
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => activateTab(button.dataset.ediTab));
+    });
 
     const setupAutocomplete = (inputId, listId, clearButtonId = '', submittedValueInputId = '') => {
         const input = document.getElementById(inputId);
@@ -351,8 +565,14 @@ try {
     const partnerInput = document.getElementById('ediReportPartner');
     const moneygramTableCard = document.getElementById('ediReportMoneygramTableCard');
     const updateMoneygramTableVisibility = () => {
-        if (!partnerInput || !moneygramTableCard) return;
-        moneygramTableCard.hidden = partnerInput.value.trim().toLocaleUpperCase() !== 'MONEYGRAM';
+        if (!partnerInput) return;
+        const selectedPartner = partnerInput.value.trim().toLocaleUpperCase();
+        if (moneygramTableCard) {
+            moneygramTableCard.hidden = selectedPartner !== 'MONEYGRAM';
+        }
+        document.querySelectorAll('[data-summary-partner]').forEach((row) => {
+            row.hidden = row.dataset.summaryPartner !== selectedPartner;
+        });
     };
     partnerInput?.addEventListener('input', updateMoneygramTableVisibility);
     partnerInput?.addEventListener('change', updateMoneygramTableVisibility);
@@ -536,6 +756,7 @@ try {
 
             tableBody.replaceChildren();
             latestReportRows = payload.rows;
+            updateEdiVolumeSummary(payload.rows);
             if (exportButton) exportButton.disabled = payload.rows.length === 0;
             if (payload.rows.length === 0) {
                 const row = tableBody.insertRow();
@@ -597,6 +818,7 @@ try {
             tableBody.appendChild(fragment);
         } catch (error) {
             latestReportRows = [];
+            updateEdiVolumeSummary([]);
             if (exportButton) exportButton.disabled = true;
             tableBody.replaceChildren();
             const row = tableBody.insertRow();
