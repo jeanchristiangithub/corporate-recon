@@ -6,6 +6,20 @@ require_once __DIR__ . '/../../../../config/csrf.php';
 
 $cashFlowReportPartners = [];
 $cashFlowReportPartnerBanks = [];
+$cashFlowTemporaryRunningBalances = [
+    [
+        'currency' => 'PHP',
+        'date' => '2025-12-31',
+        'account_number' => '1301032869',
+        'amount' => -91986860.01,
+    ],
+    [
+        'currency' => 'USD',
+        'date' => '2025-12-31',
+        'account_number' => '1304025685',
+        'amount' => 635660.03,
+    ],
+];
 
 try {
     $statement = masterDataConnection()->query(
@@ -410,6 +424,10 @@ try {
         csrfToken(),
         JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?>;
+    const temporaryRunningBalances = <?= json_encode(
+        $cashFlowTemporaryRunningBalances,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    ) ?>;
 
     const formatReportDate = (value) => {
         const parts = String(value || '').split('-').map(Number);
@@ -448,6 +466,30 @@ try {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(Number(value || 0));
+
+    const temporaryForwardedBalance = (currency) => {
+        const monthValue = monthInput?.value || '';
+        const [year, month] = monthValue.split('-').map(Number);
+        if (!year || !month) return null;
+
+        const forwarded = new Date(year, month - 1, 0);
+        const forwardedDateValue = [
+            forwarded.getFullYear(),
+            String(forwarded.getMonth() + 1).padStart(2, '0'),
+            String(forwarded.getDate()).padStart(2, '0')
+        ].join('-');
+        const account = String(latestCashFlowAccounts[currency.toLowerCase()] || '')
+            .replace(/[^A-Za-z0-9]/g, '');
+        const override = temporaryRunningBalances.find((item) =>
+            String(item.currency || '').toUpperCase() === currency.toUpperCase()
+            && String(item.date || '') === forwardedDateValue
+            && String(item.account_number || '').replace(/[^A-Za-z0-9]/g, '') === account
+        );
+
+        return override && Number.isFinite(Number(override.amount))
+            ? Number(override.amount)
+            : null;
+    };
 
     const resultsLayout = document.getElementById('cashFlowReportResultsLayout');
     const reportStatus = document.getElementById('cashFlowReportStatus');
@@ -706,7 +748,7 @@ try {
             priorCommissionReport,
             priorCommissionFxTotal
         );
-        const forwardedBeginningBalance = commissionRows.length
+        let forwardedBeginningBalance = commissionRows.length
             ? commissionRows.reduce((running, previousItem) => {
                 const previousPrincipal = Number(previousItem?.settlement_amount || 0);
                 const previousDeposit = Object.prototype.hasOwnProperty.call(
@@ -716,6 +758,10 @@ try {
                 return running - previousPrincipal + previousDeposit;
             }, Number(previousMonthBeginningBalance || 0)) - priorCommissionAmount
             : Number(beginningBalance || 0);
+        const temporaryBalance = temporaryForwardedBalance(currency);
+        if (temporaryBalance !== null) {
+            forwardedBeginningBalance = temporaryBalance;
+        }
         const totalVolume = rows.reduce(
             (total, item) => total + Number(item?.settlement_volume || 0),
             0
