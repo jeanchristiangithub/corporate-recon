@@ -31,7 +31,7 @@ try {
                 disabled
                 aria-describedby="originDataLogsTransactionalAvailability"
             >
-            <span>Transactional</span>
+            <span>Daily</span>
             <span id="originDataLogsTransactionalAvailability" class="sr-only">Not available</span>
         </label>
 
