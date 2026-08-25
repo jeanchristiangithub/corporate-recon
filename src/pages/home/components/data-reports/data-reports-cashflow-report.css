@@ -262,13 +262,13 @@
 
 .cash-flow-report-results-filter .cash-flow-report-balance-summary dt {
     margin: 0;
-    color: #ed2947;
+    color: #111827;
     font-size: 12px;
     text-transform: none;
 }
 
 .cash-flow-report-results-filter .cash-flow-report-balance-summary dt i {
-    color: #f28c28;
+    color: #111827;
     font-size: 11px;
     font-weight: 500;
 }
@@ -282,6 +282,10 @@
     font-size: 12px;
     text-align: right;
     white-space: nowrap;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary dd.cash-flow-report-summary-negative {
+    color: #ed2947;
 }
 
 .cash-flow-report-results-filter .cash-flow-report-forwarded-row {
@@ -303,8 +307,8 @@
 }
 
 .cash-flow-report-results-filter .cash-flow-report-forwarded-row dt i span {
-    display: inline;
-    margin: 0 0 0 4px;
+    display: block;
+    margin: 2px 0 0;
 }
 
 .cash-flow-report-currency-value {
@@ -319,15 +323,19 @@
 }
 
 .cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child dt {
-    color: #ed2947;
+    color: #111827;
 }
 
 .cash-flow-report-results-filter .cash-flow-report-balance-summary .cash-flow-report-running-balance-label {
-    color: #ed2947 !important;
+    color: #111827 !important;
 }
 
 .cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child dd {
     color: #111827;
+}
+
+.cash-flow-report-results-filter .cash-flow-report-balance-summary div:last-child dd.cash-flow-report-summary-negative {
+    color: #ed2947;
 }
 
 .cash-flow-report-results-content {
@@ -408,7 +416,7 @@
 
 .cash-flow-report-table {
     width: 100%;
-    min-width: 900px;
+    min-width: 1500px;
     border-collapse: collapse;
     color: #17213c;
     font-size: 13px;
@@ -468,6 +476,16 @@
     z-index: 4;
 }
 
+.cash-flow-report-table thead tr:nth-child(2),
+.cash-flow-report-table thead tr:nth-child(3) {
+    height: 43px;
+}
+
+.cash-flow-report-table thead tr:nth-child(3) th {
+    top: 86px;
+    z-index: 5;
+}
+
 .cash-flow-report-table thead {
     box-shadow: 0 1px 0 #d5deeb;
 }
@@ -480,6 +498,12 @@
 .cash-flow-report-bank-deposit-header .cash-flow-report-bank-account {
     font-size: 11px;
     font-weight: 600;
+}
+
+.cash-flow-report-table th.cash-flow-report-net-settlement-header {
+    min-width: 150px;
+    line-height: 1.25;
+    white-space: normal;
 }
 
 .cash-flow-report-table thead tr:first-child th {
@@ -502,6 +526,10 @@
     text-align: right;
 }
 
+.cash-flow-report-table tbody tr:not(.cash-flow-report-empty-row):not(.cash-flow-report-forwarded-table-row):not(.cash-flow-report-commission-row) td:nth-child(2) {
+    text-align: center;
+}
+
 .cash-flow-report-table .cash-flow-report-empty-row td {
     padding: 24px 12px;
     color: #667085;
@@ -509,41 +537,47 @@
 }
 
 .cash-flow-report-table .cash-flow-report-forwarded-table-row td {
-    position: sticky;
-    top: 86px;
-    z-index: 2;
-    background: #fffaf2;
+    background: #fff;
     font-weight: 700;
     text-align: right;
     box-shadow: 0 1px 0 #d5deeb;
 }
 
-.cash-flow-report-table .cash-flow-report-forwarded-table-row td:first-child {
+.cash-flow-report-table .cash-flow-report-forwarded-table-row .cash-flow-report-forwarded-date-cell {
+    color: #17213c;
+    font-size: 13px;
+    font-weight: 400;
+    font-style: normal;
+    text-align: left;
+}
+
+.cash-flow-report-table .cash-flow-report-forwarded-table-row .cash-flow-report-forwarded-label-cell {
     color: #ed2947;
+    text-align: left;
+}
+
+.cash-flow-report-table .cash-flow-report-forwarded-table-row .cash-flow-report-forwarded-amount-cell {
     text-align: right;
 }
 
-.cash-flow-report-table .cash-flow-report-forwarded-table-row td:first-child i {
-    margin-left: 3px;
-    color: #f28c28;
-    font-size: 11px;
-    font-weight: 500;
+.cash-flow-report-table .cash-flow-report-forwarded-table-row .cash-flow-report-forwarded-status-cell {
+    text-align: center;
 }
 
 .cash-flow-report-table .cash-flow-report-forwarded-table-row:hover td {
-    background: #fff3dc;
+    background: #fff;
 }
 
 .cash-flow-report-table .cash-flow-report-commission-row td {
-    background: #fffaf2;
+    background: #fff;
 }
 
 .cash-flow-report-table .cash-flow-report-commission-row:hover td {
-    background: #fff3dc;
+    background: #fff;
 }
 
 .cash-flow-report-table .cash-flow-report-commission-row td:first-child {
-    color: #f28c28;
+    color: #111827;
     font-style: italic;
     font-weight: 600;
     text-align: left;

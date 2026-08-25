@@ -20,6 +20,18 @@ $cashFlowTemporaryRunningBalances = [
         'amount' => 635660.03,
     ],
 ];
+$cashFlowTemporaryCommissionAmounts = [
+    [
+        'currency' => 'PHP',
+        'date' => '2025-12-10',
+        'amount' => 7803965.70,
+    ],
+    [
+        'currency' => 'USD',
+        'date' => '2025-12-10',
+        'amount' => 28001.74,
+    ],
+];
 
 try {
     $statement = masterDataConnection()->query(
@@ -119,7 +131,7 @@ try {
                 </div>
                 <div class="cash-flow-report-forwarded-row">
                     <dt>
-                        <span class="cash-flow-report-forwarded-label">Forwarded Balance</span>
+                        <span class="cash-flow-report-forwarded-label">Ending Balance</span>
                         <i><span id="cashFlowReportForwardedDate">—</span></i>
                     </dt>
                     <dd id="cashFlowReportBeginningBalance" class="cash-flow-report-currency-value"><span class="cash-flow-report-currency-sign">₱</span><span>—</span></dd>
@@ -183,25 +195,34 @@ try {
                         <table class="cash-flow-report-table">
                             <thead>
                                 <tr>
-                                    <th scope="col" rowspan="2">Date</th>
-                                    <th scope="colgroup" colspan="3">Partner Settlement Data</th>
-                                    <th class="cash-flow-report-bank-deposit-header" scope="col" rowspan="2">
+                                    <th scope="col" rowspan="3">Date</th>
+                                    <th scope="colgroup" colspan="8">Partner Settlement Data</th>
+                                    <th class="cash-flow-report-bank-deposit-header" scope="col" rowspan="3">
                                         Bank Deposit
                                         <span class="cash-flow-report-bank-label">(—)</span>
                                         <span class="cash-flow-report-bank-account" data-currency="<?= $currencyLower ?>">—</span>
                                     </th>
-                                    <th scope="col" rowspan="2">Running Balance</th>
-                                    <th scope="col" rowspan="2">Status</th>
+                                    <th scope="col" rowspan="3">Running Balance</th>
+                                    <th scope="col" rowspan="3">Status</th>
                                 </tr>
                                 <tr>
-                                    <th scope="col">Volume</th>
+                                    <th scope="col" rowspan="2">Volume</th>
+                                    <th scope="colgroup" colspan="2">Payout</th>
+                                    <th scope="colgroup" colspan="3">Sendout</th>
+                                    <th scope="col" rowspan="2">Adjustment / Refund</th>
+                                    <th class="cash-flow-report-net-settlement-header" scope="col" rowspan="2">Net Transaction Amount for Settlement</th>
+                                </tr>
+                                <tr>
                                     <th scope="col">Principal</th>
-                                    <th scope="col">Adjustment / Refund</th>
+                                    <th scope="col">Commission</th>
+                                    <th scope="col">Principal</th>
+                                    <th scope="col">Charge</th>
+                                    <th scope="col">Commission</th>
                                 </tr>
                             </thead>
                             <tbody id="cashFlowReport<?= $currency ?>TableBody">
                                 <tr class="cash-flow-report-empty-row">
-                                    <td colspan="7">Select a corporate partner and month, then click Generate.</td>
+                                    <td colspan="12">Select a corporate partner and month, then click Generate.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -349,32 +370,45 @@ try {
         USD: { volume: null, beginning: null, transactions: null, deposits: null, running: null }
     };
 
+    const updateSummaryAmountColor = (element, value) => {
+        const amountContainer = element?.closest('dd') || element;
+        amountContainer?.classList.toggle(
+            'cash-flow-report-summary-negative',
+            value !== null && Number(value) < 0
+        );
+    };
+
     const updateBalanceSummary = (currency) => {
         const summary = balanceSummaries[currency] || {};
         if (beginningBalanceValue) {
             beginningBalanceValue.textContent = summary.beginning === null
                 ? '—'
                 : formatAmount(summary.beginning);
+            updateSummaryAmountColor(beginningBalanceValue, summary.beginning);
         }
         if (volumeValue) {
             volumeValue.textContent = summary.volume === null
                 ? '—'
                 : formatCount(summary.volume);
+            updateSummaryAmountColor(volumeValue, summary.volume);
         }
         if (transactionsValue) {
             transactionsValue.textContent = summary.transactions === null
                 ? '—'
                 : formatAmount(summary.transactions);
+            updateSummaryAmountColor(transactionsValue, summary.transactions);
         }
         if (depositsValue) {
             depositsValue.textContent = summary.deposits === null
                 ? '—'
                 : formatAmount(summary.deposits);
+            updateSummaryAmountColor(depositsValue, summary.deposits);
         }
         if (runningBalanceValue) {
             runningBalanceValue.textContent = summary.running === null
                 ? '—'
                 : formatAmount(summary.running);
+            updateSummaryAmountColor(runningBalanceValue, summary.running);
         }
     };
 
@@ -426,6 +460,10 @@ try {
     ) ?>;
     const temporaryRunningBalances = <?= json_encode(
         $cashFlowTemporaryRunningBalances,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    ) ?>;
+    const temporaryCommissionAmounts = <?= json_encode(
+        $cashFlowTemporaryCommissionAmounts,
         JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?>;
 
@@ -484,6 +522,26 @@ try {
             String(item.currency || '').toUpperCase() === currency.toUpperCase()
             && String(item.date || '') === forwardedDateValue
             && String(item.account_number || '').replace(/[^A-Za-z0-9]/g, '') === account
+        );
+
+        return override && Number.isFinite(Number(override.amount))
+            ? Number(override.amount)
+            : null;
+    };
+
+    const temporaryCommissionAmount = (currency) => {
+        const monthValue = monthInput?.value || '';
+        const [year, month] = monthValue.split('-').map(Number);
+        if (!year || !month) return null;
+
+        const commissionMonth = new Date(year, month - 2, 1);
+        const commissionMonthValue = [
+            commissionMonth.getFullYear(),
+            String(commissionMonth.getMonth() + 1).padStart(2, '0')
+        ].join('-');
+        const override = temporaryCommissionAmounts.find((item) =>
+            String(item.currency || '').toUpperCase() === currency.toUpperCase()
+            && String(item.date || '').slice(0, 7) === commissionMonthValue
         );
 
         return override && Number.isFinite(Number(override.amount))
@@ -620,16 +678,30 @@ try {
         ).map((row) => {
             const cells = Array.from(row.cells);
             const commission = row.classList.contains('cash-flow-report-commission-row');
-            const offset = commission ? -1 : 0;
-            const remarksSelect = cells[6 + offset]?.querySelector('.cash-flow-report-remarks');
+            const remarksSelect = cells[commission ? 6 : 11]?.querySelector(
+                '.cash-flow-report-remarks'
+            );
+            const principal = commission
+                ? exportNumber(cells[1]?.textContent)
+                : exportNumber(row.dataset.settlementAmount);
             return {
                 commission,
                 date: cells[0]?.textContent.trim() || '',
                 volume: commission ? 0 : exportNumber(cells[1]?.textContent),
-                principal: exportNumber(cells[2 + offset]?.textContent),
-                adjustment: exportNumber(cells[3 + offset]?.textContent),
-                deposit: exportNumber(cells[4 + offset]?.textContent),
-                running: exportNumber(cells[5 + offset]?.textContent),
+                principal,
+                payout_principal: commission ? null : exportNumber(cells[2]?.textContent),
+                payout_commission: commission
+                    ? exportNumber(cells[1]?.textContent)
+                    : exportNumber(cells[3]?.textContent),
+                sendout_principal: commission ? null : exportNumber(cells[4]?.textContent),
+                sendout_charge: commission ? null : exportNumber(cells[5]?.textContent),
+                sendout_commission: commission ? null : exportNumber(cells[6]?.textContent),
+                adjustment: commission ? null : exportNumber(cells[7]?.textContent),
+                net_transaction_amount: commission
+                    ? exportNumber(cells[3]?.textContent)
+                    : exportNumber(cells[8]?.textContent),
+                deposit: commission ? null : exportNumber(cells[9]?.textContent),
+                running: exportNumber(cells[commission ? 5 : 10]?.textContent),
                 remarks: remarksSelect?.value || 'NOT VALID'
             };
         });
@@ -707,7 +779,7 @@ try {
         const cell = row.insertCell();
         body.replaceChildren(row);
         row.className = 'cash-flow-report-empty-row';
-        cell.colSpan = 7;
+        cell.colSpan = 12;
         cell.textContent = message;
     };
 
@@ -740,10 +812,14 @@ try {
                     + Number(sendout.fx || 0);
             }, 0) - Number(nullTypeFxTotal || 0);
         };
-        const monthlyCommissionAmount = calculateCommissionTotal(
+        let monthlyCommissionAmount = calculateCommissionTotal(
             commissionReport,
             monthlyCommissionFxTotal
         );
+        const temporaryCommission = temporaryCommissionAmount(currency);
+        if (temporaryCommission !== null) {
+            monthlyCommissionAmount = temporaryCommission;
+        }
         const priorCommissionAmount = calculateCommissionTotal(
             priorCommissionReport,
             priorCommissionFxTotal
@@ -784,33 +860,47 @@ try {
 
         const forwardedRow = body.insertRow();
         forwardedRow.className = 'cash-flow-report-forwarded-table-row';
+        const forwardedDateCell = forwardedRow.insertCell();
+        forwardedDateCell.className = 'cash-flow-report-forwarded-date-cell';
+        forwardedDateCell.textContent = forwardedDate?.textContent || '—';
+
         const forwardedLabelCell = forwardedRow.insertCell();
-        forwardedLabelCell.colSpan = 5;
-        forwardedLabelCell.append(document.createTextNode('Forwarded Balance '));
-        const forwardedDateLabel = document.createElement('i');
-        forwardedDateLabel.textContent = forwardedDate?.textContent || '—';
-        forwardedLabelCell.appendChild(forwardedDateLabel);
+        forwardedLabelCell.className = 'cash-flow-report-forwarded-label-cell';
+        forwardedLabelCell.colSpan = 9;
+        forwardedLabelCell.textContent = '(Ending Balance)';
 
         const forwardedAmountCell = forwardedRow.insertCell();
-        forwardedAmountCell.colSpan = 2;
+        forwardedAmountCell.className = 'cash-flow-report-forwarded-amount-cell';
         forwardedAmountCell.textContent = formatAmount(forwardedBeginningBalance);
         if (forwardedBeginningBalance < 0) {
             forwardedAmountCell.classList.add('cash-flow-report-negative-balance');
         }
 
+        const forwardedStatusCell = forwardedRow.insertCell();
+        forwardedStatusCell.className = 'cash-flow-report-forwarded-status-cell';
+        forwardedStatusCell.textContent = '';
+
         rows.forEach((item) => {
             const principal = Number(item?.settlement_amount || 0);
+            const payout = item?.payout || {};
+            const sendout = item?.sendout || {};
             const adjustment = 0;
             const deposit = Object.prototype.hasOwnProperty.call(dailyDeposits, item?.date)
                 ? Number(dailyDeposits[item.date] || 0)
                 : 0;
             runningBalance = runningBalance - principal + adjustment + deposit;
             const row = body.insertRow();
+            row.dataset.settlementAmount = String(principal);
             const values = [
                 formatReportDate(item?.date),
                 formatCount(item?.settlement_volume),
-                formatAmount(principal),
+                formatAmount(payout.principal),
                 '—',
+                formatAmount(sendout.principal),
+                formatAmount(sendout.fee),
+                formatAmount(sendout.commission),
+                '—',
+                formatAmount(principal),
                 Object.prototype.hasOwnProperty.call(dailyDeposits, item?.date)
                     ? formatAmount(deposit)
                     : '—',
@@ -819,12 +909,12 @@ try {
             ];
             values.forEach((value, columnIndex) => {
                 const cell = row.insertCell();
-                if (columnIndex === 6) {
+                if (columnIndex === 11) {
                     addRemarksDropdown(cell, dailyRemarks[item.date], item.date, currency);
                 } else {
                     cell.textContent = value;
                 }
-                if (columnIndex === 5 && runningBalance < 0) {
+                if (columnIndex === 10 && runningBalance < 0) {
                     cell.classList.add('cash-flow-report-negative-balance');
                 }
             });
@@ -835,12 +925,16 @@ try {
                 commissionRow.className = 'cash-flow-report-commission-row';
 
                 const commissionCell = commissionRow.insertCell();
-                commissionCell.colSpan = 2;
+                commissionCell.colSpan = 3;
                 commissionCell.textContent = `${previousMonthSameDay(item.date)} Commission`;
                 const commissionDate = previousMonthSameDayValue(item.date);
 
+                const commissionAmountCell = commissionRow.insertCell();
+                commissionAmountCell.textContent = formatAmount(monthlyCommissionAmount);
+                const commissionEmptyCell = commissionRow.insertCell();
+                commissionEmptyCell.colSpan = 4;
+                commissionEmptyCell.textContent = '';
                 commissionRow.insertCell().textContent = formatAmount(monthlyCommissionAmount);
-                commissionRow.insertCell().textContent = '';
                 commissionRow.insertCell().textContent = '';
                 runningBalance -= monthlyCommissionAmount;
                 const commissionRunningBalanceCell = commissionRow.insertCell();
@@ -969,6 +1063,8 @@ try {
                 end_date: priorEndDate,
                 cashflow_only: '1'
             });
+            const priorCashFlowParams = new URLSearchParams(priorParams);
+            priorCashFlowParams.set('commission_only', '1');
             const requestOptions = {
                 headers: { Accept: 'application/json' },
                 credentials: 'same-origin'
@@ -986,7 +1082,7 @@ try {
                 fetch(`${reportEndpoint}?${previousParams.toString()}`, requestOptions),
                 fetch(`${cashFlowEndpoint}?${previousParams.toString()}`, requestOptions),
                 fetch(`${reportEndpoint}?${priorParams.toString()}`, requestOptions),
-                fetch(`${cashFlowEndpoint}?${priorParams.toString()}`, requestOptions)
+                fetch(`${cashFlowEndpoint}?${priorCashFlowParams.toString()}`, requestOptions)
             ]);
             const [
                 data,

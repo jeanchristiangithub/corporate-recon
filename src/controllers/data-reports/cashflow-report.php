@@ -10,6 +10,10 @@ try {
     $partner = trim((string) ($_GET['partner'] ?? ''));
     $startDate = trim((string) ($_GET['start_date'] ?? ''));
     $endDate = trim((string) ($_GET['end_date'] ?? ''));
+    $commissionOnly = filter_var(
+        $_GET['commission_only'] ?? false,
+        FILTER_VALIDATE_BOOL
+    );
 
     if ($partner === '') {
         throw new InvalidArgumentException('Corporate Partner is required.');
@@ -25,33 +29,37 @@ try {
         throw new InvalidArgumentException('The report date range is invalid.');
     }
 
-    $partnerStatement = masterDataConnection()->prepare(
-        'SELECT php_account_no, usd_account_no
-         FROM corpo_partner_masterfile
-         WHERE UPPER(TRIM(partner_name)) = UPPER(?)
-         LIMIT 1'
-    );
-    $partnerStatement->execute([$partner]);
-    $partnerAccounts = $partnerStatement->fetch(PDO::FETCH_ASSOC);
-    if (!$partnerAccounts) {
-        throw new RuntimeException('The selected Corporate Partner was not found.');
-    }
-
-    $accounts = [
-        'php' => trim((string) ($partnerAccounts['php_account_no'] ?? '')),
-        'usd' => trim((string) ($partnerAccounts['usd_account_no'] ?? '')),
-    ];
-    $queryAccounts = array_values(array_unique(array_filter(
-        $accounts,
-        static fn(string $account): bool => $account !== ''
-    )));
+    $accounts = ['php' => '', 'usd' => ''];
     $deposits = ['php' => [], 'usd' => []];
     $beginningBalances = ['php' => 0.0, 'usd' => 0.0];
     $commissionFx = ['php' => [], 'usd' => []];
     $commissionFxTotals = ['php' => 0.0, 'usd' => 0.0];
     $remarks = ['php' => [], 'usd' => []];
 
-    if ($queryAccounts !== []) {
+    if (!$commissionOnly) {
+        $partnerStatement = masterDataConnection()->prepare(
+            'SELECT php_account_no, usd_account_no
+             FROM corpo_partner_masterfile
+             WHERE UPPER(TRIM(partner_name)) = UPPER(?)
+             LIMIT 1'
+        );
+        $partnerStatement->execute([$partner]);
+        $partnerAccounts = $partnerStatement->fetch(PDO::FETCH_ASSOC);
+        if (!$partnerAccounts) {
+            throw new RuntimeException('The selected Corporate Partner was not found.');
+        }
+
+        $accounts = [
+            'php' => trim((string) ($partnerAccounts['php_account_no'] ?? '')),
+            'usd' => trim((string) ($partnerAccounts['usd_account_no'] ?? '')),
+        ];
+        $queryAccounts = array_values(array_unique(array_filter(
+            $accounts,
+            static fn(string $account): bool => $account !== ''
+        )));
+    }
+
+    if (!$commissionOnly && $queryAccounts !== []) {
         $placeholders = implode(', ', array_fill(0, count($queryAccounts), '?'));
         $depositStatement = vbReconDbConnection()->prepare(
             'SELECT transaction_date, account_number, SUM(COALESCE(deposits, 0)) AS deposit_total
@@ -118,20 +126,22 @@ try {
         }
     }
 
-    $remarksStatement = fileRecDbConnection()->prepare(
-        'SELECT tran_date, php_remarks, usd_remarks
-         FROM partner_cashflow_remark_tag
-         WHERE UPPER(TRIM(partner_name)) = UPPER(?)
-           AND tran_date BETWEEN ? AND ?
-         ORDER BY id'
-    );
-    $remarksStatement->execute([$partner, $startDate, $endDate]);
-    foreach ($remarksStatement->fetchAll(PDO::FETCH_ASSOC) as $record) {
-        $date = (string) ($record['tran_date'] ?? '');
-        foreach (['php', 'usd'] as $currency) {
-            $remark = trim((string) ($record[$currency . '_remarks'] ?? ''));
-            if ($date !== '' && in_array($remark, ['valid', 'not-valid'], true)) {
-                $remarks[$currency][$date] = $remark;
+    if (!$commissionOnly) {
+        $remarksStatement = fileRecDbConnection()->prepare(
+            'SELECT tran_date, php_remarks, usd_remarks
+             FROM partner_cashflow_remark_tag
+             WHERE UPPER(TRIM(partner_name)) = UPPER(?)
+               AND tran_date BETWEEN ? AND ?
+             ORDER BY id'
+        );
+        $remarksStatement->execute([$partner, $startDate, $endDate]);
+        foreach ($remarksStatement->fetchAll(PDO::FETCH_ASSOC) as $record) {
+            $date = (string) ($record['tran_date'] ?? '');
+            foreach (['php', 'usd'] as $currency) {
+                $remark = trim((string) ($record[$currency . '_remarks'] ?? ''));
+                if ($date !== '' && in_array($remark, ['valid', 'not-valid'], true)) {
+                    $remarks[$currency][$date] = $remark;
+                }
             }
         }
     }

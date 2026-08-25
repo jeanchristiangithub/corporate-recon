@@ -210,7 +210,7 @@ function formatUserCreatedDate($value): string
             <label for="all_users_password">Password</label>
             <input id="all_users_password" name="password" type="text" readonly value="Mlinc1234" autocomplete="off" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1px solid #e6eef6;padding:8px;border-radius:6px">
 
-            <div style="margin-top:10px;">
+            <div class="all-users-add-user-actions">
                 <button type="submit" class="material-btn material-btn--primary">Create</button>
             </div>
         </form>
@@ -365,6 +365,12 @@ function formatUserCreatedDate($value): string
     background: #dc3545;
     color: #ffffff;
     font-weight: 700;
+}
+
+.all-users-add-user-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
 }
 
 .all-users-alert {
@@ -1140,8 +1146,8 @@ function formatUserCreatedDate($value): string
         <h3 id="confirmActionTitle">Confirm action</h3>
         <p id="confirmActionMessage">Are you sure?</p>
         <div class="confirm-modal__actions">
+            <button id="confirmActionConfirm" class="material-btn material-btn--danger">Proceed</button>
             <button id="confirmActionCancel" class="material-btn">Cancel</button>
-            <button id="confirmActionConfirm" class="material-btn material-btn--primary">OK</button>
         </div>
     </div>
 </div>
@@ -1155,7 +1161,8 @@ function formatUserCreatedDate($value): string
 .confirm-modal__card p { margin:0 0 16px; color:#334155; }
 .confirm-modal__actions { display:flex; gap:8px; justify-content:flex-end; }
 .confirm-modal__actions .material-btn { padding:8px 12px; border-radius:6px; }
-.confirm-modal__actions .material-btn--primary { background:#6d28d9; color:#fff; border: none; }
+.confirm-modal__actions .material-btn--danger { background:#dc3545; color:#fff; border:none; }
+.confirm-modal__actions .material-btn--danger:hover { background:#bb2d3b; }
 </style>
 
 <script>
@@ -1187,17 +1194,17 @@ function formatUserCreatedDate($value): string
         const uname = form.dataset.username || '';
         let message = 'Are you sure?';
         if (action === 'reset') {
-            message = `Reset password to default (Mlinc1234) for user "${uname}"?`;
+            message = `Reset password to default (Mlinc1234) for username "${uname}"?`;
         } else if (action === 'delete') {
-            message = `Delete user "${uname}"?`;
+            message = `Delete username "${uname}"?`;
         } else if (action === 'status') {
             // For status toggles, read hidden input 'status' to determine label
             var statusInput = form.querySelector('input[name="status"]');
             var target = statusInput ? statusInput.value : '';
             if (target === 'inactive') {
-                message = `Deactivate user "${uname}"?`;
+                message = `Deactivate username "${uname}"?`;
             } else if (target === 'active') {
-                message = `Activate user "${uname}"?`;
+                message = `Activate username "${uname}"?`;
             }
         }
         openModal(message, form);
