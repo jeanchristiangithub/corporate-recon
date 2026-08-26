@@ -383,6 +383,14 @@ function summary_column_is_not_nullish_where(array $columns, array $candidates):
 
 function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, string $endDate, string $currency): array
 {
+    $useJune2026GrossVolume = $startDate === '2026-06-01'
+        && $endDate === '2026-06-30';
+    $payoutVolumeExpression = $useJune2026GrossVolume
+        ? "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) IN ('REC', 'RRC') THEN 1 ELSE 0 END)"
+        : "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'REC' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) = 'RRC' THEN -1 ELSE 0 END)";
+    $sendoutVolumeExpression = $useJune2026GrossVolume
+        ? "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) IN ('SEN', 'RSN', 'REF') THEN 1 ELSE 0 END)"
+        : "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'SEN' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) IN ('RSN', 'REF') THEN -1 ELSE 0 END)";
     $amountFields = [
         'principal' => 'base_tran_amt',
         'fee' => 'fee_tran_amt',
@@ -394,8 +402,8 @@ function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, 
         . ' ELSE psd.tran_date END)';
     $selects = [
         $reportDateExpression . ' AS report_date',
-        "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'REC' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) = 'RRC' THEN -1 ELSE 0 END) AS payout_volume",
-        "SUM(CASE WHEN UPPER(TRIM(psd.tran_type)) = 'SEN' THEN 1 WHEN UPPER(TRIM(psd.tran_type)) IN ('RSN', 'REF') THEN -1 ELSE 0 END) AS sendout_volume",
+        $payoutVolumeExpression . ' AS payout_volume',
+        $sendoutVolumeExpression . ' AS sendout_volume',
     ];
     foreach ($amountFields as $key => $column) {
         $qualifiedColumn = 'psd.' . summary_quote_identifier($column);

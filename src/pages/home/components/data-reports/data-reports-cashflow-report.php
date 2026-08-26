@@ -203,7 +203,7 @@ try {
                                         <span class="cash-flow-report-bank-account" data-currency="<?= $currencyLower ?>">—</span>
                                     </th>
                                     <th scope="col" rowspan="3">Running Balance</th>
-                                    <th scope="col" rowspan="3">Status</th>
+                                    <th scope="col" rowspan="3">Action</th>
                                 </tr>
                                 <tr>
                                     <th scope="col" rowspan="2">Volume</th>
@@ -225,6 +225,22 @@ try {
                                     <td colspan="12">Select a corporate partner and month, then click Generate.</td>
                                 </tr>
                             </tbody>
+                            <tfoot id="cashFlowReport<?= $currency ?>TableFoot">
+                                <tr>
+                                    <th scope="row">Grand Total:</th>
+                                    <td data-total="volume">—</td>
+                                    <td data-total="payout-principal">—</td>
+                                    <td data-total="payout-commission">—</td>
+                                    <td data-total="sendout-principal">—</td>
+                                    <td data-total="sendout-charge">—</td>
+                                    <td data-total="sendout-commission">—</td>
+                                    <td data-total="adjustment">—</td>
+                                    <td data-total="net-transaction">—</td>
+                                    <td data-total="deposit">—</td>
+                                    <td data-total="running">—</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -470,11 +486,18 @@ try {
     const formatReportDate = (value) => {
         const parts = String(value || '').split('-').map(Number);
         if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return '—';
-        return new Intl.DateTimeFormat('en-US', {
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        const calendarDate = new Intl.DateTimeFormat('en-US', {
             month: 'long',
             day: '2-digit',
             year: 'numeric'
-        }).format(new Date(parts[0], parts[1] - 1, parts[2]));
+        }).format(date);
+        const weekday = new Intl.DateTimeFormat('en-US', {
+            weekday: 'long'
+        }).format(date);
+        return date.getDay() === 0 || date.getDay() === 6
+            ? `${calendarDate}\n${weekday}`
+            : calendarDate;
     };
 
     const previousMonthSameDay = (value) => {
@@ -504,6 +527,18 @@ try {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(Number(value || 0));
+
+    const appendFormattedDate = (cell, value) => {
+        const [calendarDate, weekday] = String(value || '—').split('\n');
+        cell.append(document.createTextNode(calendarDate || '—'));
+        if (weekday) {
+            cell.append(document.createTextNode('\n'));
+            const weekdayLabel = document.createElement('strong');
+            weekdayLabel.className = 'cash-flow-report-weekday';
+            weekdayLabel.textContent = weekday;
+            cell.appendChild(weekdayLabel);
+        }
+    };
 
     const temporaryForwardedBalance = (currency) => {
         const monthValue = monthInput?.value || '';
@@ -553,6 +588,52 @@ try {
     const reportStatus = document.getElementById('cashFlowReportStatus');
     const exportExcelButton = document.getElementById('cashFlowReportExportExcel');
     let latestCashFlowAccounts = { php: '', usd: '' };
+    const endingBalanceStorageKey = 'cashFlowReportEndingBalancesV1';
+    let endingBalanceCache = {};
+    try {
+        endingBalanceCache = JSON.parse(
+            sessionStorage.getItem(endingBalanceStorageKey) || '{}'
+        );
+    } catch (error) {
+        endingBalanceCache = {};
+    }
+
+    const endingBalanceKey = (partner, month, currency) => [
+        String(partner || '').trim().toUpperCase(),
+        String(month || ''),
+        String(currency || '').toUpperCase()
+    ].join('|');
+
+    const previousMonthValue = (monthValue) => {
+        const [year, month] = String(monthValue || '').split('-').map(Number);
+        if (!year || !month) return '';
+        const previous = new Date(year, month - 2, 1);
+        return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    const cachedPreviousEndingBalance = (currency) => {
+        const key = endingBalanceKey(
+            input.value,
+            previousMonthValue(monthInput?.value),
+            currency
+        );
+        const value = endingBalanceCache[key];
+        return Number.isFinite(Number(value)) ? Number(value) : null;
+    };
+
+    const rememberEndingBalance = (currency, value) => {
+        if (!Number.isFinite(Number(value)) || !monthInput?.value) return;
+        const key = endingBalanceKey(input.value, monthInput.value, currency);
+        endingBalanceCache[key] = Number(value);
+        try {
+            sessionStorage.setItem(
+                endingBalanceStorageKey,
+                JSON.stringify(endingBalanceCache)
+            );
+        } catch (error) {
+            // The in-memory cache still keeps month-to-month continuity.
+        }
+    };
 
     const updateRemarkAppearance = (select) => {
         const isValid = select.value === 'VALID';
@@ -772,6 +853,37 @@ try {
         if (choice.isDenied) submitCashFlowExport('pdf');
     });
 
+    const updateGrandTotal = (currency, totals = null) => {
+        const foot = document.getElementById(`cashFlowReport${currency}TableFoot`);
+        if (!foot) return;
+        const values = totals || {};
+        const amountKeys = [
+            'payout-principal',
+            'payout-commission',
+            'sendout-principal',
+            'sendout-charge',
+            'sendout-commission',
+            'adjustment',
+            'net-transaction',
+            'deposit',
+            'running'
+        ];
+        const volumeCell = foot.querySelector('[data-total="volume"]');
+        if (volumeCell) {
+            volumeCell.textContent = totals ? formatCount(values.volume) : '—';
+        }
+        amountKeys.forEach((key) => {
+            const cell = foot.querySelector(`[data-total="${key}"]`);
+            if (cell) {
+                cell.textContent = totals ? formatAmount(values[key]) : '—';
+                cell.classList.toggle(
+                    'cash-flow-report-negative-balance',
+                    Boolean(totals) && Number(values[key]) < 0
+                );
+            }
+        });
+    };
+
     const replaceTableMessage = (currency, message) => {
         const body = document.getElementById(`cashFlowReport${currency}TableBody`);
         if (!body) return;
@@ -781,6 +893,7 @@ try {
         row.className = 'cash-flow-report-empty-row';
         cell.colSpan = 12;
         cell.textContent = message;
+        updateGrandTotal(currency);
     };
 
     const renderSettlementRows = (
@@ -838,6 +951,10 @@ try {
         if (temporaryBalance !== null) {
             forwardedBeginningBalance = temporaryBalance;
         }
+        const cachedEndingBalance = cachedPreviousEndingBalance(currency);
+        if (cachedEndingBalance !== null) {
+            forwardedBeginningBalance = cachedEndingBalance;
+        }
         const totalVolume = rows.reduce(
             (total, item) => total + Number(item?.settlement_volume || 0),
             0
@@ -846,6 +963,22 @@ try {
             (total, item) => total + Number(item?.settlement_amount || 0),
             0
         ) + monthlyCommissionAmount;
+        const totalPayoutPrincipal = rows.reduce(
+            (total, item) => total + Number(item?.payout?.principal || 0),
+            0
+        );
+        const totalSendoutPrincipal = rows.reduce(
+            (total, item) => total + Number(item?.sendout?.principal || 0),
+            0
+        );
+        const totalSendoutCharge = rows.reduce(
+            (total, item) => total + Number(item?.sendout?.fee || 0),
+            0
+        );
+        const totalSendoutCommission = rows.reduce(
+            (total, item) => total + Number(item?.sendout?.commission || 0),
+            0
+        );
         const totalDeposits = Object.values(dailyDeposits || {}).reduce(
             (total, amount) => total + Number(amount || 0),
             0
@@ -862,7 +995,7 @@ try {
         forwardedRow.className = 'cash-flow-report-forwarded-table-row';
         const forwardedDateCell = forwardedRow.insertCell();
         forwardedDateCell.className = 'cash-flow-report-forwarded-date-cell';
-        forwardedDateCell.textContent = forwardedDate?.textContent || '—';
+        appendFormattedDate(forwardedDateCell, forwardedDate?.textContent || '—');
 
         const forwardedLabelCell = forwardedRow.insertCell();
         forwardedLabelCell.className = 'cash-flow-report-forwarded-label-cell';
@@ -879,6 +1012,26 @@ try {
         const forwardedStatusCell = forwardedRow.insertCell();
         forwardedStatusCell.className = 'cash-flow-report-forwarded-status-cell';
         forwardedStatusCell.textContent = '';
+
+        const commissionAnchor = rows.find(
+            (item) => Number(String(item?.date || '').slice(-2)) === 10
+        );
+        const commissionAnchorDate = String(commissionAnchor?.date || '');
+        let commissionInsertionDate = commissionAnchorDate;
+        if (commissionAnchorDate) {
+            const [anchorYear, anchorMonth, anchorDay] = commissionAnchorDate
+                .split('-')
+                .map(Number);
+            const anchorDate = new Date(anchorYear, anchorMonth - 1, anchorDay);
+            if (anchorDate.getDay() === 6) {
+                anchorDate.setDate(anchorDate.getDate() + 1);
+                commissionInsertionDate = [
+                    anchorDate.getFullYear(),
+                    String(anchorDate.getMonth() + 1).padStart(2, '0'),
+                    String(anchorDate.getDate()).padStart(2, '0')
+                ].join('-');
+            }
+        }
 
         rows.forEach((item) => {
             const principal = Number(item?.settlement_amount || 0);
@@ -911,6 +1064,8 @@ try {
                 const cell = row.insertCell();
                 if (columnIndex === 11) {
                     addRemarksDropdown(cell, dailyRemarks[item.date], item.date, currency);
+                } else if (columnIndex === 0) {
+                    appendFormattedDate(cell, value);
                 } else {
                     cell.textContent = value;
                 }
@@ -919,15 +1074,14 @@ try {
                 }
             });
 
-            const day = Number(String(item?.date || '').slice(-2));
-            if (day === 10) {
+            if (String(item?.date || '') === commissionInsertionDate) {
                 const commissionRow = body.insertRow();
                 commissionRow.className = 'cash-flow-report-commission-row';
 
                 const commissionCell = commissionRow.insertCell();
                 commissionCell.colSpan = 3;
-                commissionCell.textContent = `${previousMonthSameDay(item.date)} Commission`;
-                const commissionDate = previousMonthSameDayValue(item.date);
+                commissionCell.textContent = `${previousMonthSameDay(commissionAnchorDate)} Commission`;
+                const commissionDate = previousMonthSameDayValue(commissionAnchorDate);
 
                 const commissionAmountCell = commissionRow.insertCell();
                 commissionAmountCell.textContent = formatAmount(monthlyCommissionAmount);
@@ -959,6 +1113,19 @@ try {
             deposits: totalDeposits,
             running: runningBalance
         };
+        updateGrandTotal(currency, {
+            volume: totalVolume,
+            'payout-principal': totalPayoutPrincipal,
+            'payout-commission': monthlyCommissionAmount,
+            'sendout-principal': totalSendoutPrincipal,
+            'sendout-charge': totalSendoutCharge,
+            'sendout-commission': totalSendoutCommission,
+            adjustment: 0,
+            'net-transaction': totalPrincipal,
+            deposit: totalDeposits,
+            running: runningBalance
+        });
+        rememberEndingBalance(currency, runningBalance);
         const selectedTab = document.querySelector(
             '.cash-flow-report-currency-tab[aria-selected="true"]'
         );
@@ -984,8 +1151,11 @@ try {
                 const [year, month] = monthValue.split('-').map(Number);
                 const dateFormatter = new Intl.DateTimeFormat('en-US', {
                     month: 'long',
-                    day: 'numeric',
+                    day: '2-digit',
                     year: 'numeric'
+                });
+                const weekdayFormatter = new Intl.DateTimeFormat('en-US', {
+                    weekday: 'long'
                 });
                 const monthYearFormatter = new Intl.DateTimeFormat('en-US', {
                     month: 'long',
@@ -997,9 +1167,12 @@ try {
                 );
 
                 if (forwardedDate) {
-                    forwardedDate.textContent = dateFormatter.format(
-                        new Date(year, month - 1, 0)
-                    );
+                    const forwardedDateValue = new Date(year, month - 1, 0);
+                    const forwardedCalendarDate = dateFormatter.format(forwardedDateValue);
+                    forwardedDate.textContent = forwardedDateValue.getDay() === 0
+                        || forwardedDateValue.getDay() === 6
+                        ? `${forwardedCalendarDate}\n${weekdayFormatter.format(forwardedDateValue)}`
+                        : forwardedCalendarDate;
                 }
             }
         }
