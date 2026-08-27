@@ -6,32 +6,6 @@ require_once __DIR__ . '/../../../../config/csrf.php';
 
 $cashFlowReportPartners = [];
 $cashFlowReportPartnerBanks = [];
-$cashFlowTemporaryRunningBalances = [
-    [
-        'currency' => 'PHP',
-        'date' => '2025-12-31',
-        'account_number' => '1301032869',
-        'amount' => -91986860.01,
-    ],
-    [
-        'currency' => 'USD',
-        'date' => '2025-12-31',
-        'account_number' => '1304025685',
-        'amount' => 635660.03,
-    ],
-];
-$cashFlowTemporaryCommissionAmounts = [
-    [
-        'currency' => 'PHP',
-        'date' => '2025-12-10',
-        'amount' => 7803965.70,
-    ],
-    [
-        'currency' => 'USD',
-        'date' => '2025-12-10',
-        'amount' => 28001.74,
-    ],
-];
 
 try {
     $statement = masterDataConnection()->query(
@@ -474,14 +448,8 @@ try {
         csrfToken(),
         JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?>;
-    const temporaryRunningBalances = <?= json_encode(
-        $cashFlowTemporaryRunningBalances,
-        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
-    ) ?>;
-    const temporaryCommissionAmounts = <?= json_encode(
-        $cashFlowTemporaryCommissionAmounts,
-        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
-    ) ?>;
+    let temporaryRunningBalances = [];
+    let temporaryCommissionAmounts = [];
 
     const formatReportDate = (value) => {
         const parts = String(value || '').split('-').map(Number);
@@ -947,13 +915,13 @@ try {
                 return running - previousPrincipal + previousDeposit;
             }, Number(previousMonthBeginningBalance || 0)) - priorCommissionAmount
             : Number(beginningBalance || 0);
-        const temporaryBalance = temporaryForwardedBalance(currency);
-        if (temporaryBalance !== null) {
-            forwardedBeginningBalance = temporaryBalance;
-        }
         const cachedEndingBalance = cachedPreviousEndingBalance(currency);
         if (cachedEndingBalance !== null) {
             forwardedBeginningBalance = cachedEndingBalance;
+        }
+        const temporaryBalance = temporaryForwardedBalance(currency);
+        if (temporaryBalance !== null) {
+            forwardedBeginningBalance = temporaryBalance;
         }
         const totalVolume = rows.reduce(
             (total, item) => total + Number(item?.settlement_volume || 0),
@@ -1275,6 +1243,17 @@ try {
                 throw new Error(cashFlowData?.error || 'Unable to load Cash Flow bank deposits.');
             }
             latestCashFlowAccounts = cashFlowData.accounts || { php: '', usd: '' };
+            temporaryRunningBalances = Array.isArray(cashFlowData.ending_balances)
+                ? cashFlowData.ending_balances
+                : [];
+            temporaryCommissionAmounts = [
+                ...(Array.isArray(previousCashFlowData.monthly_commissions)
+                    ? previousCashFlowData.monthly_commissions
+                    : []),
+                ...(Array.isArray(priorCashFlowData.monthly_commissions)
+                    ? priorCashFlowData.monthly_commissions
+                    : [])
+            ];
             updateBankAccountHeaders(latestCashFlowAccounts);
             if (!previousSettlementResponse.ok || !previousData?.success) {
                 throw new Error(previousData?.error || 'Unable to load previous-month settlement data.');

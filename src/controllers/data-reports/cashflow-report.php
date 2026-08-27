@@ -35,20 +35,23 @@ try {
     $commissionFx = ['php' => [], 'usd' => []];
     $commissionFxTotals = ['php' => 0.0, 'usd' => 0.0];
     $remarks = ['php' => [], 'usd' => []];
+    $endingBalances = [];
+    $monthlyCommissions = [];
+
+    $partnerStatement = masterDataConnection()->prepare(
+        'SELECT partner_id, php_account_no, usd_account_no
+         FROM corpo_partner_masterfile
+         WHERE UPPER(TRIM(partner_name)) = UPPER(?)
+         LIMIT 1'
+    );
+    $partnerStatement->execute([$partner]);
+    $partnerAccounts = $partnerStatement->fetch(PDO::FETCH_ASSOC);
+    if (!$partnerAccounts) {
+        throw new RuntimeException('The selected Corporate Partner was not found.');
+    }
+    $partnerId = trim((string) ($partnerAccounts['partner_id'] ?? ''));
 
     if (!$commissionOnly) {
-        $partnerStatement = masterDataConnection()->prepare(
-            'SELECT php_account_no, usd_account_no
-             FROM corpo_partner_masterfile
-             WHERE UPPER(TRIM(partner_name)) = UPPER(?)
-             LIMIT 1'
-        );
-        $partnerStatement->execute([$partner]);
-        $partnerAccounts = $partnerStatement->fetch(PDO::FETCH_ASSOC);
-        if (!$partnerAccounts) {
-            throw new RuntimeException('The selected Corporate Partner was not found.');
-        }
-
         $accounts = [
             'php' => trim((string) ($partnerAccounts['php_account_no'] ?? '')),
             'usd' => trim((string) ($partnerAccounts['usd_account_no'] ?? '')),
@@ -57,6 +60,47 @@ try {
             $accounts,
             static fn(string $account): bool => $account !== ''
         )));
+    }
+
+    $endingBalanceStatement = fileRecDbConnection()->prepare(
+        'SELECT tran_date, UPPER(TRIM(currency)) AS currency_code, ending_balance
+         FROM partner_settlement_ending_balance
+         WHERE partner_id = ?
+           AND UPPER(TRIM(partner_name)) = UPPER(?)
+           AND tran_date = DATE_SUB(?, INTERVAL 1 DAY)
+           AND UPPER(TRIM(currency)) IN (\'PHP\', \'USD\')'
+    );
+    $endingBalanceStatement->execute([$partnerId, $partner, $startDate]);
+    foreach ($endingBalanceStatement->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $currency = strtoupper(trim((string) ($record['currency_code'] ?? '')));
+        $accountKey = strtolower($currency);
+        if (!array_key_exists($accountKey, $accounts)) {
+            continue;
+        }
+        $endingBalances[] = [
+            'currency' => $currency,
+            'date' => (string) ($record['tran_date'] ?? ''),
+            'account_number' => $accounts[$accountKey],
+            'amount' => (float) ($record['ending_balance'] ?? 0),
+        ];
+    }
+
+    $monthlyCommissionStatement = fileRecDbConnection()->prepare(
+        'SELECT tran_date, UPPER(TRIM(currency)) AS currency_code, monthly_commission
+         FROM partner_settlement_monthly_commission
+         WHERE partner_id = ?
+           AND UPPER(TRIM(partner_name)) = UPPER(?)
+           AND tran_date BETWEEN ? AND ?
+           AND UPPER(TRIM(currency)) IN (\'PHP\', \'USD\')
+         ORDER BY tran_date'
+    );
+    $monthlyCommissionStatement->execute([$partnerId, $partner, $startDate, $endDate]);
+    foreach ($monthlyCommissionStatement->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $monthlyCommissions[] = [
+            'currency' => strtoupper(trim((string) ($record['currency_code'] ?? ''))),
+            'date' => (string) ($record['tran_date'] ?? ''),
+            'amount' => (float) ($record['monthly_commission'] ?? 0),
+        ];
     }
 
     if (!$commissionOnly && $queryAccounts !== []) {
@@ -155,6 +199,8 @@ try {
         'commission_fx' => $commissionFx,
         'commission_fx_totals' => $commissionFxTotals,
         'remarks' => $remarks,
+        'ending_balances' => $endingBalances,
+        'monthly_commissions' => $monthlyCommissions,
     ], JSON_THROW_ON_ERROR);
 } catch (InvalidArgumentException $exception) {
     http_response_code(422);
