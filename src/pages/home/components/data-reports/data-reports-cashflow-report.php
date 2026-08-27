@@ -995,7 +995,10 @@ try {
         forwardedRow.className = 'cash-flow-report-forwarded-table-row';
         const forwardedDateCell = forwardedRow.insertCell();
         forwardedDateCell.className = 'cash-flow-report-forwarded-date-cell';
-        appendFormattedDate(forwardedDateCell, forwardedDate?.textContent || '—');
+        // The Ending Balance row only needs the calendar date. Weekend labels
+        // remain visible on the regular daily transaction rows.
+        forwardedDateCell.textContent = String(forwardedDate?.textContent || '—')
+            .split('\n')[0];
 
         const forwardedLabelCell = forwardedRow.insertCell();
         forwardedLabelCell.className = 'cash-flow-report-forwarded-label-cell';
@@ -1154,9 +1157,6 @@ try {
                     day: '2-digit',
                     year: 'numeric'
                 });
-                const weekdayFormatter = new Intl.DateTimeFormat('en-US', {
-                    weekday: 'long'
-                });
                 const monthYearFormatter = new Intl.DateTimeFormat('en-US', {
                     month: 'long',
                     year: 'numeric'
@@ -1168,11 +1168,7 @@ try {
 
                 if (forwardedDate) {
                     const forwardedDateValue = new Date(year, month - 1, 0);
-                    const forwardedCalendarDate = dateFormatter.format(forwardedDateValue);
-                    forwardedDate.textContent = forwardedDateValue.getDay() === 0
-                        || forwardedDateValue.getDay() === 6
-                        ? `${forwardedCalendarDate}\n${weekdayFormatter.format(forwardedDateValue)}`
-                        : forwardedCalendarDate;
+                    forwardedDate.textContent = dateFormatter.format(forwardedDateValue);
                 }
             }
         }
