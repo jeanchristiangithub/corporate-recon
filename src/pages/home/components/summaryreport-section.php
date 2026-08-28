@@ -598,6 +598,8 @@ $partnerInputChars = min($partnerInputChars, 90);
     const wicCoverTabButtons = wicCoverTabs ? Array.from(wicCoverTabs.querySelectorAll('.wic-cover-tab')) : [];
     const partners = <?= json_encode($partners) ?>;
     let currentMoneygramData = null;
+    let currentMoneygramLoadId = 0;
+    const moneygramSectionRequests = new Map();
     let currentMoneygramCover = 'payout';
     let currentMoneygramCurrency = 'php';
     let currentWicData = null;
@@ -1270,6 +1272,11 @@ $partnerInputChars = min($partnerInputChars, 90);
         const range = monthRange(monthEl.value);
         if (!range) return;
 
+        if (isMoneygram) {
+            currentMoneygramLoadId += 1;
+            moneygramSectionRequests.clear();
+        }
+
         setLoading(true);
         moneygramCover.classList.remove('is-visible');
         setExportReady(false);
@@ -1286,6 +1293,12 @@ $partnerInputChars = min($partnerInputChars, 90);
                 start_date: range.start,
                 end_date: range.end
             });
+            // Load only the initially visible MoneyGram tab. Other tabs are
+            // fetched on demand, avoiding all report queries on every filter.
+            if (isMoneygram) {
+                params.set('report_scope', 'payout');
+                params.set('currency', 'PHP');
+            }
             const response = await fetch(`../../controllers/excelcontrol/summary-report.php?${params.toString()}`, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'
@@ -1297,7 +1310,10 @@ $partnerInputChars = min($partnerInputChars, 90);
             if (isMoneygram) {
                 currentMoneygramData = data;
                 currentWicData = null;
-                renderMoneygramCover(data, currentMoneygramCover, currentMoneygramCurrency);
+                const preloadId = currentMoneygramLoadId;
+                await preloadMoneygramSections(preloadId);
+                if (preloadId !== currentMoneygramLoadId) return;
+                renderMoneygramCover(currentMoneygramData, 'payout', 'php');
             } else if (isMbtc) {
                 currentMoneygramData = null;
                 currentWicData = null;
@@ -1333,6 +1349,84 @@ $partnerInputChars = min($partnerInputChars, 90);
         if (exportExcelEl) {
             exportExcelEl.disabled = !isReady;
         }
+    }
+
+    function requestMoneygramSection(cover, currency, loadId) {
+        if (!currentMoneygramData) return Promise.resolve();
+        const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
+        const reportKey = cover === 'settlement'
+            ? 'settlement_reports'
+            : (cover === 'sendout' ? 'sendout_reports' : 'currency_reports');
+        if (currentMoneygramData[reportKey] && currentMoneygramData[reportKey][selectedCurrency]) {
+            return Promise.resolve();
+        }
+
+        const range = monthRange(monthEl.value);
+        if (!range) return Promise.resolve();
+        const requestKey = `${loadId}:${cover}:${selectedCurrency}`;
+        if (moneygramSectionRequests.has(requestKey)) {
+            return moneygramSectionRequests.get(requestKey);
+        }
+
+        const request = (async function () {
+            const params = new URLSearchParams({
+                partner: 'MONEYGRAM',
+                start_date: range.start,
+                end_date: range.end,
+                report_scope: cover,
+                currency: selectedCurrency.toUpperCase()
+            });
+            const response = await fetch(`../../controllers/excelcontrol/summary-report.php?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!data || !data.success) {
+                throw new Error(data && data.error ? data.error : 'Unable to load selected report.');
+            }
+            if (loadId !== currentMoneygramLoadId || !currentMoneygramData) return;
+            currentMoneygramData[reportKey] = Object.assign(
+                currentMoneygramData[reportKey] || {},
+                data[reportKey] || {}
+            );
+        })();
+        moneygramSectionRequests.set(requestKey, request);
+        return request;
+    }
+
+    async function loadMoneygramSection(cover, currency) {
+        if (!currentMoneygramData) return;
+        const selectedCurrency = currency === 'usd' ? 'usd' : 'php';
+        const reportKey = cover === 'settlement'
+            ? 'settlement_reports'
+            : (cover === 'sendout' ? 'sendout_reports' : 'currency_reports');
+
+        // Cached tabs render in the same click event, without yielding through
+        // an async Promise first.
+        if (currentMoneygramData[reportKey] && currentMoneygramData[reportKey][selectedCurrency]) {
+            renderMoneygramCover(currentMoneygramData, cover, selectedCurrency);
+            return;
+        }
+
+        try {
+            await requestMoneygramSection(cover, selectedCurrency, currentMoneygramLoadId);
+            renderMoneygramCover(currentMoneygramData, cover, selectedCurrency);
+        } catch (error) {
+            moneygramCoverMessage.textContent = String(error.message || error);
+            moneygramCoverMessage.classList.add('is-visible');
+        }
+    }
+
+    function preloadMoneygramSections(loadId) {
+        const requests = [
+            ['payout', 'usd'],
+            ['sendout', 'php'],
+            ['sendout', 'usd'],
+            ['settlement', 'php'],
+            ['settlement', 'usd']
+        ].map(([cover, currency]) => requestMoneygramSection(cover, currency, loadId));
+
+        return Promise.all(requests);
     }
 
     function setExportVisible(isVisible) {
@@ -1471,15 +1565,14 @@ $partnerInputChars = min($partnerInputChars, 90);
                 ? 'settlement'
                 : (button.dataset.moneygramCover === 'sendout' ? 'sendout' : 'payout');
             const currency = button.dataset.moneygramCurrency === 'usd' ? 'usd' : 'php';
-            if (!currentMoneygramData) return;
-            renderMoneygramCover(currentMoneygramData, cover, currency);
+            loadMoneygramSection(cover, currency);
         });
     });
 
     settlementCurrencyRadios.forEach(radio => {
         radio.addEventListener('change', function(){
             if (!radio.checked || !currentMoneygramData) return;
-            renderMoneygramCover(currentMoneygramData, 'settlement', radio.value);
+            loadMoneygramSection('settlement', radio.value);
         });
     });
 

@@ -34,6 +34,16 @@ function summary_numeric_expr(?string $column): string
     return 'ABS(CAST(REPLACE(REPLACE(REPLACE(COALESCE(' . $quoted . ', 0), ",", ""), "PHP", ""), "$", "") AS DECIMAL(18, 2)))';
 }
 
+function summary_end_exclusive(string $endDate): string
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $endDate);
+    if (!$date || $date->format('Y-m-d') !== $endDate) {
+        throw new RuntimeException('Invalid report end date.');
+    }
+
+    return $date->modify('+1 day')->format('Y-m-d');
+}
+
 function summary_normalized_partner(string $partner): string
 {
     $partner = strtoupper(trim($partner));
@@ -151,8 +161,10 @@ function summary_fetch_daily(PDO $pdo, string $table, array $columns, array $ali
         ? summary_first_column($feeCandidates ?? ['fee_tran_amt'], $columns)
         : null;
 
-    $whereParts = ['DATE(' . summary_quote_identifier($dateCol) . ') BETWEEN ? AND ?'];
-    $params = [$startDate, $endDate];
+    // Leave the indexed date column unwrapped so MySQL can use a range scan.
+    $quotedDateCol = summary_quote_identifier($dateCol);
+    $whereParts = [$quotedDateCol . ' >= ? AND ' . $quotedDateCol . ' < ?'];
+    $params = [$startDate, summary_end_exclusive($endDate)];
 
     $partnerCol = summary_first_column(['partnerName', 'partner_name', 'corporate_partner'], $columns);
     if ($partnerCol !== null) {
@@ -250,8 +262,9 @@ function summary_fetch_duplicates(PDO $pdo, string $table, array $columns, array
         $commissionCol = summary_first_column($commissionCandidates ?? ['in_php', 'commission', 'comm_amt', 'comm_tran_amt', 'agent_commission'], $columns);
     }
 
-    $whereParts = ['DATE(' . summary_quote_identifier($dateCol) . ') BETWEEN ? AND ?'];
-    $params = [$startDate, $endDate];
+    $quotedDateCol = summary_quote_identifier($dateCol);
+    $whereParts = [$quotedDateCol . ' >= ? AND ' . $quotedDateCol . ' < ?'];
+    $params = [$startDate, summary_end_exclusive($endDate)];
 
     $partnerCol = summary_first_column(['partnerName', 'partner_name', 'corporate_partner'], $columns);
     if ($partnerCol !== null) {
@@ -685,6 +698,14 @@ try {
         $currencyReports = [];
         $sendoutReports = [];
         $settlementReports = [];
+        $requestedScope = strtolower(trim((string) ($_GET['report_scope'] ?? 'all')));
+        if (!in_array($requestedScope, ['all', 'payout', 'sendout', 'settlement'], true)) {
+            $requestedScope = 'all';
+        }
+        $requestedCurrency = strtoupper(trim((string) ($_GET['currency'] ?? '')));
+        $currencyCodes = in_array($requestedCurrency, ['PHP', 'USD'], true)
+            ? [$requestedCurrency]
+            : ['PHP', 'USD'];
         $payoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'REC');
         $payoutCancelledPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'RRC');
         $sendoutPartnerWhere = summary_column_equals_where($partnerColumns, ['tran_type', 'transaction_type'], 'SEN');
@@ -695,7 +716,8 @@ try {
         $kpxCancellationCandidates = ['date_cancelled', 'date_cancellation'];
         $webNotCancelledWhere = summary_column_is_nullish_where($webColumns, $kpxCancellationCandidates);
 
-        foreach (['PHP', 'USD'] as $currencyCode) {
+        foreach ($currencyCodes as $currencyCode) {
+            if ($requestedScope === 'all' || $requestedScope === 'payout') {
             $payoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
                 'where' => $payoutPartnerWhere,
             ]);
@@ -736,7 +758,9 @@ try {
                 true
             );
             $currencyReports[strtolower($currencyCode)]['currency'] = $currencyCode;
+            }
 
+            if ($requestedScope === 'all' || $requestedScope === 'sendout') {
             $sendoutPartnerDaily = summary_fetch_daily($pdo, $partnerTable, $partnerColumns, $aliases, $startDate, $endDate, false, $currencyCode, [
                 'where' => $sendoutPartnerWhere,
             ]);
@@ -773,16 +797,20 @@ try {
                 true
             );
             $sendoutReports[strtolower($currencyCode)]['currency'] = $currencyCode;
+            }
+            if ($requestedScope === 'all' || $requestedScope === 'settlement') {
             $settlementReports[strtolower($currencyCode)] = summary_fetch_moneygram_settlement_report(
                 $pdo,
                 $startDate,
                 $endDate,
                 $currencyCode
             );
+            }
         }
 
-        $rows = $currencyReports['php']['rows'];
-        $totals = $currencyReports['php']['totals'];
+        $primaryReport = reset($currencyReports);
+        $rows = is_array($primaryReport) ? ($primaryReport['rows'] ?? []) : [];
+        $totals = is_array($primaryReport) ? ($primaryReport['totals'] ?? []) : [];
     } elseif ($isWic) {
         $currencyReports = [];
         foreach (['PHP', 'USD'] as $currencyCode) {
