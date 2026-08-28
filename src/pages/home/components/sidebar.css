@@ -689,6 +689,10 @@
     padding-left: 10px;
 }
 
+.nav-subgroup-menu .nav-subgroup-menu {
+    margin-left: 12px !important;
+}
+
 #navBranchStatusPosting {
     gap: 6px;
     padding-right: 4px;

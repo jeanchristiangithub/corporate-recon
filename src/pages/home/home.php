@@ -24,7 +24,8 @@ $allowedSections = [
     'dashboard', 'workspace', 'webdata', 'webdatacancellation', 'kpxwebdataver2',
     'partnerdata', 'settlementdaily', 'settlementendmonth',
     'dataentrysettlementdetail', 'reportswebdata', 'partnerdatareportdaily',
-    'partnerdatareportsettlement', 'summaryreport', 'reconreport',
+    'partnerdatareportsettlement', 'partnerdatareportsettlementsummary',
+    'summaryreport', 'reconreport',
     'cashflowreport', 'edireport', 'profilesettings', 'maintenancedataunlock',
     'uploadedfilelogs', 'origindatalogspartner', 'branchstatuslogs', 'recon',
 ];
@@ -227,10 +228,23 @@ if ($currentUserId !== '') {
                                     <span class="icon material-icons" aria-hidden="true">today</span>
                                     <span class="label">Daily</span>
                                 </a></li>
-                                <li><a href="#" id="navReportsPartnerDataSettlement" data-show="reportsPartnerDataSettlementSection">
-                                    <span class="icon material-icons" aria-hidden="true">payments</span>
-                                    <span class="label">Settlement</span>
-                                </a></li>
+                                <li class="nav-subgroup nav-subgroup--nested">
+                                    <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="partnerDataSettlementMenu">
+                                        <span class="icon material-icons" aria-hidden="true">payments</span>
+                                        <span class="label">Settlement</span>
+                                        <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                                    </button>
+                                    <ul id="partnerDataSettlementMenu" class="nav-subgroup-menu" style="display:none;">
+                                        <li><a href="#" id="navReportsPartnerDataSettlement" data-show="reportsPartnerDataSettlementSection">
+                                            <span class="icon material-icons" aria-hidden="true">list_alt</span>
+                                            <span class="label">Details</span>
+                                        </a></li>
+                                        <li><a href="#" id="navReportsPartnerDataSettlementSummary" data-show="reportsPartnerDataSettlementSummarySection">
+                                            <span class="icon material-icons" aria-hidden="true">summarize</span>
+                                            <span class="label">Summary</span>
+                                        </a></li>
+                                    </ul>
+                                </li>
                             </ul>
                         </li>
                         <li><a href="#" id="navSummaryReport" data-show="summaryReportSection">
@@ -367,6 +381,12 @@ if ($currentUserId !== '') {
     <?php if ($activeSection === 'partnerdatareportsettlement'): ?>
         <section id="reportsPartnerDataSettlementSection" class="reports-partnerdata-settlement-section" aria-label="Partner Data Report Settlement" style="display:none; padding:1rem">
             <?php include __DIR__ . '/components/reportspartnersettlement-section.php'; ?>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($activeSection === 'partnerdatareportsettlementsummary'): ?>
+        <section id="reportsPartnerDataSettlementSummarySection" class="reports-partnerdata-settlement-summary-section" aria-label="Partner Data Report Settlement Summary" style="display:none; padding:1rem">
+            <?php include __DIR__ . '/components/reportspartnersettlement-summary-section.php'; ?>
         </section>
     <?php endif; ?>
 
@@ -518,14 +538,15 @@ if ($currentUserId !== '') {
             if(activeLink) {
                 activeLink.classList.add('is-active');
 
-                const subgroup = activeLink.closest('.nav-subgroup');
-                if(subgroup){
+                const subgroups = Array.from(activeLink.closest('.nav-group')?.querySelectorAll('.nav-subgroup') || [])
+                    .filter(function(subgroup){ return subgroup.contains(activeLink); });
+                subgroups.forEach(function(subgroup){
                     subgroup.classList.add('is-open');
-                    const subgroupToggle = subgroup.querySelector('.nav-subgroup-toggle');
-                    const subgroupMenu = subgroup.querySelector('.nav-subgroup-menu');
+                    const subgroupToggle = subgroup.querySelector(':scope > .nav-subgroup-toggle');
+                    const subgroupMenu = subgroup.querySelector(':scope > .nav-subgroup-menu');
                     if(subgroupToggle) subgroupToggle.setAttribute('aria-expanded', 'true');
                     if(subgroupMenu) subgroupMenu.style.display = 'flex';
-                }
+                });
 
                 const group = activeLink.closest('.nav-group');
                 if(group){
@@ -581,6 +602,7 @@ if ($currentUserId !== '') {
                 partnerdata: 'partnerdataSection',
                 partnerdatareportdaily: 'reportsPartnerDataSection',
                 partnerdatareportsettlement: 'reportsPartnerDataSettlementSection',
+                partnerdatareportsettlementsummary: 'reportsPartnerDataSettlementSummarySection',
                 cashflowreport: 'cashFlowReportSection',
                 edireport: 'ediReportSection',
                 summaryreport: 'summaryReportSection',
@@ -635,6 +657,7 @@ if ($currentUserId !== '') {
         reportsWebDataSection: 'reportswebdata',
         reportsPartnerDataSection: 'partnerdatareportdaily',
         reportsPartnerDataSettlementSection: 'partnerdatareportsettlement',
+        reportsPartnerDataSettlementSummarySection: 'partnerdatareportsettlementsummary',
         summaryReportSection: 'summaryreport',
         reconReportSection: 'reconreport',
         cashFlowReportSection: 'cashflowreport',
@@ -657,7 +680,7 @@ if ($currentUserId !== '') {
     }
 
     // wire nav links
-    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navBranchStatusPosting','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner','navBranchStatusLogs'].forEach(function(id){
+    ['navHome','navWorkspace','navUsers','navWebData','navWebDataCancellation','navKpxWebDataVer2','navPartnerData','navSettlementDaily','navSettlementEndMonth','navDataEntrySettlementDetail','navReportsWebData','navReportsPartnerDataDaily','navReportsPartnerDataSettlement','navReportsPartnerDataSettlementSummary','navSummaryReport','navReconReport','navCashFlowReport','navEdiReport','navReconTool','navDataUnlock','navBranchStatusPosting','navMaintenance','navUploadedFileLogs','navOriginDataLogsPartner','navBranchStatusLogs'].forEach(function(id){
         const navEl = document.getElementById(id);
         if (!navEl) return;
         navEl.addEventListener('click', function(e){
