@@ -36,6 +36,7 @@ try {
     $commissionFxTotals = ['php' => 0.0, 'usd' => 0.0];
     $remarks = ['php' => [], 'usd' => []];
     $endingBalances = [];
+    $latestEndingBalances = [];
     $monthlyCommissions = [];
 
     $partnerStatement = masterDataConnection()->prepare(
@@ -81,6 +82,37 @@ try {
             'currency' => $currency,
             'date' => (string) ($record['tran_date'] ?? ''),
             'account_number' => $accounts[$accountKey],
+            'amount' => (float) ($record['ending_balance'] ?? 0),
+        ];
+    }
+
+    $latestEndingBalanceStatement = fileRecDbConnection()->prepare(
+        'SELECT peb.tran_date,
+                UPPER(TRIM(peb.currency)) AS currency_code,
+                peb.ending_balance
+         FROM partner_settlement_ending_balance peb
+         WHERE peb.partner_id = ?
+           AND UPPER(TRIM(peb.partner_name)) = UPPER(?)
+           AND peb.tran_date < ?
+           AND UPPER(TRIM(peb.currency)) IN (\'PHP\', \'USD\')
+           AND NOT EXISTS (
+               SELECT 1
+               FROM partner_settlement_ending_balance newer
+               WHERE newer.partner_id = peb.partner_id
+                 AND UPPER(TRIM(newer.partner_name)) = UPPER(TRIM(peb.partner_name))
+                 AND UPPER(TRIM(newer.currency)) = UPPER(TRIM(peb.currency))
+                 AND newer.tran_date < ?
+                 AND newer.tran_date > peb.tran_date
+           )'
+    );
+    $latestEndingBalanceStatement->execute([$partnerId, $partner, $startDate, $startDate]);
+    foreach ($latestEndingBalanceStatement->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $currency = strtoupper(trim((string) ($record['currency_code'] ?? '')));
+        $accountKey = strtolower($currency);
+        $latestEndingBalances[] = [
+            'currency' => $currency,
+            'date' => (string) ($record['tran_date'] ?? ''),
+            'account_number' => $accounts[$accountKey] ?? '',
             'amount' => (float) ($record['ending_balance'] ?? 0),
         ];
     }
@@ -200,6 +232,7 @@ try {
         'commission_fx_totals' => $commissionFxTotals,
         'remarks' => $remarks,
         'ending_balances' => $endingBalances,
+        'latest_ending_balances' => $latestEndingBalances,
         'monthly_commissions' => $monthlyCommissions,
     ], JSON_THROW_ON_ERROR);
 } catch (InvalidArgumentException $exception) {

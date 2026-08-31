@@ -508,8 +508,8 @@ try {
         }
     };
 
-    const temporaryForwardedBalance = (currency) => {
-        const monthValue = monthInput?.value || '';
+    const temporaryForwardedBalance = (currency, reportMonth = monthInput?.value || '') => {
+        const monthValue = reportMonth;
         const [year, month] = monthValue.split('-').map(Number);
         if (!year || !month) return null;
 
@@ -532,8 +532,8 @@ try {
             : null;
     };
 
-    const temporaryCommissionAmount = (currency) => {
-        const monthValue = monthInput?.value || '';
+    const temporaryCommissionAmount = (currency, reportMonth = monthInput?.value || '') => {
+        const monthValue = reportMonth;
         const [year, month] = monthValue.split('-').map(Number);
         if (!year || !month) return null;
 
@@ -876,7 +876,8 @@ try {
         previousMonthDeposits = {},
         previousMonthBeginningBalance = 0,
         priorCommissionReport = {},
-        priorCommissionFxTotal = 0
+        priorCommissionFxTotal = 0,
+        resolvedForwardedBalance = null
     ) => {
         const body = document.getElementById(`cashFlowReport${currency}TableBody`);
         if (!body) return;
@@ -901,9 +902,20 @@ try {
         if (temporaryCommission !== null) {
             monthlyCommissionAmount = temporaryCommission;
         }
-        const priorCommissionAmount = calculateCommissionTotal(
+        const calculatedPriorCommissionAmount = calculateCommissionTotal(
             priorCommissionReport,
             priorCommissionFxTotal
+        );
+        const storedPriorCommissionAmount = temporaryCommissionAmount(
+            currency,
+            previousMonthValue(monthInput?.value)
+        );
+        const priorCommissionAmount = storedPriorCommissionAmount !== null
+            ? storedPriorCommissionAmount
+            : calculatedPriorCommissionAmount;
+        const priorMonthStoredEndingBalance = temporaryForwardedBalance(
+            currency,
+            previousMonthValue(monthInput?.value)
         );
         let forwardedBeginningBalance = commissionRows.length
             ? commissionRows.reduce((running, previousItem) => {
@@ -913,15 +925,21 @@ try {
                     previousItem?.date
                 ) ? Number(previousMonthDeposits[previousItem.date] || 0) : 0;
                 return running - previousPrincipal + previousDeposit;
-            }, Number(previousMonthBeginningBalance || 0)) - priorCommissionAmount
+            }, priorMonthStoredEndingBalance !== null
+                ? priorMonthStoredEndingBalance
+                : Number(previousMonthBeginningBalance || 0)) - priorCommissionAmount
             : Number(beginningBalance || 0);
-        const cachedEndingBalance = cachedPreviousEndingBalance(currency);
-        if (cachedEndingBalance !== null) {
-            forwardedBeginningBalance = cachedEndingBalance;
-        }
         const temporaryBalance = temporaryForwardedBalance(currency);
         if (temporaryBalance !== null) {
             forwardedBeginningBalance = temporaryBalance;
+        } else if (!commissionRows.length) {
+            const cachedEndingBalance = cachedPreviousEndingBalance(currency);
+            if (cachedEndingBalance !== null) {
+                forwardedBeginningBalance = cachedEndingBalance;
+            }
+        }
+        if (Number.isFinite(Number(resolvedForwardedBalance))) {
+            forwardedBeginningBalance = Number(resolvedForwardedBalance);
         }
         const totalVolume = rows.reduce(
             (total, item) => total + Number(item?.settlement_volume || 0),
@@ -1243,9 +1261,14 @@ try {
                 throw new Error(cashFlowData?.error || 'Unable to load Cash Flow bank deposits.');
             }
             latestCashFlowAccounts = cashFlowData.accounts || { php: '', usd: '' };
-            temporaryRunningBalances = Array.isArray(cashFlowData.ending_balances)
-                ? cashFlowData.ending_balances
-                : [];
+            temporaryRunningBalances = [
+                ...(Array.isArray(cashFlowData.ending_balances)
+                    ? cashFlowData.ending_balances
+                    : []),
+                ...(Array.isArray(previousCashFlowData.ending_balances)
+                    ? previousCashFlowData.ending_balances
+                    : [])
+            ];
             temporaryCommissionAmounts = [
                 ...(Array.isArray(previousCashFlowData.monthly_commissions)
                     ? previousCashFlowData.monthly_commissions
@@ -1268,6 +1291,110 @@ try {
                 throw new Error(priorCashFlowData?.error || 'Unable to load prior-month commission data.');
             }
 
+            const resolvedForwardedBalances = { PHP: null, USD: null };
+            const latestStoredBalances = Array.isArray(cashFlowData.latest_ending_balances)
+                ? cashFlowData.latest_ending_balances
+                : [];
+            const storedSeeds = ['PHP', 'USD'].map((currency) => {
+                const record = latestStoredBalances.find((item) =>
+                    String(item?.currency || '').toUpperCase() === currency
+                    && /^\d{4}-\d{2}-\d{2}$/.test(String(item?.date || ''))
+                    && Number.isFinite(Number(item?.amount))
+                );
+                return record ? { ...record, currency } : null;
+            }).filter(Boolean);
+
+            if (storedSeeds.length) {
+                const historyStartDate = storedSeeds
+                    .map((seed) => `${String(seed.date).slice(0, 7)}-01`)
+                    .sort()[0];
+                const historyParams = new URLSearchParams({
+                    partner,
+                    start_date: historyStartDate,
+                    end_date: previousEndDate,
+                    cashflow_only: '1'
+                });
+                const [historySettlementResponse, historyCashFlowResponse] = await Promise.all([
+                    fetch(`${reportEndpoint}?${historyParams.toString()}`, requestOptions),
+                    fetch(`${cashFlowEndpoint}?${historyParams.toString()}`, requestOptions)
+                ]);
+                const [historyData, historyCashFlowData] = await Promise.all([
+                    historySettlementResponse.json(),
+                    historyCashFlowResponse.json()
+                ]);
+                if (!historySettlementResponse.ok || !historyData?.success) {
+                    throw new Error(historyData?.error || 'Unable to calculate prior Ending Balance.');
+                }
+                if (!historyCashFlowResponse.ok || !historyCashFlowData?.success) {
+                    throw new Error(historyCashFlowData?.error || 'Unable to calculate prior Ending Balance.');
+                }
+
+                storedSeeds.forEach((seed) => {
+                    const currencyKey = seed.currency.toLowerCase();
+                    const rows = Array.isArray(historyData.settlement_reports?.[currencyKey]?.rows)
+                        ? historyData.settlement_reports[currencyKey].rows
+                        : [];
+                    const transactionTotal = rows.reduce((total, item) => {
+                        const date = String(item?.date || '');
+                        return date > seed.date && date <= previousEndDate
+                            ? total + Number(item?.settlement_amount || 0)
+                            : total;
+                    }, 0);
+                    const deposits = historyCashFlowData.deposits?.[currencyKey] || {};
+                    const depositTotal = Object.entries(deposits).reduce(
+                        (total, [date, amount]) => date > seed.date && date <= previousEndDate
+                            ? total + Number(amount || 0)
+                            : total,
+                        0
+                    );
+                    const commissionStartMonth = String(seed.date).slice(0, 7);
+                    const commissionCutoffMonth = previousStartDate.slice(0, 7);
+                    const commissionAmountsByMonth = {};
+                    rows.forEach((item) => {
+                        const itemMonth = String(item?.date || '').slice(0, 7);
+                        if (itemMonth < commissionStartMonth || itemMonth >= commissionCutoffMonth) {
+                            return;
+                        }
+                        const payout = item?.payout || {};
+                        const sendout = item?.sendout || {};
+                        commissionAmountsByMonth[itemMonth] = Number(
+                            commissionAmountsByMonth[itemMonth] || 0
+                        ) + Number(payout.fx || 0)
+                            + Number(payout.commission || 0)
+                            + Number(sendout.fx || 0);
+                    });
+                    Object.entries(historyCashFlowData.commission_fx?.[currencyKey] || {})
+                        .forEach(([date, amount]) => {
+                            const itemMonth = String(date).slice(0, 7);
+                            if (itemMonth < commissionStartMonth || itemMonth >= commissionCutoffMonth) {
+                                return;
+                            }
+                            commissionAmountsByMonth[itemMonth] = Number(
+                                commissionAmountsByMonth[itemMonth] || 0
+                            ) - Number(amount || 0);
+                        });
+                    (
+                        Array.isArray(historyCashFlowData.monthly_commissions)
+                            ? historyCashFlowData.monthly_commissions
+                            : []
+                    ).forEach((item) => {
+                        const itemCurrency = String(item?.currency || '').toUpperCase();
+                        const itemMonth = String(item?.date || '').slice(0, 7);
+                        if (itemCurrency === seed.currency
+                            && itemMonth >= commissionStartMonth
+                            && itemMonth < commissionCutoffMonth) {
+                            commissionAmountsByMonth[itemMonth] = Number(item?.amount || 0);
+                        }
+                    });
+                    const commissionTotal = Object.values(commissionAmountsByMonth)
+                        .reduce((total, amount) => total + Number(amount || 0), 0);
+                    resolvedForwardedBalances[seed.currency] = Number(seed.amount)
+                        - transactionTotal
+                        + depositTotal
+                        - commissionTotal;
+                });
+            }
+
             renderSettlementRows(
                 'PHP',
                 data.settlement_reports?.php,
@@ -1280,7 +1407,8 @@ try {
                 previousCashFlowData.deposits?.php,
                 previousCashFlowData.beginning_balances?.php,
                 priorData.settlement_reports?.php,
-                priorCashFlowData.commission_fx_totals?.php
+                priorCashFlowData.commission_fx_totals?.php,
+                resolvedForwardedBalances.PHP
             );
             renderSettlementRows(
                 'USD',
@@ -1294,7 +1422,8 @@ try {
                 previousCashFlowData.deposits?.usd,
                 previousCashFlowData.beginning_balances?.usd,
                 priorData.settlement_reports?.usd,
-                priorCashFlowData.commission_fx_totals?.usd
+                priorCashFlowData.commission_fx_totals?.usd,
+                resolvedForwardedBalances.USD
             );
             if (reportStatus) reportStatus.hidden = true;
             if (resultsLayout) resultsLayout.hidden = false;
