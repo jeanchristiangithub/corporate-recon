@@ -48,7 +48,7 @@ function moneygram_summary_generated_by(): string
     return trim((string) ($user['username'] ?? ''));
 }
 
-function moneygram_summary_fetch_data(string $startDate, string $endDate): array
+function moneygram_summary_fetch_data(string $startDate, string $endDate, bool $settlementOnly = false): array
 {
     $oldGet = $_GET;
     $_GET = [
@@ -56,6 +56,9 @@ function moneygram_summary_fetch_data(string $startDate, string $endDate): array
         'start_date' => $startDate,
         'end_date' => $endDate,
     ];
+    if ($settlementOnly) {
+        $_GET['report_scope'] = 'settlement';
+    }
 
     ob_start();
     require __DIR__ . '/../../../../../controllers/excelcontrol/summary-report.php';
@@ -88,16 +91,16 @@ function moneygram_summary_month_range(string $month): array
     return [$start->format('Y-m-d'), $end->format('Y-m-d'), strtoupper($start->format('F Y'))];
 }
 
-function moneygram_summary_date_label(string $date): string
+function moneygram_summary_date_label(string $date, bool $fullMonth = false): string
 {
     $dateObj = DateTime::createFromFormat('Y-m-d', $date);
-    return $dateObj ? strtoupper($dateObj->format('M d, Y')) : $date;
+    return $dateObj ? strtoupper($dateObj->format(($fullMonth ? 'F' : 'M') . ' d, Y')) : $date;
 }
 
-function moneygram_summary_set_headers(Worksheet $sheet, string $title, string $currencyLabel, string $reportMonth, string $generatedDate, string $generatedBy, int $lastColumn): void
+function moneygram_summary_set_headers(Worksheet $sheet, string $title, string $currencyLabel, string $reportMonth, string $generatedDate, string $generatedBy, int $lastColumn, string $reportHeading = 'RECONCILIATION AND VARIANCE REPORT'): void
 {
     $sheet->setCellValue('A1', 'MLHUILLIER PHILIPPINES');
-    $sheet->setCellValue('A2', 'RECONCILIATION AND VARIANCE REPORT');
+    $sheet->setCellValue('A2', $reportHeading);
     $sheet->setCellValue('A3', $title);
     $sheet->setCellValue('A4', $currencyLabel);
     $sheet->setCellValue('A6', 'Transaction Date:');
@@ -299,12 +302,12 @@ function moneygram_summary_create_sendout_sheet(Spreadsheet $spreadsheet, string
     moneygram_summary_style_table($sheet, $lastColumn, $totalRow, ['B', 'G', 'L', 'Q', 'T', 'W']);
 }
 
-function moneygram_summary_create_settlement_sheet(Spreadsheet $spreadsheet, string $sheetTitle, array $report, string $currency, string $reportMonth, string $generatedDate, string $generatedBy): void
+function moneygram_summary_create_settlement_sheet(Spreadsheet $spreadsheet, string $sheetTitle, array $report, string $currency, string $reportMonth, string $generatedDate, string $generatedBy, string $reportHeading = 'RECONCILIATION AND VARIANCE REPORT', bool $fullMonthDates = false): void
 {
     $sheet = $spreadsheet->createSheet();
     $sheet->setTitle($sheetTitle);
     $lastColumn = 13;
-    moneygram_summary_set_headers($sheet, 'MONEYGRAM SETTLEMENT', 'CURRENCY ' . $currency, $reportMonth, $generatedDate, $generatedBy, $lastColumn);
+    moneygram_summary_set_headers($sheet, 'MONEYGRAM SETTLEMENT', 'CURRENCY ' . $currency, $reportMonth, $generatedDate, $generatedBy, $lastColumn, $reportHeading);
     moneygram_summary_set_section_headers($sheet, [
         ['label' => 'DATE', 'span' => 1, 'rowspan' => 3],
         ['label' => 'PAYOUT', 'span' => 5, 'rowspan' => 2],
@@ -322,7 +325,7 @@ function moneygram_summary_create_settlement_sheet(Spreadsheet $spreadsheet, str
         $payout = moneygram_summary_amount($row, 'payout');
         $sendout = moneygram_summary_amount($row, 'sendout');
         moneygram_summary_write_values($sheet, $rowNumber, [
-            moneygram_summary_date_label((string) ($row['date'] ?? '')),
+            moneygram_summary_date_label((string) ($row['date'] ?? ''), $fullMonthDates),
             moneygram_summary_count($payout),
             moneygram_summary_num($payout, 'principal'),
             moneygram_summary_num($payout, 'fee'),
@@ -352,8 +355,9 @@ function moneygram_summary_create_settlement_sheet(Spreadsheet $spreadsheet, str
 
 try {
     $month = trim((string) ($_GET['month'] ?? ''));
+    $settlementOnly = filter_var($_GET['settlement_only'] ?? false, FILTER_VALIDATE_BOOL);
     [$startDate, $endDate, $reportMonth] = moneygram_summary_month_range($month);
-    $data = moneygram_summary_fetch_data($startDate, $endDate);
+    $data = moneygram_summary_fetch_data($startDate, $endDate, $settlementOnly);
 
     $spreadsheet = new Spreadsheet();
     $spreadsheet->getProperties()
@@ -366,15 +370,20 @@ try {
     $generatedDate = (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))->format('F d, Y h:i A');
     $generatedBy = moneygram_summary_generated_by();
 
-    moneygram_summary_create_payout_sheet($spreadsheet, 'PAYOUT PHP', $payoutReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy, true);
-    moneygram_summary_create_payout_sheet($spreadsheet, 'PAYOUT USD', $payoutReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy, false);
-    moneygram_summary_create_sendout_sheet($spreadsheet, 'SENDOUT PHP', $sendoutReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy);
-    moneygram_summary_create_sendout_sheet($spreadsheet, 'SENDOUT USD', $sendoutReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy);
-    moneygram_summary_create_settlement_sheet($spreadsheet, 'SETTLEMENT PHP', $settlementReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy);
-    moneygram_summary_create_settlement_sheet($spreadsheet, 'SETTLEMENT USD', $settlementReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy);
+    if ($settlementOnly) {
+        moneygram_summary_create_settlement_sheet($spreadsheet, 'SETTLEMENT PHP', $settlementReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy, 'PARTNER SETTLEMENT SUMMARY REPORT', true);
+        moneygram_summary_create_settlement_sheet($spreadsheet, 'SETTLEMENT USD', $settlementReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy, 'PARTNER SETTLEMENT SUMMARY REPORT', true);
+        $spreadsheet->removeSheetByIndex(0);
+    } else {
+        moneygram_summary_create_payout_sheet($spreadsheet, 'PAYOUT PHP', $payoutReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy, true);
+        moneygram_summary_create_payout_sheet($spreadsheet, 'PAYOUT USD', $payoutReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy, false);
+        moneygram_summary_create_sendout_sheet($spreadsheet, 'SENDOUT PHP', $sendoutReports['php'] ?? [], 'PHP', $reportMonth, $generatedDate, $generatedBy);
+        moneygram_summary_create_sendout_sheet($spreadsheet, 'SENDOUT USD', $sendoutReports['usd'] ?? [], 'USD', $reportMonth, $generatedDate, $generatedBy);
+    }
     $spreadsheet->setActiveSheetIndex(0);
 
-    $filename = 'MONEYGRAM_RECON-&-VARIANCE_SUMMARY_REPORT_' . str_replace('-', '_', $month) . '.xlsx';
+    $filename = ($settlementOnly ? 'MONEYGRAM_SETTLEMENT_SUMMARY_REPORT_' : 'MONEYGRAM_RECON-&-VARIANCE_SUMMARY_REPORT_')
+        . str_replace('-', '_', $month) . '.xlsx';
     if (ob_get_length()) {
         ob_end_clean();
     }

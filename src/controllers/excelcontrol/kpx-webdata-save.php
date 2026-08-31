@@ -259,6 +259,54 @@ function kpxLoadDuplicateRows(PDO $pdo, array $rows): array
     return $matches;
 }
 
+/**
+ * Add-on lookup for the explicit MoneyGram re-upload workflow. An unlocked
+ * prior match is identified only by CCREF and its transaction-type dates;
+ * amount and other editable values must not prevent the overwrite prompt.
+ */
+function kpxLoadUnlockedOverwriteRows(PDO $pdo, array $rows): array
+{
+    $ccrefs = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        if (strtoupper(trim((string)($row['partnerName'] ?? ''))) !== 'MONEYGRAM') continue;
+        $ccref = trim((string)($row['ccref_no'] ?? ''));
+        if ($ccref !== '') $ccrefs[$ccref] = true;
+    }
+
+    $rowBySignature = [];
+    foreach (array_chunk(array_keys($ccrefs), 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $stmt = $pdo->prepare(
+            'SELECT id, ccref_no, date_cancelled, date_claimed, date_send, match_status, is_data_locked '
+            . 'FROM ml_web_data '
+            . "WHERE UPPER(TRIM(COALESCE(partnerName, ''))) = 'MONEYGRAM' "
+            . 'AND ccref_no IN (' . $placeholders . ') '
+            . "AND COALESCE(match_status, 0) = 1 AND COALESCE(is_data_locked, '0') = '0' "
+            . 'ORDER BY id ASC'
+        );
+        $stmt->execute($chunk);
+        while ($existing = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $signature = kpxDuplicateSignature($existing);
+            if (!isset($rowBySignature[$signature])) {
+                $rowBySignature[$signature] = [
+                    'id' => (int)$existing['id'],
+                    'match_status' => 1,
+                    'is_data_locked' => '0',
+                ];
+            }
+        }
+    }
+
+    $matches = [];
+    foreach ($rows as $row) {
+        $matches[] = is_array($row)
+            ? ($rowBySignature[kpxDuplicateSignature($row)] ?? ['id' => 0, 'match_status' => 0, 'is_data_locked' => '0'])
+            : ['id' => 0, 'match_status' => 0, 'is_data_locked' => '0'];
+    }
+    return $matches;
+}
+
 function kpxFileLogMetadata(array $rows, string $originalFilename): array
 {
     $firstRow = [];
@@ -344,6 +392,7 @@ try {
     }
 
     $existingRowByUploadRow = kpxLoadDuplicateRows($pdo, $rows);
+    $unlockedOverwriteRowByUploadRow = kpxLoadUnlockedOverwriteRows($pdo, $rows);
     // Presence is checked for the rematch workflow, but it must not promote
     // a new KPX row; Partner Data re-upload owns the later 1 / 1 transition.
     $partnerIdsByUploadRow = kpxLoadPartnerMatches($pdo, $rows);
@@ -359,12 +408,14 @@ try {
     }
     $overwriteCandidateIds = [];
     foreach ($existingRowByUploadRow as $rowIndex => $existingRow) {
+        $unlockedOverwriteRow = $unlockedOverwriteRowByUploadRow[$rowIndex] ?? ['id' => 0];
         $id = (int)($existingRow['id'] ?? 0);
         $matchStatus = (int)($existingRow['match_status'] ?? 0);
         $isDataLocked = (string)($existingRow['is_data_locked'] ?? '0') === '1';
         $isMoneygram = is_array($rows[$rowIndex] ?? null)
             && strtoupper(trim((string)($rows[$rowIndex]['partnerName'] ?? ''))) === 'MONEYGRAM';
-        if ($id > 0 && (!$isMoneygram || ($matchStatus === 1 && !$isDataLocked))) {
+        if (($isMoneygram && (int)($unlockedOverwriteRow['id'] ?? 0) > 0)
+            || (!$isMoneygram && $id > 0)) {
             $overwriteCandidateIds[] = $id;
         }
     }
@@ -415,8 +466,19 @@ try {
         $partnerMatchIds = array_values(array_unique(array_map('intval', $partnerIdsByUploadRow[$rowIndex] ?? [])));
         $hasPartnerMatch = $isMoneygram && !empty($partnerMatchIds);
         $matchedKpxRow = false;
+        $unlockedOverwriteRow = $unlockedOverwriteRowByUploadRow[$rowIndex] ?? ['id' => 0];
+        $unlockedOverwriteId = (int)($unlockedOverwriteRow['id'] ?? 0);
 
-        if ($isMoneygram && $id > 0 && !($existingMatchStatus === 1 && !$existingIsLocked && $overwrite)) {
+        if ($isMoneygram && $overwrite && $unlockedOverwriteId > 0) {
+            // An explicitly unlocked prior match becomes a mismatch after its
+            // contents are overwritten. A later Partner upload owns rematching.
+            $row['match_status'] = 2;
+            $row['is_data_locked'] = 0;
+            $values = array_map(static fn($column) => kpxSaveValue($row, $column), $updateColumns);
+            $values[] = $unlockedOverwriteId;
+            $updateStmt->execute($values);
+            $updated++;
+        } elseif ($isMoneygram && $id > 0 && !($existingMatchStatus === 1 && !$existingIsLocked && $overwrite)) {
             // Any existing KPX occurrence is an insert-side duplicate. The one
             // exception is the explicitly confirmed overwrite of an unlocked
             // prior match (match_status 1 / is_data_locked 0).

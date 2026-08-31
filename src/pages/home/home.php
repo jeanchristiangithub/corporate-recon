@@ -215,12 +215,12 @@ if ($currentUserId !== '') {
                     <ul id="reportsMenu" class="nav-group-menu" style="display:none;">
                         <li><a href="#" id="navReportsWebData" data-show="reportsWebDataSection">
                             <span class="icon material-icons" aria-hidden="true">insights</span>
-                            <span class="label">Web Data Report</span>
+                            <span class="label">KPX Web Data</span>
                         </a></li>
                         <li class="nav-subgroup">
                             <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="partnerDataReportMenu">
                                 <span class="icon material-icons" aria-hidden="true">groups</span>
-                                <span class="label">Partner Data Report</span>
+                                <span class="label">Partner Data</span>
                                 <span class="chev material-icons" aria-hidden="true">expand_more</span>
                             </button>
                             <ul id="partnerDataReportMenu" class="nav-subgroup-menu" style="display:none;">

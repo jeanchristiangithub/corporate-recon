@@ -134,7 +134,7 @@ function cashflowBuildPdfHtml(
             . '<h1>CASH FLOW REPORT</h1><h2>' . cashflowPdfEscape(strtoupper($partner) . ' ' . $currency) . '</h2>'
             . '<table class="report-table"><colgroup><col class="c-date"><col class="c-volume"><col class="c-small"><col class="c-small"><col class="c-small"><col class="c-small"><col class="c-small"><col class="c-adjustment"><col class="c-net"><col class="c-deposit"><col class="c-running"><col class="c-remarks"></colgroup>'
             . '<thead><tr><th rowspan="3">DATE</th><th colspan="8">PARTNER SETTLEMENT DATA</th><th rowspan="3">BANK DEPOSIT</th><th rowspan="3">RUNNING<br>BALANCE</th><th rowspan="3">REMARK</th></tr>'
-            . '<tr><th rowspan="2">VOLUME</th><th colspan="2">PAYOUT</th><th colspan="3">SENDOUT</th><th rowspan="2">ADJUSTMENT<br>/ REFUND</th><th rowspan="2">NET TRANSACTION<br>AMOUNT FOR<br>SETTLEMENT</th></tr>'
+            . '<tr><th rowspan="2">VOLUME</th><th colspan="2">PAYOUT / PAYOUT CANCELLED</th><th colspan="3">SENDOUT / SENDOUT CANCELLED</th><th rowspan="2">ADJUSTMENT<br>/ REFUND</th><th rowspan="2">NET TRANSACTION<br>AMOUNT FOR<br>SETTLEMENT</th></tr>'
             . '<tr><th>PRINCIPAL</th><th>COMMISSION</th><th>PRINCIPAL</th><th>CHARGE</th><th>COMMISSION</th></tr></thead><tbody>'
             . '<tr class="forwarded"><td class="date">' . nl2br(cashflowPdfEscape($report['forwarded_date'] ?? ''), false) . '</td>'
             . '<td colspan="9" class="forwarded-label">(Ending Balance)</td>'
@@ -213,8 +213,8 @@ function cashflowBuildSheet(
     $sheet->setCellValue('A12', 'DATE');
     $sheet->setCellValue('B12', 'PARTNER SETTLEMENT DATA');
     $sheet->setCellValue('B13', 'VOLUME');
-    $sheet->setCellValue('C13', 'PAYOUT');
-    $sheet->setCellValue('E13', 'SENDOUT');
+    $sheet->setCellValue('C13', 'PAYOUT / PAYOUT CANCELLED');
+    $sheet->setCellValue('E13', 'SENDOUT / SENDOUT CANCELLED');
     $sheet->setCellValue('H13', 'ADJUSTMENT/REFUND');
     $sheet->setCellValue('I13', 'NET TRANSACTION AMOUNT FOR SETTLEMENT');
     $sheet->setCellValue('C14', 'PRINCIPAL');

@@ -181,8 +181,8 @@ try {
                                 </tr>
                                 <tr>
                                     <th scope="col" rowspan="2">Volume</th>
-                                    <th scope="colgroup" colspan="2">Payout</th>
-                                    <th scope="colgroup" colspan="3">Sendout</th>
+                                    <th scope="colgroup" colspan="2">Payout / Payout Cancelled</th>
+                                    <th scope="colgroup" colspan="3">Sendout / Sendout Cancelled</th>
                                     <th scope="col" rowspan="2">Adjustment / Refund</th>
                                     <th class="cash-flow-report-net-settlement-header" scope="col" rowspan="2">Net Transaction Amount for Settlement</th>
                                 </tr>

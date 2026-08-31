@@ -528,7 +528,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="payout" data-moneygram-currency="usd" role="tab" aria-selected="false">Payout USD</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="php" role="tab" aria-selected="false">Sendout PHP</button>
         <button class="moneygram-cover-tab" type="button" data-moneygram-cover="sendout" data-moneygram-currency="usd" role="tab" aria-selected="false">Sendout USD</button>
-        <button class="moneygram-cover-tab" type="button" data-moneygram-cover="settlement" role="tab" aria-selected="false">Settlement</button>
         <div id="moneygramCoverHeading" class="mg-cover__heading">
             <div id="moneygramCoverTitle" class="mg-cover__title"></div>
             <div id="moneygramCoverCurrency" class="mg-cover__currency"></div>
@@ -1421,9 +1420,7 @@ $partnerInputChars = min($partnerInputChars, 90);
         const requests = [
             ['payout', 'usd'],
             ['sendout', 'php'],
-            ['sendout', 'usd'],
-            ['settlement', 'php'],
-            ['settlement', 'usd']
+            ['sendout', 'usd']
         ].map(([cover, currency]) => requestMoneygramSection(cover, currency, loadId));
 
         return Promise.all(requests);

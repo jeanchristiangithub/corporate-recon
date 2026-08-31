@@ -300,17 +300,17 @@ try {
 
 			<div class="rwd-primary-actions">
 				<label for="rwdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:8ch">
-					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
-					<select id="rwdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;min-width:8ch;font-size:.9rem;outline:none">
-						<option value="">ALL</option>
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></span>
+					<select id="rwdCurrencyFilter" required aria-required="true" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;color:#111;min-width:8ch;font-size:.9rem;outline:none">
+						<option value="">Select Currency</option>
 						<option value="PHP">PHP</option>
 						<option value="USD">USD</option>
 					</select>
 				</label>
 				<label style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
-					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
-					<select id="rwdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
-						<option value="">ALL</option>
+					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></span>
+					<select id="rwdType" name="type" required aria-required="true" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
+						<option value="">Select Transaction Type</option>
 						<option value="payout">PAYOUT</option>
 						<option value="payout_cancelled">PAYOUT CANCELLED</option>
 						<option value="sendout">SENDOUT</option>
@@ -1422,11 +1422,15 @@ try {
 				return Promise.resolve();
 			}
 
-			function getRequiredSearchMessage(partnerValue, startValue, endValue){
+			function getRequiredSearchMessage(partnerValue, startValue, endValue, currencyValue, typeValue, directReferenceSearch){
 				const missing = [];
-				if (!String(partnerValue || '').trim()) missing.push('Corporate Partner');
-				if (!String(startValue || '').trim()) missing.push('Start date');
-				if (!String(endValue || '').trim()) missing.push('End date');
+				if (!directReferenceSearch) {
+					if (!String(partnerValue || '').trim()) missing.push('Corporate Partner');
+					if (!String(startValue || '').trim()) missing.push('Start date');
+					if (!String(endValue || '').trim()) missing.push('End date');
+				}
+				if (!String(currencyValue || '').trim()) missing.push('Currency');
+				if (!String(typeValue || '').trim()) missing.push('Transaction Type');
 				if (!missing.length) return '';
 				if (missing.length === 1) return missing[0] + ' is required.';
 				if (missing.length === 2) return missing[0] + ' and ' + missing[1] + ' are required.';
@@ -1502,7 +1506,7 @@ try {
 					const s = String(startDateEl.value || '').trim();
 					const t = String(endDateEl.value || '').trim();
 					const referenceId = String((referenceIdEl || {}).value || '').trim();
-					const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, s, t);
+					const requiredMessage = getRequiredSearchMessage(input.value, s, t, currencyFilter ? currencyFilter.value : '', document.getElementById('rwdType') ? document.getElementById('rwdType').value : '', Boolean(referenceId));
 					if(requiredMessage){ ev.preventDefault(); showDurationAlert(requiredMessage); }
 				});
 			}
@@ -1665,7 +1669,9 @@ try {
 			const referenceId = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
 			const sd = String(document.getElementById('rwdStartDate').value || '').trim();
 			const ed = String(document.getElementById('rwdEndDate').value || '').trim();
-			const requiredMessage = referenceId ? '' : getRequiredSearchMessage(input.value, sd, ed);
+			const selectedCurrency = currencyFilter ? (currencyFilter.value || '') : '';
+			const selectedType = document.getElementById('rwdType') ? (document.getElementById('rwdType').value || '') : '';
+			const requiredMessage = getRequiredSearchMessage(input.value, sd, ed, selectedCurrency, selectedType, Boolean(referenceId));
 			if (requiredMessage) {
 				await showDurationAlert(requiredMessage);
 				return;
@@ -1694,11 +1700,9 @@ try {
 
 		form.addEventListener('submit', async function(e) {
 			e.preventDefault();
-			await runReport();
 		});
 
-		// Run the report when Enter is pressed in a filter field. If an
-		// autocomplete option is active, its own handler takes precedence.
+		// Run the report with Enter unless an autocomplete option handled it.
 		form.addEventListener('keydown', async function(e) {
 			if (e.key !== 'Enter' || e.defaultPrevented || e.repeat) return;
 			const target = e.target;
@@ -1713,41 +1717,7 @@ try {
 			await runReport();
 		});
 
-		function scheduleAutoFilterReport(delay) {
-			if (isClearingFilters || !currentFilters) return;
-			const partnerValue = String(input.value || '').trim();
-			const startDateValue = String((document.getElementById('rwdStartDate') || {}).value || '').trim();
-			const endDateValue = String((document.getElementById('rwdEndDate') || {}).value || '').trim();
-			const referenceIdValue = String((document.getElementById('rwdReferenceId') || {}).value || '').trim();
-			if ((!partnerValue && !referenceIdValue) || ((!startDateValue || !endDateValue) && !referenceIdValue)) return;
-			if (autoFilterTimer) clearTimeout(autoFilterTimer);
-			autoFilterTimer = setTimeout(async function() {
-				autoFilterTimer = null;
-				if (isClearingFilters || !currentFilters) return;
-				await runReport();
-			}, delay);
-		}
-
-		autoFilterIds.forEach(function(id) {
-			const el = document.getElementById(id);
-			if (!el) return;
-			el.addEventListener('input', function() {
-				if (el.disabled) return;
-				scheduleAutoFilterReport(600);
-			});
-			el.addEventListener('change', function() {
-				if (el.disabled) return;
-				scheduleAutoFilterReport(150);
-			});
-		});
-
-		if (currencyFilter) {
-			currencyFilter.addEventListener('change', function() {
-				if (!currentFilters) return;
-				currentFilters.currency = currencyFilter.value || '';
-				fetchTransactions(1);
-			});
-		}
+		// Changing filters does not run a report; use View transactions.
 
 		// Display results in table
 		function displayResults(data) {
@@ -1829,7 +1799,7 @@ try {
 				const reference_id = (document.getElementById('rwdReferenceId') || {}).value || '';
 				const currency = currencyFilter ? (currencyFilter.value || '') : '';
 
-				const requiredMessage = reference_id.trim() ? '' : getRequiredSearchMessage(partner, startDate, endDate);
+			const requiredMessage = getRequiredSearchMessage(partner, startDate, endDate, currency, type, Boolean(reference_id.trim()));
 				if (requiredMessage) {
 					await showDurationAlert(requiredMessage);
 					return;

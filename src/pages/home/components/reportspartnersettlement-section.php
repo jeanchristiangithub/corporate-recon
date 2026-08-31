@@ -424,7 +424,7 @@ try {
         }
     </style>
 
-    <h3 style="margin:0 0 .5rem;font-size:1.125rem">Partner Settlement Transactions</h3>
+    <h3 style="margin:0 0 .5rem;font-size:1.125rem">Partner Settlement Details</h3>
     <form id="rpsForm" class="rps-filter">
         <label class="rps-field rps-field--partner"><span class="rps-field-label">CORPORATE PARTNER <span class="rps-required">*</span></span>
             <span class="rps-autocomplete">
@@ -435,12 +435,12 @@ try {
         <label class="rps-field"><span class="rps-field-label">Start date <span class="rps-required">*</span></span><input id="rpsStart" type="date"></label>
         <span class="rps-date-separator" aria-hidden="true">&mdash;</span>
         <label class="rps-field"><span class="rps-field-label">End date <span class="rps-required">*</span></span><input id="rpsEnd" type="date"></label>
-        <label class="rps-field">CURRENCY<select id="rpsCurrency">
+        <label class="rps-field"><span class="rps-field-label">CURRENCY <span class="rps-required">*</span></span><select id="rpsCurrency" required>
                 <option value="">Select Currency</option>
                 <option>PHP</option>
                 <option>USD</option>
             </select></label>
-        <label class="rps-field">TRANSACTION TYPE<select id="rpsType">
+        <label class="rps-field"><span class="rps-field-label">TRANSACTION TYPE <span class="rps-required">*</span></span><select id="rpsType" required>
                 <option value="">Select Transaction Type</option>
                 <option value="REC">PAYOUT</option>
                 <option value="RRC">PAYOUT CANCELLED</option>
@@ -540,9 +540,7 @@ try {
             const partners = <?= json_encode(array_values($settlementPartners), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
             const agentNames = <?= json_encode(array_values($settlementAgentNames), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
             let state = null,
-                last = null,
-                filterTimer = null,
-                referenceLookupController = null;
+                last = null;
             const base = () => window.autoreconBaseUrl !== undefined ? window.autoreconBaseUrl : ('/' + location.pathname.split('/').filter(Boolean)[0]);
             const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;',
@@ -735,7 +733,11 @@ try {
                         ['rpsSumPrincipalUsd', 'principal_usd', 'USD'],
                         ['rpsSumCommPhp', 'commission_php', 'PHP'],
                         ['rpsSumCommUsd', 'commission_usd', 'USD']
-                    ]) $(id).textContent = `${prefix}: ${num(d.totals?.[key]||0)}`
+                    ]) {
+                    const total = $(id);
+                    total.textContent = `${prefix}: ${num(d.totals?.[key] || 0)}`;
+                    total.style.display = state.currency && state.currency !== prefix ? 'none' : ''
+                }
             }
             async function load(page = 1) {
                 $('rpsView').disabled = true;
@@ -773,7 +775,10 @@ try {
                 const partner = $('rpsPartner').value.trim();
                 const referenceId = referenceInput.value.trim();
                 const agentName = agentInput.value.trim();
+                const currency = $('rpsCurrency').value;
+                const transactionType = $('rpsType').value;
                 const hasDirectSearch = referenceId !== '' || agentName !== '';
+                if (!currency || !transactionType) return notify('Currency and Transaction Type are required.');
                 if (!hasDirectSearch && (!partner || !start.value || !end.value)) return notify('Corporate Partner, Start date, and End date are required.');
                 if (!hasDirectSearch && ((start.value && !end.value) || (!start.value && end.value))) return notify('Please provide both Start date and End date.');
                 if (start.value && end.value && start.value > end.value) return notify('Start date cannot be later than End date.');
@@ -781,8 +786,8 @@ try {
                     partner,
                     start_date: start.value,
                     end_date: end.value,
-                    currency: $('rpsCurrency').value,
-                    type: $('rpsType').value,
+                    currency,
+                    type: transactionType,
                     agent_name: agentName,
                     reference_id: referenceId,
                     start: start.value,
@@ -799,60 +804,6 @@ try {
                 $('rpsClear').hidden = true
             }
 
-            function applyOptionalFilters() {
-                if (!state || !last) return;
-                state.currency = $('rpsCurrency').value;
-                state.type = $('rpsType').value;
-                state.agent_name = agentInput.value.trim();
-                state.reference_id = referenceInput.value.trim();
-                load(1)
-            }
-
-            async function populateAgentFromReference(reference) {
-                if (!reference) return;
-                if (referenceLookupController) referenceLookupController.abort();
-                referenceLookupController = new AbortController();
-                try {
-                    const q = new URLSearchParams({ reference_id: reference, page: '1', per_page: '1' });
-                    const res = await fetch(`${base()}/src/controllers/excelcontrol/partner-settlement-report.php?${q}`, { signal: referenceLookupController.signal });
-                    const d = await res.json();
-                    if (referenceInput.value.trim() !== reference || !res.ok || !d.success) return;
-                    agentInput.value = d.rows.length ? String(d.rows[0].agent_name || '').trim() : '';
-                    if (state) state.agent_name = agentInput.value
-                } catch (error) {
-                    if (error.name !== 'AbortError') console.error('Settlement reference lookup error:', error)
-                }
-            }
-
-            [$('rpsCurrency'), $('rpsType')].forEach(filter => filter.addEventListener('change', applyOptionalFilters));
-            agentInput.addEventListener('input', () => {
-                clearTimeout(filterTimer);
-                if (!agentInput.value.trim()) {
-                    referenceInput.value = '';
-                    if (referenceLookupController) referenceLookupController.abort();
-                    clearResults();
-                    return
-                }
-                filterTimer = setTimeout(applyOptionalFilters, 400)
-            });
-            agentInput.addEventListener('change', () => {
-                clearTimeout(filterTimer);
-                applyOptionalFilters()
-            });
-            referenceInput.addEventListener('input', () => {
-                agentInput.value = '';
-                clearTimeout(filterTimer);
-                const reference = referenceInput.value.trim();
-                if (!reference) {
-                    if (referenceLookupController) referenceLookupController.abort();
-                    clearResults();
-                    return
-                }
-                filterTimer = setTimeout(async () => {
-                    await populateAgentFromReference(reference);
-                    applyOptionalFilters()
-                }, 400)
-            });
             $('rpsClear').addEventListener('click', () => {
                 form.reset();
                 clearResults()

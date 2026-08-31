@@ -551,7 +551,7 @@ try {
 
 			<div class="rpd-primary-actions">
 				<label for="rpdCurrencyFilter" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
-					<span style="font-size:0.75rem;color:#6b7280">CURRENCY</span>
+					<span style="font-size:0.75rem;color:#6b7280">CURRENCY <span class="rpd-text-danger">*</span></span>
 					<select id="rpdCurrencyFilter" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="" selected>Select Currency</option>
 						<!-- <option value="">ALL</option> -->
@@ -560,7 +560,7 @@ try {
 					</select>
 				</label>
 				<label for="rpdType" style="display:flex;flex-direction:column;gap:0.25rem;font-size:.75rem;color:#6b7280;min-width:10ch">
-					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE</span>
+					<span style="font-size:0.75rem;color:#6b7280">TRANSACTION TYPE <span class="rpd-text-danger">*</span></span>
 					<select id="rpdType" name="type" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:10ch;font-size:.9rem;outline:none">
 						<option value="" selected>Select Transaction Type</option>
 						<!-- <option value="">ALL</option> -->
@@ -1191,7 +1191,7 @@ try {
 		}
 
 		async function runReport() {
-			// Validate required fields: partner, start date, end date
+			// Validate required fields.
 			const missing = [];
 			const partnerVal = input.value && input.value.trim() ? input.value.trim() : '';
 			const startDate = (document.getElementById('rpdStartDate') || {}).value || '';
@@ -1204,10 +1204,14 @@ try {
 			// clear previous markers
 			if (sdEl) sdEl.classList.remove('rpd-invalid');
 			if (edEl) edEl.classList.remove('rpd-invalid');
+			if (currencyFilter) currencyFilter.classList.remove('rpd-invalid');
+			if (typeFilter) typeFilter.classList.remove('rpd-invalid');
 
 			if (!partnerVal && !hasDirectSearch) missing.push('Corporate Partner');
 			if (!hasDirectSearch && !startDate) { missing.push('Start Date'); if (sdEl) sdEl.classList.add('rpd-invalid'); }
 			if (!hasDirectSearch && !endDate) { missing.push('End Date'); if (edEl) edEl.classList.add('rpd-invalid'); }
+			if (!currencyFilter || !currencyFilter.value) { missing.push('Currency'); if (currencyFilter) currencyFilter.classList.add('rpd-invalid'); }
+			if (!typeFilter || !typeFilter.value) { missing.push('Transaction Type'); if (typeFilter) typeFilter.classList.add('rpd-invalid'); }
 
 			if (missing.length > 0) {
 				showRequiredModal(missing);

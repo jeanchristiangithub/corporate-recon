@@ -183,10 +183,13 @@ try {
         }
         function settlementDateFromFilename(filename) {
             const months = {
-                january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-                july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
+                jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+                apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+                aug: 8, august: 8, sep: 9, sept: 9, september: 9,
+                oct: 10, october: 10, nov: 11, november: 11,
+                dec: 12, december: 12
             };
-            const match = String(filename || '').match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),\s*(\d{4})\b/i);
+            const match = String(filename || '').match(/\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(\d{1,2})\s*,?\s*(\d{4})\b/i);
             if (!match) return '';
             const month = months[match[1].toLowerCase()];
             const day = Number(match[2]);
