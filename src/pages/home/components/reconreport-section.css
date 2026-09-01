@@ -259,6 +259,10 @@
     font-weight: 700;
 }
 
+.recon-report-required {
+    color: #dc3545;
+}
+
 .recon-report-tab-search input {
     flex: 1 1 auto;
     min-width: 0;
@@ -311,7 +315,9 @@
 
 .recon-report-table-scroll {
     width: 100%;
-    overflow-x: auto;
+    max-height: 560px;
+    overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 .recon-report-table {
@@ -328,7 +334,7 @@
 }
 
 .recon-report-table .recon-report-col--date {
-    width: 125px;
+    width: 150px;
 }
 
 .recon-report-table .recon-report-col--reference,
@@ -366,6 +372,11 @@
 }
 
 .recon-report-table thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    height: 36px;
+    box-sizing: border-box;
     background: #f8fafc;
     color: #111827;
     font-size: 0.86rem;
@@ -374,6 +385,9 @@
 }
 
 .recon-report-table thead tr:nth-child(2) th {
+    position: sticky;
+    top: 36px;
+    z-index: 3;
     background: #fff;
     color: #111827;
     font-size: 0.82rem;

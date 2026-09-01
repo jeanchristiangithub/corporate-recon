@@ -107,6 +107,7 @@ try {
         .partner-settlement-summary thead tr:first-child th { top: 0; }
         .partner-settlement-summary thead tr:nth-child(2) th { top: 30px; }
         .partner-settlement-summary tbody tr:hover td { background: #f8fafc; }
+        .partner-settlement-summary .settlement-commission-row td { font-weight: 700; background: #fff7ed; }
         .partner-settlement-summary .settlement-total td,
         .partner-settlement-summary .settlement-amount-due td { height: 30px; font-weight: 800; }
         .partner-settlement-summary .settlement-total td { position: sticky; bottom: 30px; z-index: 4; }
@@ -259,7 +260,9 @@ try {
         const parts = String(value).split('-');
         if (parts.length !== 3) return String(value);
         const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        return date.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+        return date.toLocaleDateString('en-US', {
+            month: 'long', day: '2-digit', year: 'numeric'
+        });
     }
     function cell(value) { return `<td>${escapeHtml(value)}</td>`; }
     function group(row, key) { return row && row[key] ? row[key] : {}; }
@@ -269,20 +272,59 @@ try {
         const lastDay = new Date(parts[0], parts[1], 0).getDate();
         return { start: `${month}-01`, end: `${month}-${String(lastDay).padStart(2, '0')}` };
     }
-    function preloadOtherCurrency(partner, range, month, currency) {
-        const otherCurrency = currency === 'PHP' ? 'USD' : 'PHP';
-        const cacheKey = `${partner.toUpperCase()}|${month}|${otherCurrency}`;
-        if (reportCache.has(cacheKey)) return;
-        const params = new URLSearchParams({ partner: partner, start_date: range.start,
-            end_date: range.end, report_scope: 'settlement', currency: otherCurrency });
-        fetch(`../../controllers/excelcontrol/summary-report.php?${params.toString()}`, {
-            headers: { Accept: 'application/json' }, credentials: 'same-origin'
-        }).then(function (response) { return response.json(); }).then(function (data) {
-            const report = data && data.success && data.settlement_reports
-                ? data.settlement_reports[otherCurrency.toLowerCase()]
-                : null;
-            if (report) reportCache.set(cacheKey, report);
-        }).catch(function () {});
+    function previousMonthRange(month) {
+        if (!/^\d{4}-\d{2}$/.test(month)) return null;
+        const parts = month.split('-').map(Number);
+        const date = new Date(parts[0], parts[1] - 2, 1);
+        const previousMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        return {
+            month: previousMonth,
+            start: `${previousMonth}-01`,
+            end: `${previousMonth}-${String(new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()).padStart(2, '0')}`,
+            label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        };
+    }
+    function calculatedCommission(report, nullTypeFxTotal) {
+        const rows = Array.isArray(report && report.rows) ? report.rows : [];
+        return rows.reduce(function (total, row) {
+            const payout = group(row, 'payout');
+            const sendout = group(row, 'sendout');
+            return total + Number(payout.fx || 0) + Number(payout.commission || 0)
+                + Number(sendout.fx || 0);
+        }, 0) - Number(nullTypeFxTotal || 0);
+    }
+    async function fetchPreviousMonthCommission(partner, month, currency) {
+        const previous = previousMonthRange(month);
+        if (!previous) return { amount: 0, label: '' };
+        const reportParams = new URLSearchParams({ partner: partner, start_date: previous.start,
+            end_date: previous.end, report_scope: 'settlement', currency: currency });
+        const cashFlowParams = new URLSearchParams({ partner: partner, start_date: previous.start,
+            end_date: previous.end, commission_only: '1' });
+        const options = { headers: { Accept: 'application/json' }, credentials: 'same-origin' };
+        const responses = await Promise.all([
+            fetch(`../../controllers/excelcontrol/summary-report.php?${reportParams.toString()}`, options),
+            fetch(`../../controllers/data-reports/cashflow-report.php?${cashFlowParams.toString()}`, options)
+        ]);
+        const payloads = await Promise.all(responses.map(function (response) { return response.json(); }));
+        if (!responses[0].ok || !payloads[0] || !payloads[0].success) {
+            throw new Error(payloads[0] && payloads[0].error ? payloads[0].error : 'Unable to load previous-month commission data.');
+        }
+        if (!responses[1].ok || !payloads[1] || !payloads[1].success) {
+            throw new Error(payloads[1] && payloads[1].error ? payloads[1].error : 'Unable to load previous-month commission data.');
+        }
+        const currencyKey = currency.toLowerCase();
+        const saved = (Array.isArray(payloads[1].monthly_commissions) ? payloads[1].monthly_commissions : [])
+            .find(function (item) {
+                return String(item.currency || '').toUpperCase() === currency
+                    && String(item.date || '').slice(0, 7) === previous.month;
+            });
+        return {
+            amount: saved && Number.isFinite(Number(saved.amount))
+                ? Number(saved.amount)
+                : calculatedCommission(payloads[0].settlement_reports && payloads[0].settlement_reports[currencyKey],
+                    payloads[1].commission_fx_totals && payloads[1].commission_fx_totals[currencyKey]),
+            label: `${previous.label} Commission`
+        };
     }
     function prepareExcelExport(month) {
         if (excelExportCache.has(month)) return excelExportCache.get(month);
@@ -313,14 +355,32 @@ try {
         const payoutTotal = totals.payout || {};
         const sendoutTotal = totals.sendout || {};
         const settlementVolume = Number(totals.settlement_volume || 0);
-        const settlementAmount = Number(totals.settlement_amount || 0);
+        const commissionAmount = Number(report.previous_month_commission || 0);
+        const settlementAmount = Number(totals.settlement_amount || 0) + commissionAmount;
+        const commissionLabel = String(report.previous_month_commission_label || 'Previous Month Commission');
+        const tenthRow = rows.find(function (row) { return String(row && row.date || '').slice(-2) === '10'; });
+        let commissionInsertionDate = String(tenthRow && tenthRow.date || '');
+        if (commissionInsertionDate) {
+            const parts = commissionInsertionDate.split('-').map(Number);
+            const tenthDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            if (tenthDate.getDay() === 6) {
+                tenthDate.setDate(tenthDate.getDate() + 1);
+                commissionInsertionDate = `${tenthDate.getFullYear()}-${String(tenthDate.getMonth() + 1).padStart(2, '0')}-${String(tenthDate.getDate()).padStart(2, '0')}`;
+            }
+        }
         const details = rows.map(function (row) {
             const payout = group(row, 'payout');
             const sendout = group(row, 'sendout');
             return '<tr>' + cell(dateLabel(row.date))
                 + cell(count(payout.volume)) + cell(money(payout.principal)) + cell(money(payout.fee)) + cell(money(payout.fx)) + cell(money(payout.commission))
                 + cell(count(sendout.volume)) + cell(money(sendout.principal)) + cell(money(sendout.fee)) + cell(money(sendout.fx)) + cell(money(sendout.commission))
-                + cell(count(row.settlement_volume)) + cell(money(row.settlement_amount)) + '</tr>';
+                + cell(count(row.settlement_volume)) + cell(money(row.settlement_amount)) + '</tr>'
+                + (String(row.date || '') === commissionInsertionDate
+                    ? '<tr class="settlement-commission-row">' + cell(commissionLabel)
+                        + cell('') + cell('') + cell('') + cell('') + cell('')
+                        + cell('') + cell('') + cell('') + cell('') + cell('')
+                        + cell('') + cell(money(commissionAmount)) + '</tr>'
+                    : '');
         }).join('');
 
         bodyEl.innerHTML = details + '<tr class="settlement-total">' + cell('GRAND TOTAL:')
@@ -361,6 +421,8 @@ try {
         }
         const currency = selectedCurrency;
         const cacheKey = `${partner.toUpperCase()}|${monthEl.value}|${currency}`;
+        resultEl.classList.remove('is-visible');
+        bodyEl.innerHTML = '';
         if (reportCache.has(cacheKey)) {
             render(reportCache.get(cacheKey), partner, currency);
             messageEl.classList.remove('is-visible');
@@ -386,9 +448,11 @@ try {
             if (!reports[currency.toLowerCase()]) {
                 throw new Error(`Settlement summary format is not available for ${partner}.`);
             }
+            const commission = await fetchPreviousMonthCommission(partner, monthEl.value, currency);
+            reports[currency.toLowerCase()].previous_month_commission = commission.amount;
+            reports[currency.toLowerCase()].previous_month_commission_label = commission.label;
             reportCache.set(cacheKey, reports[currency.toLowerCase()]);
             render(reportCache.get(cacheKey), partner, currency);
-            preloadOtherCurrency(partner, range, monthEl.value, currency);
             messageEl.classList.remove('is-visible');
             messageEl.textContent = '';
         } catch (error) {

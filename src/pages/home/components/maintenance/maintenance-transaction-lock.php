@@ -125,11 +125,12 @@ try {
                         <th>Corporate Partner</th>
                         <th>Transaction Date</th>
                         <th>Status</th>
+                        <th>Remarks</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="maintenanceUnlockBody">
-                    <tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then click Display.</td></tr>
+                    <tr><td colspan="5" class="locked-dates-empty">Select a corporate partner and date range, then click Display.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -213,7 +214,7 @@ try {
     function clearProcessedResults() {
         rows = [];
         page = 1;
-        body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Display.</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" class="locked-dates-empty">Select a corporate partner and date range, then press Enter or click Display.</td></tr>';
         pagination.hidden = true;
         exportPdfButton.disabled = true;
         setMessage('', '');
@@ -298,7 +299,7 @@ try {
         page = Math.min(Math.max(1, page), totalPages);
 
         if (!list.length) {
-            body.innerHTML = '<tr><td colspan="4" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" class="locked-dates-empty">No locked reconciliation dates found.</td></tr>';
             pagination.hidden = true;
             exportPdfButton.disabled = true;
             return;
@@ -313,6 +314,11 @@ try {
             const status = String(row.status || '').toLowerCase();
             const isLocked = status === 'locked';
             const isNoData = status === 'no_data';
+            const mismatchCount = Math.max(0, Number(row.mismatch_count || 0));
+            const duplicateCount = Math.max(0, Number(row.duplicate_count || 0));
+            const remarks = [];
+            if (mismatchCount) remarks.push(mismatchCount.toLocaleString() + (mismatchCount === 1 ? ' Volume - Mismatch' : ' Volumes - Mismatch'));
+            if (duplicateCount) remarks.push(duplicateCount.toLocaleString() + (duplicateCount === 1 ? ' Volume - Duplicate' : ' Volumes - Duplicates'));
             const actions = isNoData
                 ? ''
                 : isLocked
@@ -326,6 +332,7 @@ try {
                 '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
                 '<td>' + escapeHtml(displayDate(date)) + '</td>' +
                 '<td><span class="locked-dates-status' + (isNoData ? ' is-no-data' : '') + '"' + (isNoData ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isLocked ? 'Locked' : 'Unlocked')) + '</span></td>' +
+                '<td>' + escapeHtml(remarks.join(', ') || '-') + '</td>' +
                 '<td>' + actions + '</td>' +
                 '</tr>';
         }).join('');
@@ -362,7 +369,7 @@ try {
         loading = true;
         setLoadingState(true);
         setMessage('', '');
-        body.innerHTML = '<tr><td colspan="4" class="locked-dates-loading">Loading locked dates...</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
         pagination.hidden = true;
         try {
             const response = await fetch(baseUrl() + '/src/controllers/recon/get_transaction_lock_range.php?partnername=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate), {

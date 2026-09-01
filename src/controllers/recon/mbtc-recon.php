@@ -323,10 +323,17 @@ try{
         $days[] = $dayPayload;
     }
 
-    echo json_encode(['success'=>true,'start_date'=>$startDate,'end_date'=>$endDate,'days'=>$days]);
+    $response = ['success'=>true,'start_date'=>$startDate,'end_date'=>$endDate,'days'=>$days];
+    if(defined('MBTC_RECON_RETURN_DATA') && MBTC_RECON_RETURN_DATA){
+        return $response;
+    }
+    echo json_encode($response);
     exit;
 
 }catch(Throwable $e){
+    if(defined('MBTC_RECON_RETURN_DATA') && MBTC_RECON_RETURN_DATA){
+        return ['success'=>false,'error'=>$e->getMessage()];
+    }
     http_response_code(500);
     echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
     exit;

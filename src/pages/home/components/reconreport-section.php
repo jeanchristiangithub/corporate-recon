@@ -42,11 +42,11 @@ $reconReportControllerMap = [
 ?>
 <section class="recon-report-section" aria-labelledby="reconReportTitle">
     <div class="recon-report-inner">
-        <h2 id="reconReportTitle" class="recon-report-title">Reconciliation Report</h2>
+        <h2 id="reconReportTitle" class="recon-report-title">Reconciliation Details Report</h2>
 
         <form class="recon-report-toolbar" id="reconReportFilterForm" action="#" method="get">
             <label class="recon-report-field" for="reconReportCorporatePartner">
-                <span>Corporate Partner</span>
+                <span>Corporate Partner <span class="recon-report-required" aria-hidden="true">*</span></span>
                 <div class="recon-report-autocomplete">
                     <input
                         id="reconReportCorporatePartner"
@@ -54,20 +54,17 @@ $reconReportControllerMap = [
                         type="text"
                         placeholder="Corporate partner"
                         autocomplete="off"
+                        required
                     >
                     <ul class="recon-report-autocomplete-list" id="reconReportCorporatePartnerSuggestions" role="listbox" hidden></ul>
                 </div>
             </label>
 
             <label class="recon-report-field recon-report-field--date" for="reconReportStartDate">
-                <span>Start Date</span>
-                <input id="reconReportStartDate" name="start_date" type="date">
+                <span>Transaction Date <span class="recon-report-required" aria-hidden="true">*</span></span>
+                <input id="reconReportStartDate" name="start_date" type="date" required>
             </label>
-
-            <label class="recon-report-field recon-report-field--date" for="reconReportEndDate">
-                <span>End Date</span>
-                <input id="reconReportEndDate" name="end_date" type="date">
-            </label>
+            <input id="reconReportEndDate" name="end_date" type="hidden">
 
             <label class="recon-report-field recon-report-field--select" for="reconReportCurrency">
                 <span>Currency</span>
@@ -75,6 +72,17 @@ $reconReportControllerMap = [
                     <option value="">All</option>
                     <option value="PHP">PHP</option>
                     <option value="USD">USD</option>
+                </select>
+            </label>
+
+            <label class="recon-report-field recon-report-field--select" for="reconReportTransactionType">
+                <span>Transaction Type</span>
+                <select id="reconReportTransactionType" name="transaction_type">
+                    <option value="">All</option>
+                    <option value="REC">REC - PAYOUT</option>
+                    <option value="RRC">RRC - PAYOUT CANCELLED</option>
+                    <option value="SEN">SEN - SENDOUT</option>
+                    <option value="RSN,REF">RSN, REF - SENDOUT CANCELLED</option>
                 </select>
             </label>
 
@@ -149,7 +157,6 @@ $reconReportControllerMap = [
                         <col class="recon-report-col--amount">
                         <col class="recon-report-col--currency">
                         <col class="recon-report-col--status">
-                        <col class="recon-report-col--status">
                         <col class="recon-report-col--remarks">
                     </colgroup>
                     <thead>
@@ -157,7 +164,6 @@ $reconReportControllerMap = [
                             <th colspan="6" scope="colgroup">Partners Data</th>
                             <th colspan="5" scope="colgroup">KPX Web Data</th>
                             <th rowspan="2" scope="col">Status</th>
-                            <th rowspan="2" scope="col">Record Status</th>
                             <th rowspan="2" scope="col">Remarks</th>
                         </tr>
                         <tr>
@@ -176,7 +182,7 @@ $reconReportControllerMap = [
                     </thead>
                     <tbody>
                         <tr class="recon-report-empty-row">
-                            <td colspan="14">No recon report data generated yet.</td>
+                            <td colspan="13">No recon report data generated yet.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -196,6 +202,7 @@ $reconReportControllerMap = [
     const startDateInput = document.getElementById('reconReportStartDate');
     const endDateInput = document.getElementById('reconReportEndDate');
     const currencySelect = document.getElementById('reconReportCurrency');
+    const transactionTypeSelect = document.getElementById('reconReportTransactionType');
     const statusSelect = document.getElementById('reconReportStatus');
     const searchInput = document.getElementById('reconReportSearch');
     const exportBtn = document.getElementById('reconReportExportBtn');
@@ -257,10 +264,36 @@ $reconReportControllerMap = [
         return partnerMatchesType && webMatchesType;
     }
 
+    function rowMatchesTransactionType(row, transactionType) {
+        const selectedTypes = String(transactionType || '')
+            .split(',')
+            .map(normalizeKey)
+            .filter(Boolean);
+        if (!selectedTypes.length) return true;
+
+        const partnerTransactionType = normalizeKey(row && row.partner_transaction_type);
+        if (partnerTransactionType) return selectedTypes.indexOf(partnerTransactionType) !== -1;
+
+        const webTypes = Array.isArray(row && row.web_report_types)
+            ? row.web_report_types
+            : String(row && row.web_report_types || '').split('|').filter(Boolean);
+        const reportTypeByTransaction = {
+            REC: 'payout',
+            RRC: 'payout-cancelled',
+            SEN: 'sendout',
+            RSN: 'sendout-cancelled',
+            REF: 'sendout-cancelled'
+        };
+        return selectedTypes.some(function (selectedType) {
+            return webTypes.indexOf(reportTypeByTransaction[selectedType] || '') !== -1;
+        });
+    }
+
     function updateReportTypeIndicators(rows) {
         if (!typeTabs) return;
         const reportData = Array.isArray(rows) ? rows : [];
         const selectedCurrency = normalizeKey(currencySelect && currencySelect.value);
+        const selectedTransactionType = normalizeKey(transactionTypeSelect && transactionTypeSelect.value);
         const selectedStatus = normalizeStatus(statusSelect && statusSelect.value);
 
         Array.from(typeTabs.querySelectorAll('.recon-report-type-tab')).forEach(function (tab) {
@@ -272,6 +305,7 @@ $reconReportControllerMap = [
                 if (selectedCurrency && selectedCurrency !== 'ALL'
                     && partnerCurrency.indexOf(selectedCurrency) === -1
                     && webCurrency.indexOf(selectedCurrency) === -1) return false;
+                if (!rowMatchesTransactionType(row, selectedTransactionType)) return false;
                 if (selectedStatus && row.data_status !== selectedStatus) return false;
                 return row.data_status === 'mismatch' || row.data_status === 'duplicate';
             });
@@ -426,33 +460,15 @@ $reconReportControllerMap = [
 
     function attachDateAutofill() {
         if (!startDateInput || !endDateInput) return;
-        let autoFilledEndDate = '';
-        let endDateEditedManually = false;
 
         function syncEndDateFromStart() {
-            if (!startDateInput.value) return;
-            if (!endDateEditedManually || !endDateInput.value || endDateInput.value === autoFilledEndDate) {
-                endDateInput.value = startDateInput.value;
-                autoFilledEndDate = startDateInput.value;
-                endDateEditedManually = false;
-            }
+            endDateInput.value = startDateInput.value;
         }
 
         ['input', 'change', 'keyup', 'blur', 'mouseup'].forEach(function (eventName) {
             startDateInput.addEventListener(eventName, syncEndDateFromStart);
         });
-        endDateInput.addEventListener('input', function () {
-            if (endDateInput.value !== autoFilledEndDate) {
-                endDateEditedManually = true;
-                autoFilledEndDate = '';
-            }
-        });
-        endDateInput.addEventListener('change', function () {
-            if (endDateInput.value !== autoFilledEndDate) {
-                endDateEditedManually = true;
-                autoFilledEndDate = '';
-            }
-        });
+        syncEndDateFromStart();
     }
 
     function normalizeStatus(value) {
@@ -896,7 +912,7 @@ $reconReportControllerMap = [
 
     function setEmptyRow(message) {
         if (!tbody) return;
-        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="14">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
+        tbody.innerHTML = '<tr class="recon-report-empty-row"><td colspan="13">' + escapeHtml(message || 'No recon report data generated yet.') + '</td></tr>';
         updateExportButtonVisibility();
     }
 
@@ -938,7 +954,7 @@ $reconReportControllerMap = [
         tr.className = 'recon-report-date-row';
         tr.dataset.role = 'date-separator';
         tr.dataset.date = normalizeIsoDate(dateValue);
-        tr.innerHTML = '<td colspan="14">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
+        tr.innerHTML = '<td colspan="13">' + escapeHtml(formatLongDate(dateValue)) + '</td>';
         return tr;
     }
 
@@ -974,6 +990,7 @@ $reconReportControllerMap = [
             tr.dataset.webCurrency = normalizeKey(row.web_currency);
             tr.dataset.partnerReportType = row.partner_report_type || '';
             tr.dataset.webReportTypes = Array.isArray(row.web_report_types) ? row.web_report_types.join('|') : String(row.web_report_types || '');
+            tr.dataset.partnerTransactionType = normalizeKey(row.partner_transaction_type);
             tr.dataset.partnerAmount = String(toNumber(row.partner_amount));
             tr.dataset.partnerCommission = String(toNumber(row.partner_commission));
             tr.dataset.webAmount = String(toNumber(row.web_amount));
@@ -997,7 +1014,6 @@ $reconReportControllerMap = [
                 + '<td>' + escapeHtml(money(row.web_amount)) + '</td>'
                 + '<td>' + escapeHtml(row.web_currency) + '</td>'
                 + '<td>' + escapeHtml(statusLabel(row.data_status)) + '</td>'
-                + '<td class="recon-report-record-status-cell">' + recordStatusHtml(row) + '</td>'
                 + '<td>' + escapeHtml(row.remarks || '') + '</td>';
             fragment.appendChild(tr);
         });
@@ -1083,6 +1099,7 @@ $reconReportControllerMap = [
     function applyFilters() {
         const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
         const currency = normalizeKey(currencySelect && currencySelect.value);
+        const transactionType = normalizeKey(transactionTypeSelect && transactionTypeSelect.value);
         const status = normalizeStatus(statusSelect && statusSelect.value);
         const reportType = activeReportType();
         let visibleCount = 0;
@@ -1104,6 +1121,12 @@ $reconReportControllerMap = [
             if (currency && currency !== 'ALL') {
                 show = show && (String(row.dataset.partnerCurrency || '').indexOf(currency) !== -1 || String(row.dataset.webCurrency || '').indexOf(currency) !== -1);
             }
+            if (transactionType) {
+                show = show && rowMatchesTransactionType({
+                    partner_transaction_type: row.dataset.partnerTransactionType,
+                    web_report_types: String(row.dataset.webReportTypes || '').split('|').filter(Boolean)
+                }, transactionType);
+            }
             if (status) show = show && String(row.dataset.status || '') === status;
             row.style.display = show ? '' : 'none';
             if (show) visibleCount++;
@@ -1117,14 +1140,11 @@ $reconReportControllerMap = [
     async function generateReport() {
         const partnerName = selectedPartnerName();
         const startDate = String(startDateInput && startDateInput.value || '').trim();
-        const endDate = String(endDateInput && endDateInput.value || '').trim();
+        const endDate = startDate;
+        if (endDateInput) endDateInput.value = startDate;
 
-        if (!partnerName || !startDate || !endDate) {
-            alert('Please select Corporate Partner, Start Date, and End Date.');
-            return;
-        }
-        if (startDate > endDate) {
-            alert('Start Date cannot be greater than End Date.');
+        if (!partnerName || !startDate) {
+            alert('Please select Corporate Partner and Transaction Date.');
             return;
         }
 
@@ -1178,12 +1198,14 @@ $reconReportControllerMap = [
         const url = new URL(baseUrl + '/src/modals/generate/recon-details-report/excel/moneygram-recon/moneygram-recon-format.php', window.location.origin);
         const status = normalizeStatus(statusSelect && statusSelect.value) || 'all';
         const currency = normalizeKey(currencySelect && currencySelect.value) || 'ALL';
+        const transactionType = normalizeKey(transactionTypeSelect && transactionTypeSelect.value) || 'all';
 
         url.searchParams.set('start_date', startDate);
         url.searchParams.set('end_date', endDate);
         url.searchParams.set('partnerName', partnerName || 'MONEYGRAM');
         url.searchParams.set('filter', status === 'duplicate' ? 'duplicates' : status);
         url.searchParams.set('currency', currency === 'ALL' ? 'all' : currency);
+        url.searchParams.set('transaction_type', transactionType);
         url.searchParams.set('report_type', activeReportType());
 
         return url.toString();
@@ -1192,14 +1214,11 @@ $reconReportControllerMap = [
     function exportExcelReport() {
         const partnerName = selectedPartnerName();
         const startDate = String(startDateInput && startDateInput.value || '').trim();
-        const endDate = String(endDateInput && endDateInput.value || '').trim();
+        const endDate = startDate;
+        if (endDateInput) endDateInput.value = startDate;
 
-        if (!partnerName || !startDate || !endDate) {
-            alert('Please select Corporate Partner, Start Date, and End Date.');
-            return;
-        }
-        if (startDate > endDate) {
-            alert('Start Date cannot be greater than End Date.');
+        if (!partnerName || !startDate) {
+            alert('Please select Corporate Partner and Transaction Date.');
             return;
         }
 
@@ -1213,6 +1232,10 @@ $reconReportControllerMap = [
     });
     if (searchInput) searchInput.addEventListener('input', applyFilters);
     if (currencySelect) currencySelect.addEventListener('change', function () {
+        updateReportTypeIndicators(reportRows);
+        applyFilters();
+    });
+    if (transactionTypeSelect) transactionTypeSelect.addEventListener('change', function () {
         updateReportTypeIndicators(reportRows);
         applyFilters();
     });

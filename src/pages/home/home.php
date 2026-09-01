@@ -247,14 +247,23 @@ if ($currentUserId !== '') {
                                 </li>
                             </ul>
                         </li>
-                        <li><a href="#" id="navSummaryReport" data-show="summaryReportSection">
-                            <span class="icon material-icons" aria-hidden="true">summarize</span>
-                            <span class="label">Summary Report</span>
-                        </a></li>
-                        <li><a href="#" id="navReconReport" data-show="reconReportSection">
-                            <span class="icon material-icons" aria-hidden="true">receipt_long</span>
-                            <span class="label">Recon Report</span>
-                        </a></li>
+                        <li class="nav-subgroup">
+                            <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="reportsReconciliationMenu">
+                                <span class="icon material-icons" aria-hidden="true">sync_alt</span>
+                                <span class="label">Reconciliation</span>
+                                <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                            </button>
+                            <ul id="reportsReconciliationMenu" class="nav-subgroup-menu" style="display:none;">
+                                <li><a href="#" id="navReconReport" data-show="reconReportSection">
+                                    <span class="icon material-icons" aria-hidden="true">receipt_long</span>
+                                    <span class="label">Details</span>
+                                </a></li>
+                                <li><a href="#" id="navSummaryReport" data-show="summaryReportSection">
+                                    <span class="icon material-icons" aria-hidden="true">summarize</span>
+                                    <span class="label">Summary</span>
+                                </a></li>
+                            </ul>
+                        </li>
                         <li><a href="#" id="navCashFlowReport" data-show="cashFlowReportSection">
                             <span class="icon material-icons" aria-hidden="true">account_balance_wallet</span>
                             <span class="label">Cash Flow Report</span>
@@ -637,7 +646,7 @@ if ($currentUserId !== '') {
         // 'navUploadedFileLogs',
         'navWebDataCancellation',
         // 'navDataEntrySettlementDetail',
-        // 'navEdiReport',
+        'navEdiReport',
         'navBranchStatusLogs',
         'navMaintenance',
         //'navBranchStatusPosting'
