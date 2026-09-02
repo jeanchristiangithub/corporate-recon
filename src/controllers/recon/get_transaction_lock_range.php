@@ -274,6 +274,7 @@ try {
                 'end_date' => $endDate,
                 'partnerName' => $partner,
                 'strict_day_remarks' => '1',
+                'maintenance_reference_lookup' => '1',
             ],
             'MONEYGRAM_RECON_RETURN_DATA'
         );
