@@ -47,7 +47,7 @@ try {
 
     <form id="cashFlowReportFilters" class="cash-flow-report-filters" novalidate>
         <label class="cash-flow-report-field cash-flow-report-field--partner">
-            <span>Corporate Partner</span>
+            <span>Corporate Partner <em class="cash-flow-report-required-mark" aria-hidden="true">*</em></span>
             <div class="cash-flow-report-autocomplete">
                 <input
                     id="cashFlowReportPartner"
@@ -55,6 +55,8 @@ try {
                     type="text"
                     placeholder="Select corporate partner"
                     autocomplete="off"
+                    required
+                    aria-required="true"
                     aria-autocomplete="list"
                     aria-controls="cashFlowReportPartnerSuggestions"
                     aria-expanded="false"
@@ -72,8 +74,8 @@ try {
         </label>
 
         <label class="cash-flow-report-field cash-flow-report-field--month">
-            <span>Month</span>
-            <input id="cashFlowReportMonth" name="month" type="month" required>
+            <span>Month <em class="cash-flow-report-required-mark" aria-hidden="true">*</em></span>
+            <input id="cashFlowReportMonth" name="month" type="month" required aria-required="true">
         </label>
 
         <button id="cashFlowReportGenerate" class="cash-flow-report-generate" type="submit">
@@ -1125,6 +1127,10 @@ try {
 
     filters?.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!filters.checkValidity()) {
+            filters.reportValidity();
+            return;
+        }
         updateBankDepositHeaders();
 
         if (resultPartner) {

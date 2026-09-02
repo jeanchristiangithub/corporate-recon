@@ -20,6 +20,7 @@
                 <div class="moneygram-recon-modal__filter-row">
                     <label class="cmp-control-search"><input data-role="resultSearch" type="search" placeholder="Search"></label>
                     <label class="cmp-control-filter">Currency: <span class="select-wrap"><select class="custom-select" data-role="resultCurrency"><option value="all">All</option><option value="PHP">PHP</option><option value="USD">USD</option></select></span></label>
+                    <label class="cmp-control-filter">Transaction Type: <span class="select-wrap"><select class="custom-select" data-role="resultTransactionType"><option value="all">All</option><option value="REC">PAYOUT (REC)</option><option value="RRC">PAYOUT CANCELLED (RRC)</option><option value="SEN">SENDOUT (SEN)</option><option value="RSN_REF">SENDOUT CANCELLED (RSN / REF)</option></select></span></label>
                     <label class="cmp-control-filter">Status: <span class="select-wrap"><select class="custom-select" data-role="resultFilter"><option value="all">All</option><option value="matched">Match Only</option><option value="mismatch">Mismatch Only</option><option value="duplicates">Duplicates Only</option></select></span></label>
                 </div>
                 <div class="moneygram-recon-modal__action-row">

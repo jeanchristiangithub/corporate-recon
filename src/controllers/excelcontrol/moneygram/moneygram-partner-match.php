@@ -269,24 +269,36 @@ function moneygramLockMatchedDates(PDO $pdo, array $dates): void
     if ($dates === []) return;
 
     foreach (array_chunk($dates, 500) as $chunk) {
-        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $dateRanges = static function (string $column, array $values): array {
+            $conditions = [];
+            $params = [];
+            foreach ($values as $value) {
+                $conditions[] = "(`{$column}` >= ? AND `{$column}` < DATE_ADD(?, INTERVAL 1 DAY))";
+                $params[] = $value;
+                $params[] = $value;
+            }
+            return ['sql' => '(' . implode(' OR ', $conditions) . ')', 'params' => $params];
+        };
+        $cancelledRange = $dateRanges('date_cancelled', $chunk);
+        $claimedRange = $dateRanges('date_claimed', $chunk);
+        $sentRange = $dateRanges('date_send', $chunk);
+        $partnerRange = $dateRanges('tran_date', $chunk);
 
         $webStmt = $pdo->prepare(
             "UPDATE ml_web_data SET is_data_locked = '1' "
-            . "WHERE UPPER(TRIM(COALESCE(partnerName,''))) = 'MONEYGRAM' "
+            . "WHERE partnerName = 'MONEYGRAM' "
             . "AND match_status = 1 "
-            . "AND DATE(CASE "
-            . "WHEN NULLIF(TRIM(CAST(date_cancelled AS CHAR)), '') IS NOT NULL THEN date_cancelled "
-            . "WHEN NULLIF(TRIM(CAST(date_claimed AS CHAR)), '') IS NOT NULL THEN date_claimed "
-            . "ELSE date_send END) IN ($placeholders)"
+            . "AND ((date_cancelled IS NOT NULL AND {$cancelledRange['sql']}) "
+            . "OR (date_cancelled IS NULL AND date_claimed IS NOT NULL AND {$claimedRange['sql']}) "
+            . "OR (date_cancelled IS NULL AND date_claimed IS NULL AND {$sentRange['sql']}))"
         );
-        $webStmt->execute($chunk);
+        $webStmt->execute(array_merge($cancelledRange['params'], $claimedRange['params'], $sentRange['params']));
 
         $partnerStmt = $pdo->prepare(
             "UPDATE moneygram_partner_data SET is_data_locked = '1' "
-            . "WHERE match_status = 1 AND DATE(tran_date) IN ($placeholders)"
+            . "WHERE match_status = 1 AND {$partnerRange['sql']}"
         );
-        $partnerStmt->execute($chunk);
+        $partnerStmt->execute($partnerRange['params']);
     }
 }
 
@@ -303,6 +315,21 @@ function moneygramUnlockMatchedDates(PDO $pdo, array $dates, string $unlockedBy)
     foreach (array_chunk($dates, 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
 
+        $dateRanges = static function (string $column, array $values): array {
+            $conditions = [];
+            $params = [];
+            foreach ($values as $value) {
+                $conditions[] = "(`{$column}` >= ? AND `{$column}` < DATE_ADD(?, INTERVAL 1 DAY))";
+                $params[] = $value;
+                $params[] = $value;
+            }
+            return ['sql' => '(' . implode(' OR ', $conditions) . ')', 'params' => $params];
+        };
+        $cancelledRange = $dateRanges('date_cancelled', $chunk);
+        $claimedRange = $dateRanges('date_claimed', $chunk);
+        $sentRange = $dateRanges('date_send', $chunk);
+        $partnerRange = $dateRanges('tran_date', $chunk);
+
         try {
             $lockStmt = $pdo->prepare(
                 'UPDATE locked_reconciliation_dates '
@@ -317,18 +344,17 @@ function moneygramUnlockMatchedDates(PDO $pdo, array $dates, string $unlockedBy)
 
         $webStmt = $pdo->prepare(
             "UPDATE ml_web_data SET is_data_locked = '0' "
-            . "WHERE UPPER(TRIM(COALESCE(partnerName,''))) = 'MONEYGRAM' "
-            . "AND DATE(CASE "
-            . "WHEN NULLIF(TRIM(CAST(date_cancelled AS CHAR)), '') IS NOT NULL THEN date_cancelled "
-            . "WHEN NULLIF(TRIM(CAST(date_claimed AS CHAR)), '') IS NOT NULL THEN date_claimed "
-            . "ELSE date_send END) IN ($placeholders)"
+            . "WHERE partnerName = 'MONEYGRAM' "
+            . "AND ((date_cancelled IS NOT NULL AND {$cancelledRange['sql']}) "
+            . "OR (date_cancelled IS NULL AND date_claimed IS NOT NULL AND {$claimedRange['sql']}) "
+            . "OR (date_cancelled IS NULL AND date_claimed IS NULL AND {$sentRange['sql']}))"
         );
-        $webStmt->execute($chunk);
+        $webStmt->execute(array_merge($cancelledRange['params'], $claimedRange['params'], $sentRange['params']));
 
         $partnerStmt = $pdo->prepare(
             "UPDATE moneygram_partner_data SET is_data_locked = '0' "
-            . "WHERE DATE(tran_date) IN ($placeholders)"
+            . "WHERE {$partnerRange['sql']}"
         );
-        $partnerStmt->execute($chunk);
+        $partnerStmt->execute($partnerRange['params']);
     }
 }

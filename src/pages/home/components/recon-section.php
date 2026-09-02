@@ -33,9 +33,9 @@ try {
         <div class="home-section__sticky">
             <div class="filters">
                 <div class="filters-left">
-                    <label class="filter"><span>Corporate Partner</span>
+                    <label class="filter"><span>Corporate Partner <b class="required-marker" aria-hidden="true">*</b></span>
                         <div class="autocomplete-field">
-                            <input id="hsCompany" placeholder="Select corporate partner" autocomplete="off" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;min-width:60ch;width:min(100%,72ch);box-sizing:border-box;">
+                            <input id="hsCompany" placeholder="Select corporate partner" autocomplete="off" required aria-required="true" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;min-width:60ch;width:min(100%,72ch);box-sizing:border-box;">
                             <ul class="autocomplete-list" id="hsCompanySuggestions" role="listbox" hidden></ul>
                             <datalist id="hsCompanyList">
                                 <?php if (empty($partners)): ?>
@@ -48,11 +48,11 @@ try {
                             </datalist>
                         </div>
                     </label>
-                    <label class="filter"><span>Start Date</span>
-                        <input id="hsStartDate" type="date" value="<?= date('Y-m-d') ?>">
+                    <label class="filter"><span>Start Date <b class="required-marker" aria-hidden="true">*</b></span>
+                        <input id="hsStartDate" type="date" value="<?= date('Y-m-d') ?>" required aria-required="true">
                     </label>
-                    <label class="filter"><span>End Date</span>
-                        <input id="hsEndDate" type="date" value="<?= date('Y-m-d') ?>">
+                    <label class="filter"><span>End Date <b class="required-marker" aria-hidden="true">*</b></span>
+                        <input id="hsEndDate" type="date" value="<?= date('Y-m-d') ?>" required aria-required="true">
                     </label>
                     <div style="display:inline-flex;align-items:flex-end;gap:8px">
                         <button id="hsReconcile" class="material-btn material-btn--primary" style="margin-left:6px;">Display</button>
@@ -1359,6 +1359,7 @@ try {
             const webPrincipalUsdEl = modal.querySelector('[data-role="webPrincipalUsd"]');
             const searchEl = modal.querySelector('[data-role="resultSearch"]');
             const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
+            const transactionTypeEl = modal.querySelector('[data-role="resultTransactionType"]');
             const filterEl = modal.querySelector('[data-role="resultFilter"]');
             const partnersScroll = modal.querySelector('[data-role="partnersScroll"]');
             const webScroll = modal.querySelector('[data-role="webScroll"]');
@@ -1551,6 +1552,8 @@ try {
                 const isDuplicate = !!((pRef && duplicateRefs.has(pRef)) || (wRef && duplicateRefs.has(wRef)));
 
                 const pairDateIso = normalizeIsoDate(
+                    (partnerObj && partnerObj.groupDate) ||
+                    (webObj && webObj.groupDate) ||
                     (partnerObj && partnerObj.pDate) ||
                     (webObj && webObj.wDateRaw) ||
                     aggregate.startDate || ''
@@ -1589,6 +1592,7 @@ try {
                     legacyId: row.partner_legacy_id || row.legacy_id || row.legacyid || '',
                     agentName: row.partner_agent_name || row.agent_name || '',
                     legacyDetectionRemark: row.legacy_detection_remark || '',
+                    groupDate: row.maintenance_group_date || '',
                     pDate: row.partner_tran_date || row.partner_date || row.partner_fx_date_trn || row.partner_cover_date || row.partner_date_claimed || row.partner_date_send || aggregate.startDate || '',
                     tx: tx,
                     pAmt: toMoneygramAmount(row.partner_principal || row.partner_base_amt || 0),
@@ -1604,6 +1608,7 @@ try {
                     wBranchId: row.web_branch_id || '',
                     wBranchName: row.web_branch_name || '',
                     legacyDetectionRemark: row.legacy_detection_remark || '',
+                    groupDate: row.maintenance_group_date || '',
                     wRef: wRef,
                     wAmt: toMoneygramAmount(row.web_amount || row.web_amt || 0),
                     wCurrency: row.web_currency || row.web_ccy || row.web_currency_code || '',
@@ -1947,6 +1952,7 @@ try {
             const applySearchFilter = function(){
                 const query = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                 const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
+                const transactionTypeFilter = transactionTypeEl && transactionTypeEl.value ? String(transactionTypeEl.value).trim().toUpperCase() : 'ALL';
                 const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
                 updateReconStatusHeaders(modal, filter);
 
@@ -1955,10 +1961,16 @@ try {
                     const wRef = String(pair.webRef || '').toLowerCase();
                     const pCurrency = toUpperKey(pair.partnerCurrency || '');
                     const wCurrency = toUpperKey(pair.webCurrency || '');
+                    const partnerTransactionType = toUpperKey(pair.partnerObj && pair.partnerObj.pType || '');
                     let show = true;
                     if(query) show = pRef.includes(query) || wRef.includes(query);
                     if(currencyFilter !== 'ALL'){
                         show = show && (pCurrency.indexOf(currencyFilter) !== -1 || wCurrency.indexOf(currencyFilter) !== -1);
+                    }
+                    if(transactionTypeFilter !== 'ALL'){
+                        show = show && (transactionTypeFilter === 'RSN_REF'
+                            ? (partnerTransactionType === 'RSN' || partnerTransactionType === 'REF')
+                            : partnerTransactionType === transactionTypeFilter);
                     }
                     if(filter === 'mismatch') show = show && (pair.isMismatch && !pair.isDuplicate);
                     else if(filter === 'duplicates') show = show && pair.isDuplicate;
@@ -2011,6 +2023,9 @@ try {
             if(currencyEl && modal._moneygramRangeCurrencyHandler){
                 currencyEl.removeEventListener('change', modal._moneygramRangeCurrencyHandler);
             }
+            if(transactionTypeEl && modal._moneygramRangeTransactionTypeHandler){
+                transactionTypeEl.removeEventListener('change', modal._moneygramRangeTransactionTypeHandler);
+            }
             if(filterEl && modal._moneygramRangeFilterHandler){
                 filterEl.removeEventListener('change', modal._moneygramRangeFilterHandler);
             }
@@ -2020,9 +2035,11 @@ try {
                 searchFilterTimer = setTimeout(applySearchFilter, 120);
             };
             modal._moneygramRangeCurrencyHandler = applySearchFilter;
+            modal._moneygramRangeTransactionTypeHandler = applySearchFilter;
             modal._moneygramRangeFilterHandler = applySearchFilter;
             if(searchEl){ searchEl.value = ''; searchEl.addEventListener('input', modal._moneygramRangeSearchHandler); }
             if(currencyEl){ currencyEl.value = 'all'; currencyEl.addEventListener('change', modal._moneygramRangeCurrencyHandler); }
+            if(transactionTypeEl){ transactionTypeEl.value = 'all'; transactionTypeEl.addEventListener('change', modal._moneygramRangeTransactionTypeHandler); }
             if(filterEl){ filterEl.value = 'all'; filterEl.addEventListener('change', modal._moneygramRangeFilterHandler); }
 
             modal._moneygramVirtual = {
@@ -3764,6 +3781,7 @@ try {
                                 const pAmtDisplay = Number.isFinite(pAmt) ? Math.abs(pAmt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
                                 const pCoin = obj.pCoin || '';
                                 tr.dataset.ref = tx;
+                                tr.dataset.transactionType = String(obj.pType || '').trim().toUpperCase();
                                 tr.innerHTML = `<td>${pDate}</td><td class="highlight-ref">${tx}</td><td>${pAmtDisplay}</td><td>${pCoin}</td>`;
                                 return tr;
                             };
@@ -3836,6 +3854,7 @@ try {
                                     const tx = r.partner_reference_id || r.partner_transaction_id || r.partner_reference_no || r.partner_ref_no || '';
                                     const pAmt = Number(r.partner_principal || r.partner_base_amt || 0);
                                     const pCoin = r.partner_settlement_currency || r.partner_transaction_currency || r.partner_base_cncy || r.partner_currency || r.partner_coin || '';
+                                    const pType = r.partner_tran_type || r.partner_transaction_type || r.tran_type || '';
 
                                     const wRef = r.web_ccref_no || r.web_cc_ref || r.web_ccref || r.web_ref || '';
                                     const wAmt = Number(r.web_amount || 0);
@@ -3843,7 +3862,7 @@ try {
                                     const wDateRaw = r.web_date_claimed || r.web_date_send || r.web_tran_date || r.web_date || '';
                                     const wKptn = r.web_kptn || r.kptn || '';
 
-                                    const pObj = tx ? { pDate, tx, pAmt, pCoin } : null;
+                                    const pObj = tx ? { pDate, tx, pAmt, pCoin, pType } : null;
                                     const wObj = wRef ? { wRef, wKptn, wAmt, wCurrency, wDateRaw } : null;
 
                                     if(pObj){
@@ -3966,10 +3985,12 @@ try {
                             try{
                                 const searchEl = modal.querySelector('[data-role="resultSearch"]');
                                 const currencyEl = modal.querySelector('[data-role="resultCurrency"]');
+                                const transactionTypeEl = modal.querySelector('[data-role="resultTransactionType"]');
                                 const filterEl = modal.querySelector('[data-role="resultFilter"]');
                                 function modalRenderMoneygramRows(){
                                     const q = searchEl && searchEl.value ? String(searchEl.value).trim().toLowerCase() : '';
                                     const currencyFilter = currencyEl && currencyEl.value ? String(currencyEl.value).trim().toUpperCase() : 'ALL';
+                                    const transactionTypeFilter = transactionTypeEl && transactionTypeEl.value ? String(transactionTypeEl.value).trim().toUpperCase() : 'ALL';
                                     const filter = filterEl && filterEl.value ? String(filterEl.value) : 'all';
                                     updateReconStatusHeaders(modal, filter);
 
@@ -3979,6 +4000,7 @@ try {
                                         const webRef = String((pair.webRow.querySelector('.highlight-ref')?.textContent) || (pair.webRow.cells[1]?.textContent) || '').toLowerCase();
                                         const partnerCurrency = String(pair.partnerRow.dataset.currency || '').trim().toUpperCase();
                                         const webCurrency = String(pair.webRow.dataset.currency || '').trim().toUpperCase();
+                                        const partnerTransactionType = String(pair.partnerRow.dataset.transactionType || '').trim().toUpperCase();
 
                                         // base visibility from search
                                         let show = true;
@@ -3989,6 +4011,11 @@ try {
                                         }
                                         if(currencyFilter !== 'ALL'){
                                             show = show && (partnerCurrency.indexOf(currencyFilter) !== -1 || webCurrency.indexOf(currencyFilter) !== -1);
+                                        }
+                                        if(transactionTypeFilter !== 'ALL'){
+                                            show = show && (transactionTypeFilter === 'RSN_REF'
+                                                ? (partnerTransactionType === 'RSN' || partnerTransactionType === 'REF')
+                                                : partnerTransactionType === transactionTypeFilter);
                                         }
 
                                         // apply filter: 'all' should include matched, mismatched and duplicates
@@ -4097,6 +4124,7 @@ try {
                                 const resetMoneygramState = function(){
                                     if(searchEl) searchEl.value = '';
                                     if(currencyEl) currencyEl.value = 'all';
+                                    if(transactionTypeEl) transactionTypeEl.value = 'all';
                                     modal._moneygramLastSearchValue = '';
                                     if(modal._moneygramDebounceTimer){
                                         try{ clearTimeout(modal._moneygramDebounceTimer); }catch(_e){}
@@ -4117,14 +4145,19 @@ try {
                                 if(currencyEl && modal._moneygramCurrencyHandler){
                                     currencyEl.removeEventListener('change', modal._moneygramCurrencyHandler);
                                 }
+                                if(transactionTypeEl && modal._moneygramTransactionTypeHandler){
+                                    transactionTypeEl.removeEventListener('change', modal._moneygramTransactionTypeHandler);
+                                }
                                 if(filterEl && modal._moneygramFilterHandler){
                                     filterEl.removeEventListener('change', modal._moneygramFilterHandler);
                                 }
                                 modal._moneygramSearchHandler = function(){ modalRenderMoneygramRows(); };
                                 modal._moneygramCurrencyHandler = function(){ modalRenderMoneygramRows(); };
+                                modal._moneygramTransactionTypeHandler = function(){ modalRenderMoneygramRows(); };
                                 modal._moneygramFilterHandler = function(){ modalRenderMoneygramRows(); };
                                 if(searchEl) searchEl.addEventListener('input', modal._moneygramSearchHandler);
                                 if(currencyEl) currencyEl.addEventListener('change', modal._moneygramCurrencyHandler);
+                                if(transactionTypeEl) transactionTypeEl.addEventListener('change', modal._moneygramTransactionTypeHandler);
                                 if(filterEl) filterEl.addEventListener('change', modal._moneygramFilterHandler);
 
                                 // On reopen: start with blank search and current dropdown filter.

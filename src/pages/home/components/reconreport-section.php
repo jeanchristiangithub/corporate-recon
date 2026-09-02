@@ -46,7 +46,7 @@ $reconReportControllerMap = [
 
         <form class="recon-report-toolbar" id="reconReportFilterForm" action="#" method="get">
             <label class="recon-report-field" for="reconReportCorporatePartner">
-                <span>Corporate Partner <span class="recon-report-required" aria-hidden="true">*</span></span>
+                <span>CORPORATE PARTNER <span class="recon-report-required" aria-hidden="true">*</span></span>
                 <div class="recon-report-autocomplete">
                     <input
                         id="reconReportCorporatePartner"
@@ -61,13 +61,13 @@ $reconReportControllerMap = [
             </label>
 
             <label class="recon-report-field recon-report-field--date" for="reconReportStartDate">
-                <span>Transaction Date <span class="recon-report-required" aria-hidden="true">*</span></span>
+                <span>TRANSACTION DATE <span class="recon-report-required" aria-hidden="true">*</span></span>
                 <input id="reconReportStartDate" name="start_date" type="date" required>
             </label>
             <input id="reconReportEndDate" name="end_date" type="hidden">
 
             <label class="recon-report-field recon-report-field--select" for="reconReportCurrency">
-                <span>Currency</span>
+                <span>CURRENCY</span>
                 <select id="reconReportCurrency" name="currency">
                     <option value="">All</option>
                     <option value="PHP">PHP</option>
@@ -76,7 +76,7 @@ $reconReportControllerMap = [
             </label>
 
             <label class="recon-report-field recon-report-field--select" for="reconReportTransactionType">
-                <span>Transaction Type</span>
+                <span>TRANSACTION TYPE</span>
                 <select id="reconReportTransactionType" name="transaction_type">
                     <option value="">All</option>
                     <option value="REC">REC - PAYOUT</option>
@@ -87,7 +87,7 @@ $reconReportControllerMap = [
             </label>
 
             <label class="recon-report-field recon-report-field--select" for="reconReportStatus">
-                <span>Status</span>
+                <span>STATUS</span>
                 <select id="reconReportStatus" name="status">
                     <option value="">All</option>
                     <option value="matched">Matched</option>

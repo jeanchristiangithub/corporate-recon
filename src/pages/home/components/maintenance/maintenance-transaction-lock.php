@@ -46,20 +46,47 @@ try {
     }
     #maintenanceDataUnlockSection .locked-dates-table th,
     #maintenanceDataUnlockSection .locked-dates-table td {
-        padding: 6px 10px;
-        line-height: 1.2;
+        padding: 4px 7px;
+        line-height: 1.1;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table {
+        width: max-content;
+        min-width: 850px;
+        table-layout: auto;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table th,
+    #maintenanceDataUnlockSection .locked-dates-table td {
+        width: auto;
+        white-space: nowrap;
+    }
+    #maintenanceDataUnlockSection .locked-dates-table th:nth-child(1),
+    #maintenanceDataUnlockSection .locked-dates-table td:nth-child(1) { min-width: 190px; }
+    #maintenanceDataUnlockSection .locked-dates-table th:nth-child(2),
+    #maintenanceDataUnlockSection .locked-dates-table td:nth-child(2) { min-width: 170px; }
+    #maintenanceDataUnlockSection .locked-dates-table th:nth-child(3),
+    #maintenanceDataUnlockSection .locked-dates-table td:nth-child(3) { min-width: 105px; }
+    #maintenanceDataUnlockSection .locked-dates-table th:nth-child(4),
+    #maintenanceDataUnlockSection .locked-dates-table td:nth-child(4) { min-width: 230px; }
+    #maintenanceDataUnlockSection .locked-dates-table th:nth-child(5),
+    #maintenanceDataUnlockSection .locked-dates-table td:nth-child(5) { min-width: 155px; }
+    #maintenanceDataUnlockSection .locked-dates-actions {
+        gap: 5px;
+    }
+    #maintenanceDataUnlockSection .locked-dates-empty,
+    #maintenanceDataUnlockSection .locked-dates-loading {
+        text-align: center;
     }
     #maintenanceDataUnlockSection .locked-dates-status {
-        min-height: 20px;
-        padding: 2px 8px;
+        min-height: 18px;
+        padding: 1px 7px;
     }
     #maintenanceDataUnlockSection .locked-dates-status.is-no-data {
         color: #fff;
         background: #dc3545;
     }
     #maintenanceDataUnlockSection .locked-dates-action-btn {
-        height: 26px;
-        padding: 3px 10px;
+        height: 24px;
+        padding: 2px 9px;
         color: #000;
         border-color: #dc3545;
     }
@@ -69,8 +96,13 @@ try {
         border-color: #dc3545;
     }
     #maintenanceDataUnlockSection .locked-dates-table-wrap {
+        width: max-content;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
         max-height: min(62vh, 560px);
         overflow: auto;
+        box-sizing: border-box;
     }
     #maintenanceDataUnlockSection .locked-dates-table thead th {
         position: sticky;
@@ -78,6 +110,14 @@ try {
         z-index: 5;
         background: #f8fafc;
         box-shadow: 0 1px 0 rgba(15, 23, 42, .10);
+    }
+    #maintenanceDataUnlockSection .required-mark {
+        display: inline;
+        color: #dc3545;
+        font-size: inherit;
+        letter-spacing: 0;
+        margin-left: 2px;
+        margin-bottom: 0;
     }
 </style>
 <section id="maintenanceDataUnlockSection" class="home-section" aria-label="Transaction Lock" aria-busy="false" style="display:none;">
@@ -91,19 +131,19 @@ try {
         <div class="locked-dates-toolbar" style="justify-content:flex-start;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-top:16px;">
             <div style="display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;">
                 <label class="filter" style="flex:0 1 325px;width:min(325px,100%);">
-                    <span>Corporate Partner</span>
+                    <span>Corporate Partner<span class="required-mark" aria-hidden="true">*</span></span>
                     <div class="autocomplete-field" style="width:100%;">
-                        <input id="maintenanceUnlockPartner" type="text" role="combobox" aria-autocomplete="list" aria-controls="maintenanceUnlockPartnerSuggestions" aria-expanded="false" placeholder="Select corporate partner" autocomplete="off" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
+                        <input id="maintenanceUnlockPartner" type="text" role="combobox" aria-autocomplete="list" aria-controls="maintenanceUnlockPartnerSuggestions" aria-expanded="false" aria-required="true" required placeholder="Select corporate partner" autocomplete="off" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
                         <ul id="maintenanceUnlockPartnerSuggestions" class="autocomplete-list" role="listbox" hidden></ul>
                     </div>
                 </label>
                 <label class="filter" style="flex:0 0 142px;">
-                    <span>Start Date</span>
-                    <input id="maintenanceLockStartDate" type="date" value="<?= date('Y-m-d') ?>" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
+                    <span>Start Date<span class="required-mark" aria-hidden="true">*</span></span>
+                    <input id="maintenanceLockStartDate" type="date" value="<?= date('Y-m-d') ?>" aria-required="true" required style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
                 </label>
                 <label class="filter" style="flex:0 0 142px;">
-                    <span>End Date</span>
-                    <input id="maintenanceLockEndDate" type="date" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
+                    <span>End Date<span class="required-mark" aria-hidden="true">*</span></span>
+                    <input id="maintenanceLockEndDate" type="date" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" aria-required="true" required style="width:100%;height:36px;padding:7px 10px;border:1px solid rgba(15,23,42,.14);border-radius:7px;box-sizing:border-box;">
                 </label>
                 <label class="filter" style="flex:0 0 140px;">
                     <span>Status</span>
@@ -319,7 +359,9 @@ try {
             const remarks = [];
             if (mismatchCount) remarks.push(mismatchCount.toLocaleString() + (mismatchCount === 1 ? ' Volume - Mismatch' : ' Volumes - Mismatch'));
             if (duplicateCount) remarks.push(duplicateCount.toLocaleString() + (duplicateCount === 1 ? ' Volume - Duplicate' : ' Volumes - Duplicates'));
-            const actions = isNoData
+            const actions = row.is_updating
+                ? '<div class="locked-dates-actions"><button type="button" class="material-btn locked-dates-action-btn" disabled>Saving...</button></div>'
+                : isNoData
                 ? ''
                 : isLocked
                 ? '<div class="locked-dates-actions"><button type="button" class="material-btn locked-dates-action-btn locked-dates-view" data-action="maintenance-locked-view">View</button>'
@@ -349,6 +391,10 @@ try {
         const startDate = normalizeDate(startDateFilter.value || '');
         const endDate = normalizeDate(endDateFilter.value || '');
         const validPartner = partnerOptions.some(function (item) { return String(item).trim().toUpperCase() === partner.toUpperCase(); });
+        partnerFilter.setCustomValidity(validPartner ? '' : 'Select a valid corporate partner.');
+        if (!partnerFilter.reportValidity()) return;
+        if (!startDateFilter.reportValidity()) return;
+        if (!endDateFilter.reportValidity()) return;
         if (!validPartner) {
             setMessage('Select a valid corporate partner.', 'error');
             return;
@@ -455,8 +501,15 @@ try {
         const date = row.getAttribute('data-date') || '';
         if (!partner || !date || !(await confirmUnlock(partner, date))) return;
 
-        button.disabled = true;
-        button.textContent = 'Unlocking...';
+        const targetItem = rows.find(function (item) {
+            return String(item.partnername || item.corporate_partner || '').trim().toUpperCase() === partner.toUpperCase()
+                && normalizeDate(item.transaction_date || item.recon_date || item.date || '') === date;
+        });
+        if (targetItem) {
+            targetItem.status = 'unlocked';
+            targetItem.is_updating = true;
+            render();
+        }
         setMessage('', '');
         try {
             const response = await fetch(baseUrl() + '/src/controllers/recon/unlock_reconciliation_date.php', {
@@ -466,16 +519,18 @@ try {
             });
             const data = await response.json();
             if (!response.ok || !data || !data.success) throw new Error((data && (data.error || data.message)) || 'Failed to unlock reconciliation date.');
-            rows.forEach(function (item) {
-                const itemPartner = String(item.partnername || item.corporate_partner || '').trim().toUpperCase();
-                const itemDate = normalizeDate(item.transaction_date || item.recon_date || item.date || '');
-                if (itemPartner === partner.toUpperCase() && itemDate === date) item.status = 'unlocked';
-            });
+            if (targetItem) targetItem.is_updating = false;
             render();
             setMessage('Reconciliation date unlocked successfully.', 'success');
         } catch (error) {
-            button.disabled = false;
-            button.textContent = 'Unlock';
+            if (targetItem) {
+                targetItem.status = 'locked';
+                targetItem.is_updating = false;
+                render();
+            } else {
+                button.disabled = false;
+                button.textContent = 'Unlock';
+            }
             setMessage(error.message || 'Failed to unlock reconciliation date.', 'error');
         }
     }
@@ -497,8 +552,15 @@ try {
         }
         if (!confirmed) return;
 
-        button.disabled = true;
-        button.textContent = 'Locking...';
+        const targetItem = rows.find(function (item) {
+            return String(item.partnername || item.corporate_partner || '').trim().toUpperCase() === partner.toUpperCase()
+                && normalizeDate(item.transaction_date || item.recon_date || item.date || '') === date;
+        });
+        if (targetItem) {
+            targetItem.status = 'locked';
+            targetItem.is_updating = true;
+            render();
+        }
         setMessage('', '');
         try {
             const response = await fetch(baseUrl() + '/src/controllers/recon/lock_reconciliation_date.php', {
@@ -507,16 +569,18 @@ try {
             });
             const data = await response.json();
             if (!response.ok || !data || !data.success) throw new Error((data && (data.error || data.message)) || 'Failed to lock reconciliation date.');
-            rows.forEach(function (item) {
-                const itemPartner = String(item.partnername || item.corporate_partner || '').trim().toUpperCase();
-                const itemDate = normalizeDate(item.transaction_date || item.recon_date || item.date || '');
-                if (itemPartner === partner.toUpperCase() && itemDate === date) item.status = 'locked';
-            });
+            if (targetItem) targetItem.is_updating = false;
             render();
             setMessage('Reconciliation date locked successfully.', 'success');
         } catch (error) {
-            button.disabled = false;
-            button.textContent = 'Lock';
+            if (targetItem) {
+                targetItem.status = 'unlocked';
+                targetItem.is_updating = false;
+                render();
+            } else {
+                button.disabled = false;
+                button.textContent = 'Lock';
+            }
             setMessage(error.message || 'Failed to lock reconciliation date.', 'error');
         }
     }
@@ -562,6 +626,7 @@ try {
     }
 
     partnerFilter.addEventListener('input', function () {
+        partnerFilter.setCustomValidity('');
         clearProcessedResults();
         renderPartnerSuggestions();
     });

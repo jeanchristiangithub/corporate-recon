@@ -239,6 +239,13 @@ try {
 		.reports-webdata-content .rwd-filter-card__money { display:block; margin:0 0 10px; font-size:0.9rem; font-weight:800; }
 		.reports-webdata-content .rwd-filter-card__money--php { color:#00704a; }
 		.reports-webdata-content .rwd-filter-card__money--usd { color:#0b4aa2; }
+		#reportsWebdataForm > label > span,
+		#reportsWebdataForm .rwd-duration-label,
+		#reportsWebdataForm .rwd-primary-actions > label > span,
+		#reportsWebdataForm .rwd-multi-filters > label > span {
+			color:#111 !important;
+			font-weight:700;
+		}
 		@media (max-width: 1180px) {
 			.reports-webdata-content .rwd-primary-actions { flex:0 0 100%; margin-left:0; justify-content:flex-start; flex-wrap:wrap; }
 			.reports-webdata-content .rwd-primary-actions label { flex:1 1 150px; }
@@ -288,12 +295,12 @@ try {
 
 			<div class="rwd-duration" style="display:flex;align-items:flex-end;gap:.5rem;flex-wrap:wrap">
 				<div style="display:flex;flex-direction:column;gap:0.25rem">
-					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">Start date <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></label>
+					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">START DATE <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></label>
 					<input id="rwdStartDate" name="start_date" type="date" class="rwd-duration-input" aria-label="Start date" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:12ch;box-sizing:border-box;font-size:.95rem;">
 				</div>
 				<span class="rwd-duration-sep" style="color:#6b7280;font-weight:600;margin-bottom:8px">—</span>
 				<div style="display:flex;flex-direction:column;gap:0.25rem">
-					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">End date <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></label>
+					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">END DATE <span style="color:#dc2626;margin-left:4px" aria-hidden="true">*</span></label>
 					<input id="rwdEndDate" name="end_date" type="date" class="rwd-duration-input" aria-label="End date" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:12ch;box-sizing:border-box;font-size:.95rem;">
 				</div>
 			</div>

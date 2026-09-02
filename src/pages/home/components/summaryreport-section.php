@@ -44,7 +44,7 @@ $partnerInputChars = min($partnerInputChars, 90);
 
         .summary-report-content p {
             margin: 0;
-            color: #6b7280;
+            color: #000 !important;
             font-size: .9rem;
         }
 
@@ -67,6 +67,16 @@ $partnerInputChars = min($partnerInputChars, 90);
             gap: .25rem;
             color: #6b7280;
             font-size: .75rem;
+            font-weight: 800 !important;
+        }
+
+        .summary-report-content .summary-field > .summary-field-caption {
+            color: #000 !important;
+            font-weight: 800 !important;
+        }
+
+        .summary-report-content .summary-required {
+            color: #dc3545;
             font-weight: 700;
         }
 
@@ -508,15 +518,15 @@ $partnerInputChars = min($partnerInputChars, 90);
 
     <form id="summaryReportForm" class="summary-form">
         <label for="summaryPartner" class="summary-field">
-            Corporate Partner
+            <span class="summary-field-caption">CORPORATE PARTNER <span class="summary-required" aria-hidden="true">*</span></span>
             <div class="autocomplete-field">
-                <input id="summaryPartner" name="partner" class="summary-partner-input" placeholder="Select or Type here..." autocomplete="off">
+                <input id="summaryPartner" name="partner" class="summary-partner-input" placeholder="Select or Type here..." autocomplete="off" required aria-required="true">
                 <ul class="autocomplete-list" id="summaryPartnerSuggestions" role="listbox" hidden></ul>
             </div>
         </label>
         <label class="summary-field">
-            Month
-            <input id="summaryMonth" class="summary-input" type="month">
+            <span class="summary-field-caption">MONTH <span class="summary-required" aria-hidden="true">*</span></span>
+            <input id="summaryMonth" name="month" class="summary-input" type="month" required aria-required="true">
         </label>
         <button id="summarySubmit" class="summary-button" type="submit">Generate</button>
     </form>

@@ -100,6 +100,11 @@ try{
 
     $detail = isset($_GET['detail']) ? (int)$_GET['detail'] : 0;
     $rangeDetail = isset($_GET['range_detail']) ? (int)$_GET['range_detail'] : 0;
+    $maintenanceReferenceLookup = isset($_GET['maintenance_reference_lookup']) ? (int)$_GET['maintenance_reference_lookup'] : 0;
+    // Transaction Lock renders one result row per calendar date. In that
+    // context, calculate each day's remarks with the same date boundary used
+    // when that row is opened in the Reconciliation Details modal.
+    $strictDayRemarks = isset($_GET['strict_day_remarks']) ? (int)$_GET['strict_day_remarks'] : 0;
     $reqDay = isset($_GET['day']) ? (int)$_GET['day'] : 0;
     $reqDate = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
     if($reqDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $reqDate)){
@@ -304,6 +309,147 @@ try{
         }
     }
 
+    // Transaction Lock may open a date whose corresponding KPX record was
+    // filed under another KPX date. For the maintenance detail viewer only,
+    // recover that counterpart by the business key requested by the user:
+    // Partner REFERENCE ID + AMOUNT = KPX CCREF NO + AMOUNT.
+    if($maintenanceReferenceLookup && $partnerRows){
+        $existingWebKeys = [];
+        foreach($webRows as $webRow){
+            $existingWebKeys[$webRow['ref'].'|'.number_format(abs((float)$webRow['amount']), 5, '.', '')] = true;
+        }
+
+        $missingPartnersByRef = [];
+        foreach($partnerRows as $partnerRow){
+            $key = $partnerRow['ref'].'|'.number_format(abs((float)$partnerRow['amount']), 5, '.', '');
+            if(isset($existingWebKeys[$key])) continue;
+            $missingPartnersByRef[$partnerRow['ref']][] = $partnerRow;
+        }
+
+        $fallbackRows = [];
+        $fallbackSeen = [];
+        foreach(array_chunk(array_keys($missingPartnersByRef), 200) as $referenceChunk){
+            if(!$referenceChunk) continue;
+            $referencePlaceholders = implode(',', array_fill(0, count($referenceChunk), '?'));
+            $fallbackSqls = [
+                "SELECT * FROM ml_web_data WHERE ccref_no IN ($referencePlaceholders)",
+                "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE cc_ref IN ($referencePlaceholders)",
+                "SELECT *, ccref_id AS ccref_no FROM ml_web_data WHERE ccref_id IN ($referencePlaceholders)",
+                "SELECT *, cc_ref_id AS ccref_no FROM ml_web_data WHERE cc_ref_id IN ($referencePlaceholders)",
+            ];
+            foreach($tryQueryAll($fallbackSqls, $referenceChunk) as $fallbackRow){
+                $fallbackRef = $normalizeKey($firstNonEmpty($fallbackRow, ['ccref_no', 'cc_ref', 'ccref_id', 'cc_ref_id']));
+                if($fallbackRef === '' || empty($missingPartnersByRef[$fallbackRef])) continue;
+                $fallbackAmount = isset($fallbackRow['amount']) ? abs((float)$fallbackRow['amount']) : abs((float)($fallbackRow['web_amount'] ?? 0));
+                foreach($missingPartnersByRef[$fallbackRef] as $partnerRow){
+                    if(!$amountsEqual($partnerRow['amount'], $fallbackAmount)) continue;
+                    $fallbackKey = $fallbackRef.'|'.number_format($fallbackAmount, 5, '.', '');
+                    if(isset($fallbackSeen[$fallbackKey])) break;
+                    $fallbackSeen[$fallbackKey] = true;
+                    $fallbackRows[] = ['raw' => $fallbackRow, 'partner' => $partnerRow];
+                    break;
+                }
+            }
+        }
+
+        foreach($fallbackRows as $fallbackIndex => $fallback){
+            $row = $fallback['raw'];
+            $partnerRow = $fallback['partner'];
+            $rawRef = $firstNonEmpty($row, ['ccref_no', 'cc_ref', 'ccref_id', 'cc_ref_id']);
+            $webRows[] = [
+                'index' => 2000000 + $fallbackIndex,
+                // Group the recovered counterpart with the selected Partner
+                // transaction date while retaining its actual dates in raw.
+                'date' => $partnerRow['date'],
+                'ref' => $normalizeKey($rawRef),
+                'raw_ref' => $rawRef,
+                'report_type' => $partnerRow['report_type'],
+                'date_source' => 'reference_amount_lookup',
+                'kptn' => (string)($row['kptn'] ?? ''),
+                'branch' => (string)($row['branch'] ?? ($row['account_name'] ?? ($row['accountName'] ?? ''))),
+                'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
+                'branch_name' => (string)($branchNameById[$normalizeKey($row['branch_id'] ?? ($row['branchId'] ?? ''))] ?? ''),
+                'amount' => isset($row['amount']) ? (float)$row['amount'] : (float)($row['web_amount'] ?? 0),
+                'ctp' => isset($row['ctp']) ? (float)$row['ctp'] : (float)($row['web_ctp'] ?? 0),
+                'currency' => $normalizeCurrency($row['currency'] ?? ''),
+                'raw' => $row,
+            ];
+        }
+    }
+
+    // Reciprocal Transaction Lock lookup: a KPX row on the selected date may
+    // have its Partner record stored on another transaction date. Recover the
+    // Partner row by KPX CCREF NO + AMOUNT against REFERENCE ID + BASE_AMT.
+    if($maintenanceReferenceLookup && $webRows){
+        $existingPartnerKeys = [];
+        foreach($partnerRows as $partnerRow){
+            $existingPartnerKeys[$partnerRow['ref'].'|'.number_format(abs((float)$partnerRow['amount']), 5, '.', '')] = true;
+        }
+
+        $missingWebByRef = [];
+        foreach($webRows as $webRow){
+            $key = $webRow['ref'].'|'.number_format(abs((float)$webRow['amount']), 5, '.', '');
+            if(isset($existingPartnerKeys[$key])) continue;
+            $missingWebByRef[$webRow['ref']][] = $webRow;
+        }
+
+        $partnerFallbacks = [];
+        $partnerFallbackSeen = [];
+        foreach(array_chunk(array_keys($missingWebByRef), 200) as $referenceChunk){
+            if(!$referenceChunk) continue;
+            $referencePlaceholders = implode(',', array_fill(0, count($referenceChunk), '?'));
+            $partnerFallbackSqls = [
+                "SELECT * FROM moneygram_partner_data WHERE reference_id IN ($referencePlaceholders)",
+                "SELECT *, reference_no AS reference_id FROM moneygram_partner_data WHERE reference_no IN ($referencePlaceholders)",
+                "SELECT *, ref_no AS reference_id FROM moneygram_partner_data WHERE ref_no IN ($referencePlaceholders)",
+            ];
+            foreach($tryQueryAll($partnerFallbackSqls, $referenceChunk) as $fallbackRow){
+                $fallbackRef = $normalizeKey($firstNonEmpty($fallbackRow, ['reference_id', 'reference_no', 'ref_no']));
+                if($fallbackRef === '' || empty($missingWebByRef[$fallbackRef])) continue;
+                $fallbackAmount = isset($fallbackRow['base_amt'])
+                    ? abs((float)$fallbackRow['base_amt'])
+                    : abs((float)($fallbackRow['amount'] ?? 0));
+                foreach($missingWebByRef[$fallbackRef] as $webRow){
+                    if(!$amountsEqual($webRow['amount'], $fallbackAmount)) continue;
+                    $fallbackKey = $fallbackRef.'|'.number_format($fallbackAmount, 5, '.', '');
+                    if(isset($partnerFallbackSeen[$fallbackKey])) break;
+                    $partnerFallbackSeen[$fallbackKey] = true;
+                    $partnerFallbacks[] = ['raw' => $fallbackRow, 'web' => $webRow];
+                    break;
+                }
+            }
+        }
+
+        foreach($partnerFallbacks as $fallbackIndex => $fallback){
+            $row = $fallback['raw'];
+            $webRow = $fallback['web'];
+            $rawRef = $firstNonEmpty($row, ['reference_id', 'reference_no', 'ref_no']);
+            $tranType = $normalizeKey($firstNonEmpty($row, ['tran_type', 'transaction_type']));
+            $reportType = '';
+            if($tranType === 'REC') $reportType = 'payout';
+            elseif($tranType === 'SEN') $reportType = 'sendout';
+            elseif($tranType === 'RRC') $reportType = 'payout-cancelled';
+            elseif($tranType === 'RSN' || $tranType === 'REF') $reportType = 'sendout-cancelled';
+
+            $partnerRows[] = [
+                'index' => 3000000 + $fallbackIndex,
+                // Use the selected KPX date for grouping, but keep the actual
+                // Partner date in raw so its DATE cell remains truthful.
+                'date' => $webRow['date'],
+                'ref' => $normalizeKey($rawRef),
+                'raw_ref' => $rawRef,
+                'report_type' => $reportType !== '' ? $reportType : $webRow['report_type'],
+                'amount' => isset($row['base_amt']) ? abs((float)$row['base_amt']) : abs((float)($row['amount'] ?? 0)),
+                'commission' => isset($row['comm_amt']) ? (float)$row['comm_amt'] : (float)($row['comm_tran_amt'] ?? ($row['fee_tran_amt'] ?? 0)),
+                'currency' => $normalizeCurrency($row['settlement_currency'] ?? ($row['transaction_currency'] ?? ($row['base_cncy'] ?? ($row['currency'] ?? ($row['coin'] ?? ''))))),
+                'agent_name' => (string)($row['agent_name'] ?? ''),
+                'legacy_id' => (string)($row['legacy_id'] ?? ($row['legacyid'] ?? ($row['legacyId'] ?? ''))),
+                'branch_id' => (string)($row['branch_id'] ?? ($row['branchId'] ?? '')),
+                'raw' => $row,
+            ];
+        }
+    }
+
     usort($partnerRows, function($left, $right){
         if($left['date'] !== $right['date']) return strcmp($left['date'], $right['date']);
         return $left['index'] <=> $right['index'];
@@ -334,16 +480,18 @@ try{
             if(isset($usedWebIndexes[$candidateIndex])) continue;
 
             $webRow = $webRows[$candidateIndex];
-            if(($partnerRow['report_type'] ?? '') !== '' && ($webRow['report_type'] ?? '') !== '' && $partnerRow['report_type'] !== $webRow['report_type']) continue;
-            // Only consider web rows that fall within the requested reconciliation range.
-            // This prevents pulling/matching web rows that are outside the user-selected date window
-            // (e.g. a 04-17 web row should not match when the user requested range ends 04-16).
-            if($webRow['date'] < $startDate || $webRow['date'] > $endDate) continue;
+            $isMaintenanceBusinessMatch = $maintenanceReferenceLookup
+                && $amountsEqual($partnerRow['amount'], $webRow['amount']);
+            if(!$isMaintenanceBusinessMatch && ($partnerRow['report_type'] ?? '') !== '' && ($webRow['report_type'] ?? '') !== '' && $partnerRow['report_type'] !== $webRow['report_type']) continue;
+            if(!$isMaintenanceBusinessMatch && $strictDayRemarks && $webRow['date'] !== $partnerRow['date']) continue;
+            // Normal reconciliation is date-bound. Transaction Lock's detail
+            // fallback is deliberately keyed by reference + amount instead.
+            if(!$isMaintenanceBusinessMatch && ($webRow['date'] < $startDate || $webRow['date'] > $endDate)) continue;
             $dateDistance = abs($dateDiffDays($partnerRow['date'], $webRow['date']));
             $isCancellationPair = in_array($partnerRow['report_type'] ?? '', ['payout-cancelled', 'sendout-cancelled'], true);
-            if($dateDistance > ($isCancellationPair ? 0 : 1)) continue;
+            if(!$isMaintenanceBusinessMatch && $dateDistance > ($isCancellationPair ? 0 : 1)) continue;
             if(!$amountsEqual($partnerRow['amount'], $webRow['amount'])) continue;
-            if($partnerRow['currency'] === '' || $webRow['currency'] === '' || $partnerRow['currency'] !== $webRow['currency']) continue;
+            if(!$isMaintenanceBusinessMatch && ($partnerRow['currency'] === '' || $webRow['currency'] === '' || $partnerRow['currency'] !== $webRow['currency'])) continue;
 
             if(
                 $bestWebIndex === null ||
@@ -501,6 +649,7 @@ try{
                 $web = $pair['web'] ?? null;
                 $rawRef = $partner['raw_ref'] ?? ($web['raw_ref'] ?? '');
                 $row = ['ref' => $rawRef];
+                if($maintenanceReferenceLookup) $row['maintenance_group_date'] = $dt;
 
                 if($partner){
                     foreach(($partner['raw'] ?? []) as $col => $val){

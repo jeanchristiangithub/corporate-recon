@@ -16,7 +16,7 @@ try {
         .partner-settlement-summary { color: #1f2937; }
         .partner-settlement-summary h3 { margin: 0 0 .75rem; font-size: 1.125rem; font-weight: 700; }
         .partner-settlement-summary .settlement-filter-card {
-            display: grid; grid-template-columns: minmax(320px, 465px) 148px auto; align-items: end;
+            display: grid; grid-template-columns: minmax(320px, 465px) 180px auto; align-items: end;
             justify-content: start; gap: .75rem; margin-bottom: 1rem; padding: .75rem;
             background: #fff; border: 1px solid #e6eef6; border-radius: 8px;
         }
@@ -24,6 +24,10 @@ try {
             display: flex; flex-direction: column; gap: .25rem; color: #6b7280;
             font-size: .75rem; font-weight: 700;
         }
+        .partner-settlement-summary .settlement-filter-card .settlement-field > span:first-child {
+            color: #000; font-weight: 700;
+        }
+        .partner-settlement-summary .settlement-required { color: #dc3545; }
         .partner-settlement-summary .settlement-currency-tabs { display: flex; height: 38px; }
         .partner-settlement-summary .settlement-currency-tab {
             min-width: 70px; padding: 0 .9rem; color: #374151; background: #fff;
@@ -125,7 +129,7 @@ try {
 
     <h3>Partner Settlement Summary</h3>
     <form id="partnerSettlementSummaryForm" class="settlement-filter-card">
-        <label class="settlement-field"><span>Corporate Partner</span>
+        <label class="settlement-field"><span>Corporate Partner <span class="settlement-required" aria-hidden="true">*</span></span>
             <span class="settlement-autocomplete">
                 <input id="partnerSettlementPartner" class="settlement-input" type="text"
                     placeholder="Select or Type here..." autocomplete="off" required
@@ -133,7 +137,7 @@ try {
                 <ul id="partnerSettlementPartnerSuggestions" class="settlement-suggestions" role="listbox" hidden></ul>
             </span>
         </label>
-        <label class="settlement-field"><span>Month</span>
+        <label class="settlement-field"><span>Month <span class="settlement-required" aria-hidden="true">*</span></span>
             <input id="partnerSettlementMonth" class="settlement-input" type="month" required>
         </label>
         <button id="partnerSettlementSubmit" class="settlement-button" type="submit">Generate</button>

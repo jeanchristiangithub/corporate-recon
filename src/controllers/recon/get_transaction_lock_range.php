@@ -269,7 +269,12 @@ try {
     if ($partnerKey === 'moneygram') {
         $response = $runReconForRemarks(
             __DIR__ . '/moneygram-recon.php',
-            ['start_date' => $startDate, 'end_date' => $endDate, 'partnerName' => $partner],
+            [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'partnerName' => $partner,
+                'strict_day_remarks' => '1',
+            ],
             'MONEYGRAM_RECON_RETURN_DATA'
         );
         $applyModalRemarks((array) ($response['days'] ?? []));

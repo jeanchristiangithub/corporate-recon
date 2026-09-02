@@ -8,7 +8,7 @@
 .kpx-filters-actions{display:flex;gap:8px;margin-left:auto}
 .kpx-filters-actions .material-btn{height:36px;padding:8px 14px}
 .kpx-wd-filter{display:flex;flex-direction:column}
-.kpx-wd-filter span{font-size:13px;color:#374151;margin-bottom:6px;font-weight:600}
+.kpx-wd-filter span{font-size:13px;color:#000;margin-bottom:6px;font-weight:700}
 .kpx-wd-filter input{padding:8px 10px;border-radius:6px;border:1px solid rgba(15,23,42,0.06);background:#fff;color:#111;font-size:.9rem;outline:none;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;box-sizing:border-box}
 .kpx-wd-filter input:hover{border-color:rgba(15,23,42,0.18)}
 .kpx-wd-filter input:focus{border-color:rgba(220,53,69,.35);box-shadow:0 0 0 3px rgba(220,53,69,.10);background:#fff}

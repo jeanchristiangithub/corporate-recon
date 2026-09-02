@@ -259,6 +259,11 @@
     font-weight: 700;
 }
 
+.recon-report-toolbar .recon-report-field > span {
+    color: #111827;
+    font-weight: 800;
+}
+
 .recon-report-required {
     color: #dc3545;
 }
@@ -291,7 +296,8 @@
     display: flex;
     flex: 1 0 520px;
     align-items: center;
-    gap: 1rem;
+    column-gap: 1.5rem;
+    row-gap: 0.5rem;
     min-height: 40px;
     padding: 0.65rem 0.75rem;
     box-sizing: border-box;

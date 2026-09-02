@@ -35,9 +35,9 @@
 }
 
 .data-entry-settlement-field > span {
-    color: #5f6b7a;
+    color: #000;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .data-entry-settlement-field input {

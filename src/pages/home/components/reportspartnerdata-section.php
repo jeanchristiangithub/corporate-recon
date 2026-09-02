@@ -324,6 +324,17 @@ try {
 			align-items:flex-end !important;
 		}
 
+		.reports-webdata-content #rpdForm > label > span:first-child,
+		.reports-webdata-content #rpdForm .rwd-duration-label,
+		.reports-webdata-content #rpdForm .rpd-primary-actions > label > span:first-child {
+			color:#111827 !important;
+			font-weight:700 !important;
+		}
+
+		.reports-webdata-content #rpdForm .rpd-text-danger {
+			color:#dc3545 !important;
+		}
+
 		.reports-webdata-content #rpdForm .rwd-duration {
 			flex:0 0 auto;
 			flex-wrap:nowrap !important;
@@ -539,12 +550,12 @@ try {
 
 			<div class="rwd-duration" style="display:flex;align-items:flex-end;gap:.5rem;flex-wrap:wrap">
 				<div style="display:flex;flex-direction:column;gap:0.25rem">
-					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">Start date <span class="rpd-text-danger">*</span></label>
+					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">START DATE <span class="rpd-text-danger">*</span></label>
 					<input id="rpdStartDate" name="start_date" type="date" class="rwd-duration-input" aria-label="Start date" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:12ch;box-sizing:border-box;font-size:.95rem;">
 				</div>
 				<span class="rwd-duration-sep" style="color:#6b7280;font-weight:600;margin-bottom:8px">—</span>
 				<div style="display:flex;flex-direction:column;gap:0.25rem">
-					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">End date <span class="rpd-text-danger">*</span></label>
+					<label class="rwd-duration-label" style="font-size:.75rem;color:#6b7280;white-space:nowrap;">END DATE <span class="rpd-text-danger">*</span></label>
 					<input id="rpdEndDate" name="end_date" type="date" class="rwd-duration-input" aria-label="End date" style="padding:8px;border-radius:6px;border:1px solid #e6eef6;background:#fff;min-width:12ch;box-sizing:border-box;font-size:.95rem;">
 				</div>
 			</div>

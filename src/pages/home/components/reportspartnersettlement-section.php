@@ -56,7 +56,9 @@ try {
             align-items: center;
             gap: 6px;
             min-height: 18px;
-            white-space: nowrap
+            white-space: nowrap;
+            color: #000;
+            font-weight: 700
         }
 
         .rps-field--partner {
@@ -432,9 +434,9 @@ try {
                 <ul id="rpsPartnerSuggestions" class="rps-suggestions" role="listbox" hidden></ul>
             </span>
         </label>
-        <label class="rps-field"><span class="rps-field-label">Start date <span class="rps-required">*</span></span><input id="rpsStart" type="date"></label>
+        <label class="rps-field"><span class="rps-field-label">START DATE <span class="rps-required">*</span></span><input id="rpsStart" type="date"></label>
         <span class="rps-date-separator" aria-hidden="true">&mdash;</span>
-        <label class="rps-field"><span class="rps-field-label">End date <span class="rps-required">*</span></span><input id="rpsEnd" type="date"></label>
+        <label class="rps-field"><span class="rps-field-label">END DATE <span class="rps-required">*</span></span><input id="rpsEnd" type="date"></label>
         <label class="rps-field"><span class="rps-field-label">CURRENCY <span class="rps-required">*</span></span><select id="rpsCurrency" required>
                 <option value="">Select Currency</option>
                 <option>PHP</option>

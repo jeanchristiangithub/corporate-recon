@@ -31,7 +31,14 @@ if ($partner !== 'MONEYGRAM' && !in_array($partner, $wicPartners, true) && !in_a
 }
 
 if ($partner === 'MONEYGRAM') {
-    $_GET = ['start_date' => $transactionDate, 'end_date' => $transactionDate, 'partnerName' => $partner, 'detail' => '1', 'range_detail' => '1'];
+    $_GET = [
+        'start_date' => $transactionDate,
+        'end_date' => $transactionDate,
+        'partnerName' => $partner,
+        'detail' => '1',
+        'range_detail' => '1',
+        'maintenance_reference_lookup' => '1',
+    ];
     require __DIR__ . '/moneygram-recon.php';
     exit;
 }

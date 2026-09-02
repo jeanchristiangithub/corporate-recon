@@ -27,7 +27,22 @@ if ($partner === '' || $date === '') {
 
 try {
     $pdo = reconDaycardLocksDb();
-    $lockability = reconDaycardLocksCanLockDay($pdo, $partner, $date);
+    if ($partner === 'MONEYGRAM') {
+        $nextDate = (new DateTimeImmutable($date))->modify('+1 day')->format('Y-m-d');
+        $stmtLockable = $pdo->prepare(
+            'SELECT 1
+             FROM moneygram_partner_data
+             WHERE tran_date >= :start_date
+               AND tran_date < :end_date
+             LIMIT 1'
+        );
+        $stmtLockable->execute([':start_date' => $date, ':end_date' => $nextDate]);
+        $lockability = $stmtLockable->fetchColumn() !== false
+            ? ['ok' => true]
+            : ['ok' => false, 'message' => "Cannot lock this day card.\n\nNo Partner Data were found for this transaction date."];
+    } else {
+        $lockability = reconDaycardLocksCanLockDay($pdo, $partner, $date);
+    }
     if (empty($lockability['ok'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => (string) ($lockability['message'] ?? 'This reconciliation date cannot be locked.')]);

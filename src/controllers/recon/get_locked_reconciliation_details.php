@@ -83,6 +83,7 @@ try {
             'partnerName' => $partner,
             'detail' => '1',
             'range_detail' => '1',
+            'maintenance_reference_lookup' => '1',
         ];
 
         require __DIR__ . '/moneygram-recon.php';
