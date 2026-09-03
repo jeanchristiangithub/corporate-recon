@@ -60,8 +60,8 @@ foreach ($rows as $row) {
     $date = reconDaycardLocksNormalizeDate((string) ($row['transaction_date'] ?? ''));
     if ($date === '') continue;
     $status = strtolower(trim((string) ($row['status'] ?? '')));
-    $statusLabel = $status === 'no_data' ? 'NO DATA' : strtoupper($status);
-    $statusClass = $status === 'locked' ? 'locked' : ($status === 'unlocked' ? 'unlocked' : 'no-data');
+    $statusLabel = $status === 'no_data' ? 'NO DATA' : strtoupper(str_replace('_', ' ', $status));
+    $statusClass = $status === 'locked' ? 'locked' : ($status === 'unlocked' ? 'unlocked' : ($status === 'partially_locked' ? 'partially-locked' : 'no-data'));
     $monthKey = substr($date, 0, 7);
     if (!isset($monthlyRows[$monthKey])) {
         $monthlyRows[$monthKey] = ['html' => '', 'locked' => 0, 'unlocked' => 0, 'no_data' => 0, 'total' => 0];
@@ -93,7 +93,7 @@ if ($reportPages === '') {
 }
 
 $html = '<!doctype html><html><head><meta charset="UTF-8"><style>
-body{font-family:DejaVu Sans,sans-serif;color:#0f172a;font-size:10px}.report-logo-wrap{text-align:center;margin:0 0 22px}.report-logo{display:inline-block;width:360px;height:auto}h1{font-size:18px;margin:0 0 12px;text-align:center}h2{font-size:13px;margin:0 0 8px;text-align:center}.report-meta{width:auto;margin:0 0 14px;border-collapse:collapse;color:#475569}.report-meta th,.report-meta td{padding:0 5px 3px 0;border:0;background:transparent;font-size:10px;text-align:left}.report-meta th{font-weight:700;white-space:nowrap}.next-page{page-break-before:always}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #dbe3ef;text-align:left}th{background:#f8fafc;font-size:9px}.report-results th,.report-results td{text-align:center}.summary-table{width:255px;margin:22px 0 0;border-collapse:collapse;page-break-inside:avoid}.summary-table th,.summary-table td{padding:4px 7px;border:1px solid #94a3b8;font-size:9px}.summary-table thead th{text-align:center;background:#f8fafc;font-weight:700}.summary-table tbody th{width:70%;background:#fff;font-weight:700}.summary-table tbody td{text-align:center}.status{font-weight:700;font-size:8px;padding:3px 7px;border-radius:10px}.locked{background:#ecfdf5;color:#047857}.unlocked{background:#fef3c7;color:#b45309}.no-data{background:#fff1f2;color:#be123c}
+body{font-family:DejaVu Sans,sans-serif;color:#0f172a;font-size:10px}.report-logo-wrap{text-align:center;margin:0 0 22px}.report-logo{display:inline-block;width:360px;height:auto}h1{font-size:18px;margin:0 0 12px;text-align:center}h2{font-size:13px;margin:0 0 8px;text-align:center}.report-meta{width:auto;margin:0 0 14px;border-collapse:collapse;color:#475569}.report-meta th,.report-meta td{padding:0 5px 3px 0;border:0;background:transparent;font-size:10px;text-align:left}.report-meta th{font-weight:700;white-space:nowrap}.next-page{page-break-before:always}table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #dbe3ef;text-align:left}th{background:#f8fafc;font-size:9px}.report-results th,.report-results td{text-align:center}.summary-table{width:255px;margin:22px 0 0;border-collapse:collapse;page-break-inside:avoid}.summary-table th,.summary-table td{padding:4px 7px;border:1px solid #94a3b8;font-size:9px}.summary-table thead th{text-align:center;background:#f8fafc;font-weight:700}.summary-table tbody th{width:70%;background:#fff;font-weight:700}.summary-table tbody td{text-align:center}.status{font-weight:700;font-size:8px;padding:3px 7px;border-radius:10px}.locked{background:#ecfdf5;color:#047857}.unlocked{background:#fef3c7;color:#b45309}.partially-locked{background:#fee2e2;color:#b91c1c}.no-data{background:#fff1f2;color:#be123c}
 </style></head><body>' . $reportPages . '</body></html>';
 
 $options = new Options();

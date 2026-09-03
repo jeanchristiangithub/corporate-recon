@@ -83,7 +83,9 @@ try{
                 $statement = $pdo->prepare($sql);
                 $statement->execute($params);
                 foreach($statement->fetchAll() as $row){
-                    $key = md5(json_encode($row));
+                    // Most KPX queries include the primary key. Using it avoids
+                    // JSON encoding and hashing tens of thousands of rows.
+                    $key = isset($row['id']) ? 'id:'.(string)$row['id'] : md5(json_encode($row));
                     if(isset($seen[$key])) continue;
                     $seen[$key] = true;
                     $rows[] = $row;
@@ -147,7 +149,9 @@ try{
     $branchNameById = [];
     $branchProfileById = [];
     $branchProfileByLegacyId = [];
-    try {
+    // Branch/legacy enrichment is only rendered by the details modal. Avoid
+    // loading the master-data table for Transaction Lock range summaries.
+    if($detail) try {
         $masterPdo = masterDataConnection();
         $branchStmt = $masterPdo->query('SELECT branch_id, branch_name, legacyid_moneygram FROM branch_profile WHERE branch_id IS NOT NULL AND TRIM(branch_id) <> \'\'');
         foreach ($branchStmt->fetchAll(PDO::FETCH_ASSOC) as $branchRow) {
@@ -179,21 +183,20 @@ try{
     $expandedStartDate = $expandedStartObj->format('Y-m-d');
     $expandedEndDate = $expandedEndObj->format('Y-m-d');
 
+    $partnerRangeColumns = $detail
+        ? '*'
+        : 'tran_date, reference_id, tran_type, base_amt, settlement_currency';
+    $webRangeColumns = $detail
+        ? '*'
+        : 'id, date_cancelled, date_claimed, date_send, ccref_no, amount, currency, partnerName';
     $sqlRangePart = [
-        'SELECT * FROM moneygram_partner_data WHERE DATE(tran_date) BETWEEN ? AND ?',
+        "SELECT {$partnerRangeColumns} FROM moneygram_partner_data WHERE tran_date >= ? AND tran_date < DATE_ADD(?, INTERVAL 1 DAY)",
         'SELECT * FROM moneygram_partner_data WHERE DATE(`date`) BETWEEN ? AND ?',
         'SELECT * FROM moneygram_partner_data WHERE DATE(fx_date_trn) BETWEEN ? AND ?',
     ];
     $sqlRangeWeb = [
-        "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
-        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
-        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
-        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
-        "SELECT * FROM ml_web_data WHERE DATE(date) BETWEEN ? AND ? AND partnerName IN ($partnerInPlaceholders)",
-        "SELECT * FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
-        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_claimed) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
-        "SELECT * FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
-        "SELECT *, cc_ref AS ccref_no FROM ml_web_data WHERE DATE(date_send) BETWEEN ? AND ? AND partner_name IN ($partnerInPlaceholders)",
+        "SELECT {$webRangeColumns} FROM ml_web_data WHERE date_claimed >= ? AND date_claimed < DATE_ADD(?, INTERVAL 1 DAY) AND partnerName IN ($partnerInPlaceholders)",
+        "SELECT {$webRangeColumns} FROM ml_web_data WHERE date_send >= ? AND date_send < DATE_ADD(?, INTERVAL 1 DAY) AND partnerName IN ($partnerInPlaceholders)",
     ];
 
     $partnerRowsRaw = $tryQuery($sqlRangePart, [$startDate, $endDate]);
@@ -450,14 +453,18 @@ try{
         }
     }
 
-    usort($partnerRows, function($left, $right){
-        if($left['date'] !== $right['date']) return strcmp($left['date'], $right['date']);
-        return $left['index'] <=> $right['index'];
-    });
-    usort($webRows, function($left, $right){
-        if($left['date'] !== $right['date']) return strcmp($left['date'], $right['date']);
-        return $left['index'] <=> $right['index'];
-    });
+    // Stable visual ordering is only needed when detailed rows are returned.
+    // Range Remarks calculations can avoid sorting ~150k records.
+    if($detail){
+        usort($partnerRows, function($left, $right){
+            if($left['date'] !== $right['date']) return strcmp($left['date'], $right['date']);
+            return $left['index'] <=> $right['index'];
+        });
+        usort($webRows, function($left, $right){
+            if($left['date'] !== $right['date']) return strcmp($left['date'], $right['date']);
+            return $left['index'] <=> $right['index'];
+        });
+    }
 
     $webIndexesByRef = [];
     foreach($webRows as $webIndex => $webRow){

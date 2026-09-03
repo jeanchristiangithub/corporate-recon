@@ -167,25 +167,34 @@ if ($currentUserId !== '') {
                         <span class="icon material-icons" aria-hidden="true">web_asset</span>
                         <span class="label">KPX Web Data</span>
                     </a></li>
-                    <li><a href="#" id="navPartnerData" data-show="partnerdataSection">
-                        <span class="icon material-icons" aria-hidden="true">people</span>
-                        <span class="label">Partner Data</span>
-                    </a></li>
                     <li class="nav-subgroup">
-                        <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="settlementDetailMenu">
-                            <span class="icon material-icons" aria-hidden="true">payments</span>
-                            <span class="label">Settlement Detail</span>
+                        <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="partnerDataUploadMenu">
+                            <span class="icon material-icons" aria-hidden="true">people</span>
+                            <span class="label">Partner Data</span>
                             <span class="chev material-icons" aria-hidden="true">expand_more</span>
                         </button>
-                        <ul id="settlementDetailMenu" class="nav-subgroup-menu" style="display:none;">
-                            <li><a href="#" id="navSettlementDaily" data-show="settlementDailySection">
+                        <ul id="partnerDataUploadMenu" class="nav-subgroup-menu" style="display:none;">
+                            <li><a href="#" id="navPartnerData" data-show="partnerdataSection">
                                 <span class="icon material-icons" aria-hidden="true">today</span>
-                                <span class="label">Per Daily</span>
+                                <span class="label">Daily Transaction</span>
                             </a></li>
-                            <li><a href="#" id="navSettlementEndMonth" data-show="settlementEndMonthSection">
-                                <span class="icon material-icons" aria-hidden="true">event</span>
-                                <span class="label">End Month</span>
-                            </a></li>
+                            <li class="nav-subgroup nav-subgroup--nested">
+                                <button class="nav-subgroup-toggle" type="button" aria-expanded="false" aria-controls="settlementDetailMenu">
+                                    <span class="icon material-icons" aria-hidden="true">payments</span>
+                                    <span class="label">Settlement</span>
+                                    <span class="chev material-icons" aria-hidden="true">expand_more</span>
+                                </button>
+                                <ul id="settlementDetailMenu" class="nav-subgroup-menu" style="display:none;">
+                                    <li><a href="#" id="navSettlementDaily" data-show="settlementDailySection">
+                                        <span class="icon material-icons" aria-hidden="true">today</span>
+                                        <span class="label">Daily</span>
+                                    </a></li>
+                                    <li><a href="#" id="navSettlementEndMonth" data-show="settlementEndMonthSection">
+                                        <span class="icon material-icons" aria-hidden="true">event</span>
+                                        <span class="label">Month-end</span>
+                                    </a></li>
+                                </ul>
+                            </li>
                         </ul>
                     </li>
                    

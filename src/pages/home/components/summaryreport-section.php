@@ -834,7 +834,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal))
             + '</tr>';
     }
 
@@ -852,7 +852,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartner.fx)) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td('')
             + td(fmtCount(webCancelled.volume)) + td(fmtMoney(webCancelled.principal)) + td(fmtMoney(webCancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(variance.commission))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal))
             + '</tr>';
     }
 
@@ -863,8 +863,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         const web = kpxWebAmounts(row);
         const cancelled = amountGroup(row, 'cancelled');
         const variance = amountGroup(row, 'variance');
-        const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
-        const varianceFee = Number(partner.fee || 0);
         return '<tr>'
             + td(fmtDate(row.date))
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
@@ -872,7 +870,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal))
             + '</tr>';
     }
 
@@ -883,8 +881,6 @@ $partnerInputChars = min($partnerInputChars, 90);
         const web = totals.web || {};
         const cancelled = totals.cancelled || {};
         const variance = totals.variance || {};
-        const varianceComm = Number(netPartner.commission || 0) - Number(web.commission || 0);
-        const varianceFee = Number(partner.fee || 0);
         return '<tr class="mg-cover__total">'
             + td('Grand total')
             + td(fmtCount(partner.volume)) + td(fmtMoney(partner.principal)) + td(fmtMoney(partner.fee)) + td(fmtMoney(partner.fx)) + td(fmtMoney(partner.commission))
@@ -892,7 +888,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             + td(fmtCount(netPartner.volume)) + td(fmtMoney(netPartner.principal)) + td(fmtMoney(netPartner.fee)) + td(fmtMoney(netPartnerRevShare(partner, refund))) + td(fmtMoney(netPartner.commission))
             + td(fmtCount(web.volume)) + td(fmtMoney(web.principal)) + td(fmtMoney(web.commission))
             + td(fmtCount(cancelled.volume)) + td(fmtMoney(cancelled.principal)) + td(fmtMoney(cancelled.commission))
-            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal)) + td(fmtMoney(varianceComm)) + td(fmtMoney(varianceFee))
+            + td(fmtCount(variance.volume)) + td(fmtMoney(variance.principal))
             + '</tr>';
     }
 
@@ -993,7 +989,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'Date', span: 1, rowspan: 3 },
             { label: 'Partner Data', span: 15 },
             { label: 'KPX Web Data', span: 6 },
-            { label: 'VARIANCE', span: 3 }
+            { label: 'VARIANCE', span: 2 }
         ];
         const payoutGroups = [
             { label: partnerLabel, span: 5 },
@@ -1001,7 +997,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'NET', span: 5 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 3 },
-            { label: `${partnerLabel} vs KPX WEB`, span: 3 }
+            { label: `${partnerLabel} vs KPX WEB`, span: 2 }
         ];
         const payoutLabels = [
             'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
@@ -1009,13 +1005,13 @@ $partnerInputChars = min($partnerInputChars, 90);
             'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
             'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Comm'
+            'Volume', 'Principal'
         ];
         const sendoutSections = [
             { label: 'Date', span: 1, rowspan: 3 },
             { label: 'Partner Data', span: 15 },
             { label: 'KPX Web Data', span: 6 },
-            { label: 'VARIANCE', span: 4 }
+            { label: 'VARIANCE', span: 2 }
         ];
         const sendoutGroups = [
             { label: selectedCurrency === 'usd' ? 'GROSS' : partnerLabel, span: 5 },
@@ -1023,7 +1019,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             { label: 'NET', span: 5 },
             { label: 'KPX', span: 3 },
             { label: 'CANCELLED', span: 3 },
-            { label: `${partnerLabel} vs KPX WEB`, span: 4 }
+            { label: `${partnerLabel} vs KPX WEB`, span: 2 }
         ];
         const sendoutLabels = [
             'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
@@ -1031,7 +1027,7 @@ $partnerInputChars = min($partnerInputChars, 90);
             'Volume', 'Principal', 'Fee', 'FX Rev Share', 'Comm',
             'Volume', 'Principal', 'CHARGE',
             'Volume', 'Principal', 'CHARGE',
-            'Volume', 'Principal', 'Comm', 'Fee'
+            'Volume', 'Principal'
         ];
 
         if (selectedCover === 'sendout') {

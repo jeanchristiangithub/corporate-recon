@@ -84,6 +84,10 @@ try {
         color: #fff;
         background: #dc3545;
     }
+    #maintenanceDataUnlockSection .locked-dates-status.is-partially-locked {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
     #maintenanceDataUnlockSection .locked-dates-action-btn {
         height: 24px;
         padding: 2px 9px;
@@ -202,6 +206,7 @@ try {
     let rows = [];
     let page = 1;
     let loading = false;
+    let loadRequestId = 0;
     let activePartnerIndex = -1;
     const isAdmin = <?= isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Admin') === 0 ? 'true' : 'false' ?>;
     const isPublic = <?= isset($_SESSION['user']['role']) && strcasecmp((string) $_SESSION['user']['role'], 'Public') === 0 ? 'true' : 'false' ?>;
@@ -356,6 +361,7 @@ try {
             const isNoData = status === 'no_data';
             const mismatchCount = Math.max(0, Number(row.mismatch_count || 0));
             const duplicateCount = Math.max(0, Number(row.duplicate_count || 0));
+            const isPartiallyLocked = isLocked && !row.remarks_pending && (mismatchCount > 0 || duplicateCount > 0);
             const remarks = [];
             if (mismatchCount) remarks.push(mismatchCount.toLocaleString() + (mismatchCount === 1 ? ' Volume - Mismatch' : ' Volumes - Mismatch'));
             if (duplicateCount) remarks.push(duplicateCount.toLocaleString() + (duplicateCount === 1 ? ' Volume - Duplicate' : ' Volumes - Duplicates'));
@@ -373,8 +379,8 @@ try {
             return '<tr data-partner="' + escapeHtml(partner) + '" data-date="' + escapeHtml(date) + '">' +
                 '<td>' + escapeHtml(partner || 'N/A') + '</td>' +
                 '<td>' + escapeHtml(displayDate(date)) + '</td>' +
-                '<td><span class="locked-dates-status' + (isNoData ? ' is-no-data' : '') + '"' + (isNoData ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isLocked ? 'Locked' : 'Unlocked')) + '</span></td>' +
-                '<td>' + escapeHtml(remarks.join(', ') || '-') + '</td>' +
+                '<td><span class="locked-dates-status' + (isNoData ? ' is-no-data' : (isPartiallyLocked ? ' is-partially-locked' : '')) + '"' + (isNoData || isPartiallyLocked ? '' : (isLocked ? ' style="background:#ecfdf5;color:#047857;"' : ' style="background:#fef3c7;color:#b45309;"')) + '>' + (isNoData ? 'No Data' : (isPartiallyLocked ? 'Partially Locked' : (isLocked ? 'Locked' : 'Unlocked'))) + '</span></td>' +
+                '<td>' + escapeHtml(row.remarks_pending ? 'Loading...' : (remarks.join(', ') || '-')) + '</td>' +
                 '<td>' + actions + '</td>' +
                 '</tr>';
         }).join('');
@@ -387,6 +393,7 @@ try {
 
     async function load() {
         if (loading) return;
+        const requestId = ++loadRequestId;
         const partner = String(partnerFilter.value || '').trim();
         const startDate = normalizeDate(startDateFilter.value || '');
         const endDate = normalizeDate(endDateFilter.value || '');
@@ -418,15 +425,47 @@ try {
         body.innerHTML = '<tr><td colspan="5" class="locked-dates-loading">Loading locked dates...</td></tr>';
         pagination.hidden = true;
         try {
-            const response = await fetch(baseUrl() + '/src/controllers/recon/get_transaction_lock_range.php?partnername=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate), {
+            const rangeUrl = baseUrl() + '/src/controllers/recon/get_transaction_lock_range.php?partnername=' + encodeURIComponent(partner) + '&start_date=' + encodeURIComponent(startDate) + '&end_date=' + encodeURIComponent(endDate);
+            const response = await fetch(rangeUrl + '&defer_remarks=1', {
                 credentials: 'same-origin',
                 cache: 'no-store'
             });
             const data = await response.json();
             if (!response.ok || !data || !data.success) throw new Error((data && (data.error || data.message)) || 'Failed to load locked reconciliation dates.');
             rows = Array.isArray(data.rows) ? data.rows : [];
+            if (data.remarks_pending) rows.forEach(function (row) { row.remarks_pending = true; });
             page = 1;
             render();
+
+            if (data.remarks_pending) {
+                // Render statuses/actions immediately; enrich only Remarks in
+                // the background. Ignore stale responses after a new Display.
+                fetch(rangeUrl, {credentials: 'same-origin', cache: 'no-store'})
+                    .then(function (remarksResponse) {
+                        return remarksResponse.json().then(function (remarksData) {
+                            if (!remarksResponse.ok || !remarksData || !remarksData.success) throw new Error('Failed to load remarks.');
+                            return remarksData;
+                        });
+                    })
+                    .then(function (remarksData) {
+                        if (requestId !== loadRequestId) return;
+                        const countsByDate = new Map((remarksData.rows || []).map(function (item) {
+                            return [normalizeDate(item.transaction_date || item.date || ''), item];
+                        }));
+                        rows.forEach(function (row) {
+                            const counts = countsByDate.get(normalizeDate(row.transaction_date || row.date || ''));
+                            row.mismatch_count = counts ? Number(counts.mismatch_count || 0) : 0;
+                            row.duplicate_count = counts ? Number(counts.duplicate_count || 0) : 0;
+                            row.remarks_pending = false;
+                        });
+                        render();
+                    })
+                    .catch(function () {
+                        if (requestId !== loadRequestId) return;
+                        rows.forEach(function (row) { row.remarks_pending = false; });
+                        render();
+                    });
+            }
         } catch (error) {
             rows = [];
             render();
@@ -603,7 +642,12 @@ try {
                     end_date: normalizeDate(endDateFilter.value || ''),
                     status_filter: statusFilter.options[statusFilter.selectedIndex].text,
                     rows: exportRows.map(function (row) {
-                        return {transaction_date: normalizeDate(row.transaction_date || ''), status: String(row.status || '')};
+                        const status = String(row.status || '').toLowerCase();
+                        const hasErrors = Number(row.mismatch_count || 0) > 0 || Number(row.duplicate_count || 0) > 0;
+                        return {
+                            transaction_date: normalizeDate(row.transaction_date || ''),
+                            status: status === 'locked' && hasErrors ? 'partially_locked' : status
+                        };
                     })
                 })
             });

@@ -16,6 +16,7 @@ if (empty($_SESSION['user'])) {
 $partner = reconDaycardLocksNormalizePartner((string) ($_GET['partnername'] ?? ($_GET['partner'] ?? '')));
 $startDate = reconDaycardLocksNormalizeDate((string) ($_GET['start_date'] ?? ''));
 $endDate = reconDaycardLocksNormalizeDate((string) ($_GET['end_date'] ?? ''));
+$deferRemarks = ((string) ($_GET['defer_remarks'] ?? '')) === '1';
 
 if ($partner === '' || $startDate === '' || $endDate === '' || $startDate > $endDate) {
     http_response_code(400);
@@ -76,14 +77,9 @@ try {
     $webQueries = [];
     switch (reconDaycardLocksPartnerKey($partner)) {
         case 'moneygram':
-            foreach (['tran_date', 'date', 'fx_date_trn'] as $column) {
-                $partnerQueries[] = ['sql' => "SELECT DISTINCT DATE(`{$column}`) FROM moneygram_partner_data WHERE DATE(`{$column}`) BETWEEN ? AND ?"];
-            }
-            foreach (['date_claimed', 'date'] as $dateColumn) {
-                foreach (['partnerName', 'partner_name'] as $partnerColumn) {
-                    $webQueries[] = ['sql' => "SELECT DISTINCT DATE(`{$dateColumn}`) FROM ml_web_data WHERE DATE(`{$dateColumn}`) BETWEEN ? AND ? AND `{$partnerColumn}` = ?", 'params' => ['MONEYGRAM']];
-                }
-            }
+            $partnerQueries[] = ['sql' => 'SELECT DISTINCT DATE(tran_date) FROM moneygram_partner_data WHERE tran_date >= ? AND tran_date < DATE_ADD(?, INTERVAL 1 DAY)'];
+            $webQueries[] = ['sql' => 'SELECT DISTINCT DATE(date_claimed) FROM ml_web_data WHERE date_claimed >= ? AND date_claimed < DATE_ADD(?, INTERVAL 1 DAY) AND partnerName = ?', 'params' => ['MONEYGRAM']];
+            $webQueries[] = ['sql' => 'SELECT DISTINCT DATE(date_send) FROM ml_web_data WHERE date_send >= ? AND date_send < DATE_ADD(?, INTERVAL 1 DAY) AND partnerName = ?', 'params' => ['MONEYGRAM']];
             break;
         case 'mbtc':
             $partnerQueries[] = ['sql' => 'SELECT DISTINCT DATE(cover_date) FROM mbtc_partner_data WHERE DATE(cover_date) BETWEEN ? AND ?'];
@@ -131,9 +127,8 @@ try {
     $remarkQueries = [];
     switch (reconDaycardLocksPartnerKey($partner)) {
         case 'moneygram':
-            foreach (['tran_date', 'date', 'fx_date_trn'] as $column) {
-                $remarkQueries[] = "SELECT DATE(`{$column}`) AS transaction_date, SUM(match_status = 2) AS mismatch_count, SUM(match_status = 3) AS duplicate_count FROM moneygram_partner_data WHERE DATE(`{$column}`) BETWEEN ? AND ? GROUP BY DATE(`{$column}`)";
-            }
+            // Exact modal-aligned MoneyGram remarks are calculated below.
+            // Do not scan the same monthly tables here first.
             break;
         case 'mbtc':
             $remarkQueries[] = 'SELECT DATE(cover_date) AS transaction_date, SUM(match_status = 2) AS mismatch_count, SUM(match_status = 3) AS duplicate_count FROM mbtc_partner_data WHERE DATE(cover_date) BETWEEN ? AND ? GROUP BY DATE(cover_date)';
@@ -183,8 +178,7 @@ try {
     $webRemarkQueries = [];
     $partnerKey = reconDaycardLocksPartnerKey($partner);
     $webPartnerAliases = [];
-    if ($partnerKey === 'moneygram') $webPartnerAliases = ['MONEYGRAM'];
-    elseif ($partnerKey === 'mbtc') $webPartnerAliases = ['MBTC', 'METROBANK HEAD OFFICE'];
+    if ($partnerKey === 'mbtc') $webPartnerAliases = ['MBTC', 'METROBANK HEAD OFFICE'];
     elseif ($partnerKey === 'wic') $webPartnerAliases = ['WIC', 'WORLDCOM INTERNATIONAL COMMUNICATIONS', 'WORLD INTERNATIONAL COMMUNICATIONS'];
     elseif ($partnerKey === 'skybridgepaymentinc') $webPartnerAliases = ['SKYBRIDGE', 'SKYBRIDGEPAYMENTINC', 'SKYBRIDGE PAYMENT INC.', 'SKYBRIDGEPAYMENTINC CORPORATE'];
 
@@ -266,7 +260,7 @@ try {
         }
     };
 
-    if ($partnerKey === 'moneygram') {
+    if ($partnerKey === 'moneygram' && !$deferRemarks) {
         $response = $runReconForRemarks(
             __DIR__ . '/moneygram-recon.php',
             [
@@ -317,7 +311,7 @@ try {
         ];
     }
 
-    echo json_encode(['success' => true, 'rows' => $rows]);
+    echo json_encode(['success' => true, 'rows' => $rows, 'remarks_pending' => $deferRemarks && $partnerKey === 'moneygram']);
     exit;
 } catch (Throwable $e) {
     http_response_code(500);
