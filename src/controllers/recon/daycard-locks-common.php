@@ -174,18 +174,21 @@ function reconDaycardLocksFindLockedDates(PDO $pdo, string $partner, array $date
     $partner = reconDaycardLocksNormalizePartner($partner);
     $dates = reconDaycardLocksNormalizeDateList($dates);
 
-    if ($partner === '' || empty($dates)) {
+    // Upload protection has one canonical source. recon_daycard_locks belongs
+    // to the day-card UI and must not independently block a data re-upload.
+    if ($partner === '' || empty($dates) || !reconLockedReconciliationDatesTableExists($pdo)) {
         return [];
     }
 
     $locked = [];
     foreach (array_chunk($dates, 500) as $chunk) {
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
-        $sql = 'SELECT recon_date
-                FROM recon_daycard_locks
+        $sql = 'SELECT transaction_date
+                FROM locked_reconciliation_dates
                 WHERE corporate_partner = ?
-                  AND is_locked = 1
-                  AND recon_date IN (' . $placeholders . ')';
+                  AND transaction_date IN (' . $placeholders . ')
+                  AND locked_at IS NOT NULL
+                  AND unlocked_at IS NULL';
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute(array_merge([$partner], $chunk));
@@ -194,28 +197,6 @@ function reconDaycardLocksFindLockedDates(PDO $pdo, string $partner, array $date
             $normalized = reconDaycardLocksNormalizeDate((string) $date);
             if ($normalized !== '') {
                 $locked[$normalized] = true;
-            }
-        }
-
-        if (reconLockedReconciliationDatesTableExists($pdo)) {
-            try {
-                $sqlLockedDates = 'SELECT transaction_date
-                                   FROM locked_reconciliation_dates
-                                   WHERE corporate_partner = ?
-                                     AND transaction_date IN (' . $placeholders . ')
-                                     AND unlocked_at IS NULL';
-
-                $stmtLockedDates = $pdo->prepare($sqlLockedDates);
-                $stmtLockedDates->execute(array_merge([$partner], $chunk));
-
-                foreach ($stmtLockedDates->fetchAll(PDO::FETCH_COLUMN, 0) as $date) {
-                    $normalized = reconDaycardLocksNormalizeDate((string) $date);
-                    if ($normalized !== '') {
-                        $locked[$normalized] = true;
-                    }
-                }
-            } catch (Throwable $e) {
-                // Ignore optional table/query issues; daycard locks are still authoritative.
             }
         }
     }

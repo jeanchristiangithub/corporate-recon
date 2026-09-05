@@ -426,12 +426,16 @@ function summary_fetch_moneygram_settlement_report(PDO $pdo, string $startDate, 
 
     $sql = 'SELECT ' . implode(', ', $selects)
         . ' FROM partner_settlement_data psd'
-        . ' LEFT JOIN moneygram_partner_data mpd'
-        . ' ON psd.tran_date = mpd.tran_date'
-        . ' AND psd.reference_id = mpd.reference_id'
-        . ' AND psd.tran_type = mpd.tran_type'
         . ' WHERE (psd.tran_date BETWEEN ? AND ? OR psd.settled_date BETWEEN ? AND ?)'
-        . ' AND (mpd.reference_id IS NOT NULL OR psd.settled_date BETWEEN ? AND ?)'
+        // A settlement row only needs one corresponding partner row. A JOIN
+        // multiplies its amounts when a re-upload leaves more than one matching
+        // MONEYGRAM record; EXISTS keeps report generation idempotent.
+        . ' AND (EXISTS ('
+        . '     SELECT 1 FROM moneygram_partner_data mpd'
+        . '     WHERE mpd.tran_date = psd.tran_date'
+        . '       AND mpd.reference_id = psd.reference_id'
+        . '       AND mpd.tran_type = psd.tran_type'
+        . ' ) OR psd.settled_date BETWEEN ? AND ?)'
         . ' AND UPPER(TRIM(psd.transaction_currency)) = ?'
         . " AND UPPER(TRIM(psd.tran_type)) IN ('REC', 'RRC', 'SEN', 'RSN', 'REF')"
         . ' GROUP BY report_date ORDER BY report_date';
