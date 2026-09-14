@@ -30,11 +30,11 @@
         </div>
     </form>
 
-    <div id="branchStatusLogsLoadingStatus" class="branch-status-logs-loading-status" role="status" aria-live="polite">
+    <div id="branchStatusLogsLoadingStatus" class="branch-status-logs-loading-status" role="status" aria-live="polite" hidden>
         Loading display for Branch status logs...
     </div>
 
-    <div class="branch-status-logs-dropdown-filters" aria-label="Branch location filters">
+    <div id="branchStatusLogsDropdownFilters" class="branch-status-logs-dropdown-filters" aria-label="Branch location filters" hidden>
         <label class="branch-status-logs-select-field" for="branchStatusLogsMainzone">
             <span>Mainzone</span>
             <select id="branchStatusLogsMainzone" name="mainzone">
@@ -57,7 +57,12 @@
         </label>
     </div>
 
-    <section class="branch-status-logs-table-card" aria-label="Branch status log results">
+    <div id="branchStatusLogsCountCard" class="branch-status-logs-count-card" aria-live="polite" hidden>
+        <span>Branch Count</span>
+        <strong id="branchStatusLogsCount">0</strong>
+    </div>
+
+    <section id="branchStatusLogsTableCard" class="branch-status-logs-table-card" aria-label="Branch status log results" hidden>
         <div class="branch-status-logs-table-wrap">
             <table id="branchStatusLogsTable" class="branch-status-logs-table">
                 <thead>
@@ -117,10 +122,6 @@
                     <div>
                         <dt>BOS Code</dt>
                         <dd id="branchStatusLogsDetailsBosCode">—</dd>
-                    </div>
-                    <div>
-                        <dt>Branch Type</dt>
-                        <dd id="branchStatusLogsDetailsBranchType">—</dd>
                     </div>
                     <div>
                         <dt>Branch Status</dt>
@@ -198,13 +199,19 @@
     const displayAllButton = document.getElementById('branchStatusLogsDisplayAll');
     const loadingStatus = document.getElementById('branchStatusLogsLoadingStatus');
     const tableBody = document.getElementById('branchStatusLogsTableBody');
+    const mainzoneSelect = document.getElementById('branchStatusLogsMainzone');
+    const zoneSelect = document.getElementById('branchStatusLogsZone');
+    const regionSelect = document.getElementById('branchStatusLogsRegion');
+    const dropdownFilters = document.getElementById('branchStatusLogsDropdownFilters');
+    const countCard = document.getElementById('branchStatusLogsCountCard');
+    const branchCount = document.getElementById('branchStatusLogsCount');
+    const tableCard = document.getElementById('branchStatusLogsTableCard');
     const detailsModal = document.getElementById('branchStatusLogsDetailsModal');
     const detailsCloseButton = document.getElementById('branchStatusLogsDetailsClose');
     const detailsPostedDate = document.getElementById('branchStatusLogsDetailsPostedDate');
     const detailsBranchId = document.getElementById('branchStatusLogsDetailsBranchId');
     const detailsBranchName = document.getElementById('branchStatusLogsDetailsBranchName');
     const detailsBosCode = document.getElementById('branchStatusLogsDetailsBosCode');
-    const detailsBranchType = document.getElementById('branchStatusLogsDetailsBranchType');
     const detailsBranchStatus = document.getElementById('branchStatusLogsDetailsBranchStatus');
     const detailsCorporateName = document.getElementById('branchStatusLogsDetailsCorporateName');
     const detailsMainzone = document.getElementById('branchStatusLogsDetailsMainzone');
@@ -217,8 +224,10 @@
 
     if (!filterForm || !searchInput || !suggestions || !displayButton ||
         !displayAllButton || !loadingStatus || !tableBody || !detailsModal ||
+        !mainzoneSelect || !zoneSelect || !regionSelect || !dropdownFilters || !countCard ||
+        !branchCount || !tableCard ||
         !detailsCloseButton || !detailsPostedDate || !detailsBranchId || !detailsBranchName ||
-        !detailsBosCode || !detailsBranchType || !detailsBranchStatus || !detailsCorporateName || !detailsMainzone ||
+        !detailsBosCode || !detailsBranchStatus || !detailsCorporateName || !detailsMainzone ||
         !detailsPostedBy ||
         !detailsZone || !detailsRegionName1 || !detailsRegionName2 || !detailsArea ||
         !historyTableBody) return;
@@ -228,6 +237,7 @@
     let searchTimer = null;
     let requestController = null;
     let historyRequestController = null;
+    let zoningOptions = { mainzones: [], zones: [], regions: [] };
     let modalTrigger = null;
 
     document.body.appendChild(detailsModal);
@@ -236,6 +246,77 @@
         const hasSearchValue = searchInput.value.trim() !== '';
         displayButton.disabled = !hasSearchValue;
         displayAllButton.disabled = hasSearchValue;
+    }
+
+    function replaceSelectOptions(select, placeholder, options) {
+        select.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = placeholder;
+        select.appendChild(defaultOption);
+
+        options.forEach(function (item) {
+            const option = document.createElement('option');
+            option.value = typeof item === 'string' ? item : item.value;
+            option.textContent = typeof item === 'string' ? item : item.label;
+            select.appendChild(option);
+        });
+    }
+
+    function updateZoneOptions() {
+        const mainzone = mainzoneSelect.value;
+        const zones = zoningOptions.zones
+            .filter(function (item) { return !mainzone || item.mainzone === mainzone; })
+            .map(function (item) { return item.value; })
+            .filter(function (value, index, values) { return values.indexOf(value) === index; });
+        replaceSelectOptions(zoneSelect, 'Select Zone', zones);
+        updateRegionOptions();
+    }
+
+    function updateRegionOptions() {
+        const mainzone = mainzoneSelect.value;
+        const zone = zoneSelect.value;
+        const seenRegions = new Set();
+        const regions = zoningOptions.regions.filter(function (item) {
+            if (mainzone && item.mainzone !== mainzone) return false;
+            if (zone && item.zone !== zone) return false;
+            const key = item.value + '\u0000' + item.label;
+            if (seenRegions.has(key)) return false;
+            seenRegions.add(key);
+            return true;
+        });
+        replaceSelectOptions(regionSelect, 'Select Region', regions);
+    }
+
+    async function loadZoningOptions() {
+        mainzoneSelect.disabled = true;
+        zoneSelect.disabled = true;
+        regionSelect.disabled = true;
+
+        try {
+            const endpoint = window.autoreconUrl('src/controllers/history-logs/branch-status-log-zoning.php');
+            const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Unable to load branch zoning filters.');
+            }
+
+            zoningOptions = {
+                mainzones: Array.isArray(payload.mainzones) ? payload.mainzones : [],
+                zones: Array.isArray(payload.zones) ? payload.zones : [],
+                regions: Array.isArray(payload.regions) ? payload.regions : []
+            };
+            replaceSelectOptions(mainzoneSelect, 'Select Mainzone', zoningOptions.mainzones);
+            updateZoneOptions();
+        } catch (error) {
+            replaceSelectOptions(mainzoneSelect, 'Unable to load Mainzone', []);
+            replaceSelectOptions(zoneSelect, 'Unable to load Zone', []);
+            replaceSelectOptions(regionSelect, 'Unable to load Region', []);
+        } finally {
+            mainzoneSelect.disabled = false;
+            zoneSelect.disabled = false;
+            regionSelect.disabled = false;
+        }
     }
 
     function closeSuggestions() {
@@ -247,8 +328,10 @@
     }
 
     function chooseBranch(branch) {
-        searchInput.value = branch.branch_id + ' — ' + branch.branch_name;
-        searchInput.dataset.branchId = branch.branch_id;
+        searchInput.value = branch.branch_id
+            ? branch.branch_id + ' — ' + branch.branch_name
+            : branch.branch_name;
+        searchInput.dataset.branchId = branch.branch_id || '';
         searchInput.dataset.branchName = branch.branch_name;
         updateButtonStates();
         closeSuggestions();
@@ -285,7 +368,7 @@
                 option.setAttribute('role', 'option');
 
                 const branchId = document.createElement('strong');
-                branchId.textContent = branch.branch_id;
+                branchId.textContent = branch.branch_id || 'No Branch ID';
                 const branchName = document.createElement('span');
                 branchName.textContent = branch.branch_name;
                 option.append(branchId, branchName);
@@ -328,6 +411,9 @@
 
     function renderTableRows(branches) {
         tableBody.innerHTML = '';
+        branchCount.textContent = new Intl.NumberFormat('en-US', {
+            maximumFractionDigits: 0
+        }).format(branches.length);
 
         if (!branches.length) {
             const row = document.createElement('tr');
@@ -347,16 +433,15 @@
             const actionCell = document.createElement('td');
             const viewButton = document.createElement('button');
 
-            idCell.textContent = branch.branch_id;
+            idCell.textContent = branch.branch_id || '—';
             nameCell.textContent = branch.branch_name;
             viewButton.type = 'button';
             viewButton.className = 'branch-status-logs-view-button';
             viewButton.title = 'View Branch status history details';
             viewButton.setAttribute('aria-label', 'View Branch status history details');
-            viewButton.dataset.branchId = branch.branch_id;
+            viewButton.dataset.branchId = branch.branch_id || '';
             viewButton.dataset.branchName = branch.branch_name;
             viewButton.dataset.bosCode = branch.bos_code || '';
-            viewButton.dataset.branchType = branch.branch_type || '';
             viewButton.dataset.branchStatus = branch.branch_status || '';
             viewButton.dataset.corporateName = branch.corporate_name || '';
             viewButton.dataset.mainzone = branch.mainzone || '';
@@ -377,8 +462,14 @@
         });
     }
 
-    async function displayBranches(showAll) {
+    async function displayBranches(showAll, showLoadingCard) {
         closeSuggestions();
+        if (showLoadingCard !== false) {
+            loadingStatus.hidden = false;
+            dropdownFilters.hidden = true;
+            countCard.hidden = true;
+            tableCard.hidden = true;
+        }
         displayButton.disabled = true;
         displayAllButton.disabled = true;
         loadingStatus.textContent = 'Loading display for Branch status logs...';
@@ -387,14 +478,20 @@
         if (showAll) {
             params.set('all', '1');
         } else {
-            const query = searchInput.dataset.branchId || searchInput.value.trim();
+            const query = searchInput.dataset.branchId
+                || searchInput.dataset.branchName
+                || searchInput.value.trim();
             if (!query) {
                 updateButtonStates();
+                loadingStatus.hidden = true;
                 return;
             }
             params.set('q', query);
             params.set('all', '1');
         }
+        if (mainzoneSelect.value) params.set('mainzone', mainzoneSelect.value);
+        if (zoneSelect.value) params.set('zone', zoneSelect.value);
+        if (regionSelect.value) params.set('region_code', regionSelect.value);
 
         try {
             const endpoint = window.autoreconUrl('src/controllers/history-logs/branch-status-log-branches.php');
@@ -415,6 +512,10 @@
             renderTableRows([]);
             loadingStatus.textContent = error.message || 'Unable to display branch status logs.';
         } finally {
+            loadingStatus.hidden = true;
+            dropdownFilters.hidden = false;
+            countCard.hidden = false;
+            tableCard.hidden = false;
             updateButtonStates();
         }
     }
@@ -483,6 +584,7 @@
 
         const params = new URLSearchParams({
             branch_id: trigger.dataset.branchId || '',
+            branch_name: trigger.dataset.branchName || '',
             posted_at: trigger.dataset.postedAt || ''
         });
 
@@ -510,7 +612,6 @@
         detailsBranchId.textContent = trigger.dataset.branchId || '—';
         detailsBranchName.textContent = trigger.dataset.branchName || '—';
         detailsBosCode.textContent = trigger.dataset.bosCode || '—';
-        detailsBranchType.textContent = trigger.dataset.branchType || '—';
         detailsBranchStatus.textContent = trigger.dataset.branchStatus || '—';
         detailsCorporateName.textContent = trigger.dataset.corporateName || '—';
         detailsMainzone.textContent = trigger.dataset.mainzone || '—';
@@ -561,10 +662,21 @@
     });
     filterForm.addEventListener('submit', function (event) {
         event.preventDefault();
-        displayBranches(false);
+        displayBranches(false, true);
     });
     displayAllButton.addEventListener('click', function () {
-        displayBranches(true);
+        displayBranches(true, true);
+    });
+    mainzoneSelect.addEventListener('change', function () {
+        updateZoneOptions();
+        displayBranches(true, false);
+    });
+    zoneSelect.addEventListener('change', function () {
+        updateRegionOptions();
+        displayBranches(true, false);
+    });
+    regionSelect.addEventListener('change', function () {
+        displayBranches(true, false);
     });
     tableBody.addEventListener('click', function (event) {
         const viewButton = event.target.closest('.branch-status-logs-view-button');
@@ -578,6 +690,7 @@
         if (event.key === 'Escape' && !detailsModal.hidden) closeDetailsModal();
     });
     updateButtonStates();
+    loadZoningOptions();
 
 }());
 </script>

@@ -22,8 +22,12 @@ if (!isAuthenticated()) {
 }
 
 $query = trim((string) ($_GET['q'] ?? ''));
+$mainzoneFilter = trim((string) ($_GET['mainzone'] ?? ''));
+$zoneFilter = trim((string) ($_GET['zone'] ?? ''));
+$regionCodeFilter = trim((string) ($_GET['region_code'] ?? ''));
 $showAll = filter_var($_GET['all'] ?? false, FILTER_VALIDATE_BOOL);
-if (mb_strlen($query) > 150) {
+if (mb_strlen($query) > 150 || mb_strlen($mainzoneFilter) > 100
+    || mb_strlen($zoneFilter) > 100 || mb_strlen($regionCodeFilter) > 100) {
     branchStatusLogBranchesRespond(422, [
         'success' => false,
         'error' => 'The search value is too long.',
@@ -34,7 +38,7 @@ try {
     $connection = fileRecDbConnection();
     $sql = "WITH normalized_branches AS (
                 SELECT
-                    TRIM(mbp_branch_id) AS branch_id,
+                    COALESCE(TRIM(mbp_branch_id), '') AS branch_id,
                     COALESCE(
                         NULLIF(TRIM(mbp_mlmatic_branch_name), ''),
                         NULLIF(TRIM(mkpxbm_branch_name), ''),
@@ -55,6 +59,7 @@ try {
                         ''
                     ) AS posted_by,
                     TRIM(mbp_zone) AS zone,
+                    COALESCE(TRIM(mbp_region_code), '') AS region_code,
                     COALESCE(
                         NULLIF(TRIM(mrm_region_description), ''),
                         NULLIF(TRIM(mbp_gl_region), ''),
@@ -84,6 +89,7 @@ try {
                     mainzone,
                     posted_by,
                     zone,
+                    region_code,
                     region_name_1,
                     region_name_2,
                     area,
@@ -93,8 +99,7 @@ try {
                         ORDER BY posted_at DESC
                     ) AS pair_rank
                 FROM normalized_branches
-                WHERE branch_id <> ''
-                  AND branch_name <> ''
+                WHERE branch_name <> ''
             ), ranked_branches AS (
                 SELECT
                     branch_id,
@@ -105,12 +110,16 @@ try {
                     mainzone,
                     posted_by,
                     zone,
+                    region_code,
                     region_name_1,
                     region_name_2,
                     area,
                     posted_at,
                     ROW_NUMBER() OVER (
-                        PARTITION BY branch_id
+                        PARTITION BY CASE
+                            WHEN branch_id = '' THEN CONCAT('NAME:', UPPER(branch_name))
+                            ELSE CONCAT('ID:', UPPER(branch_id))
+                        END
                         ORDER BY posted_at DESC, branch_name ASC
                     ) AS branch_id_rank,
                     ROW_NUMBER() OVER (
@@ -124,12 +133,12 @@ try {
                 branch_id,
                 branch_name,
                 bos_code,
-                '' AS branch_type,
                 branch_status,
                 corporate_name,
                 mainzone,
                 posted_by,
                 zone,
+                region_code,
                 region_name_1,
                 region_name_2,
                 area,
@@ -143,6 +152,19 @@ try {
         $sql .= ' AND (branch_id LIKE ? OR branch_name LIKE ?)';
         $searchValue = '%' . $query . '%';
         $parameters = [$searchValue, $searchValue];
+    }
+
+    if ($mainzoneFilter !== '') {
+        $sql .= ' AND mainzone = ?';
+        $parameters[] = $mainzoneFilter;
+    }
+    if ($zoneFilter !== '') {
+        $sql .= ' AND zone = ?';
+        $parameters[] = $zoneFilter;
+    }
+    if ($regionCodeFilter !== '') {
+        $sql .= ' AND region_code = ?';
+        $parameters[] = $regionCodeFilter;
     }
 
     $sql .= ' ORDER BY branch_name ASC, branch_id ASC';

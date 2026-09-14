@@ -175,6 +175,10 @@
     box-sizing: border-box;
 }
 
+.branch-status-logs-loading-status[hidden] {
+    display: none;
+}
+
 .branch-status-logs-dropdown-filters {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -186,6 +190,40 @@
     border-radius: 8px;
     background: #fff;
     box-sizing: border-box;
+}
+
+.branch-status-logs-dropdown-filters[hidden],
+.branch-status-logs-count-card[hidden],
+.branch-status-logs-table-card[hidden] {
+    display: none;
+}
+
+.branch-status-logs-count-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px 14px;
+    border: 1px solid #dce6f1;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    box-sizing: border-box;
+}
+
+.branch-status-logs-count-card strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #e23547;
+    color: #fff;
+    font-size: 13px;
 }
 
 .branch-status-logs-select-field {
@@ -218,6 +256,12 @@
 .branch-status-logs-select-field select:focus {
     border-color: #e23547;
     box-shadow: 0 0 0 3px rgba(226, 53, 71, .1);
+}
+
+.branch-status-logs-select-field select:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: wait;
 }
 
 .branch-status-logs-table-card {
@@ -409,7 +453,7 @@ body.branch-status-logs-modal-open {
     margin: 0;
 }
 
-.branch-status-logs-modal__details > div:nth-child(-n+6) {
+.branch-status-logs-modal__details > div:nth-child(-n+5) {
     grid-column: 1;
 }
 
@@ -434,40 +478,36 @@ body.branch-status-logs-modal-open {
 }
 
 .branch-status-logs-modal__details > div:nth-child(6) {
-    grid-row: 6;
-}
-
-.branch-status-logs-modal__details > div:nth-child(7) {
     grid-column: 2 / span 2;
     grid-row: 1;
 }
 
-.branch-status-logs-modal__details > div:nth-child(8) {
+.branch-status-logs-modal__details > div:nth-child(7) {
     grid-column: 2;
     grid-row: 2;
 }
 
-.branch-status-logs-modal__details > div:nth-child(9) {
+.branch-status-logs-modal__details > div:nth-child(8) {
     grid-column: 3;
     grid-row: 2;
 }
 
-.branch-status-logs-modal__details > div:nth-child(10) {
+.branch-status-logs-modal__details > div:nth-child(9) {
     grid-column: 2 / span 2;
     grid-row: 3;
 }
 
-.branch-status-logs-modal__details > div:nth-child(11) {
+.branch-status-logs-modal__details > div:nth-child(10) {
     grid-column: 2 / span 2;
     grid-row: 4;
 }
 
-.branch-status-logs-modal__details > div:nth-child(12) {
+.branch-status-logs-modal__details > div:nth-child(11) {
     grid-column: 2 / span 2;
     grid-row: 5;
 }
 
-.branch-status-logs-modal__details > div:nth-child(13) {
+.branch-status-logs-modal__details > div:nth-child(12) {
     grid-column: 2 / span 2;
     grid-row: 6;
 }
